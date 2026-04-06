@@ -1,0 +1,17 @@
+
+> shadcn@0.1.0 dev
+> next dev --turbopack --hostname 0.0.0.0
+
+   ▲ Next.js 15.3.0 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://0.0.0.0:3000
+
+ ✓ Starting...
+Creating turbopack project {
+  dir: 'C:\\xampp\\htdocs\\mesprojets\\Proactive-corp\\Yessal-ZCut\\shadcn',
+  testMode: true
+}
+ ✓ Ready in 7.4s
+ ○ Compiling / ...
+ ✓ Compiled / in 19.9s
+ GET / 200 in 1094ms
