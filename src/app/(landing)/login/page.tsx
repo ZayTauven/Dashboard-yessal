@@ -1,0 +1,167 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { Eye, EyeOff, LogIn } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+export default function LoginPage() {
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: "var(--background)" }}
+    >
+      <div className="w-full max-w-sm">
+        {/* Logo / nom */}
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-block">
+            <span
+              className="text-base font-medium"
+              style={{ color: "var(--muted-foreground)", letterSpacing: "-0.01em" }}
+            >
+              Yessal Gui
+            </span>
+          </Link>
+          <h1
+            className="mt-3 text-2xl"
+            style={{
+              fontWeight: 300,
+              letterSpacing: "-0.02em",
+              color: "var(--foreground)",
+            }}
+          >
+            Connexion à votre espace
+          </h1>
+          <p className="mt-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
+            Réservé aux membres de la confrérie
+          </p>
+        </div>
+
+        {/* Formulaire */}
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            // MOCK LOGIN — Set cookie and redirect
+            document.cookie = "session-yessal=demotoken; path=/; max-age=86400";
+            window.location.href = "/dashboard";
+          }}
+        >
+          <div className="flex flex-col gap-1.5">
+            <Label
+              htmlFor="email"
+              className="text-sm"
+              style={{ color: "var(--foreground)" }}
+            >
+              Adresse email
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              placeholder="nom@exemple.com"
+              required
+              style={{
+                borderRadius: "8px",
+                height: "44px",
+                background: "var(--background)",
+                border: "1px solid var(--border)",
+                color: "var(--foreground)",
+                fontSize: "15px",
+              }}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <Label
+                htmlFor="password"
+                className="text-sm"
+                style={{ color: "var(--foreground)" }}
+              >
+                Mot de passe
+              </Label>
+              <Link
+                href="#"
+                className="text-xs"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                required
+                style={{
+                  borderRadius: "8px",
+                  height: "44px",
+                  background: "var(--background)",
+                  border: "1px solid var(--border)",
+                  color: "var(--foreground)",
+                  fontSize: "15px",
+                  paddingRight: "40px",
+                }}
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Masquer" : "Afficher"}
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                {showPassword ? (
+                  <EyeOff size={16} strokeWidth={1.5} />
+                ) : (
+                  <Eye size={16} strokeWidth={1.5} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            id="btn-connexion"
+            className="mt-2 gap-2"
+            style={{
+              background: "var(--yessal-green)",
+              color: "#FAFAF8",
+              borderRadius: "8px",
+              height: "48px",
+              fontSize: "15px",
+              fontWeight: 500,
+            }}
+          >
+            <LogIn size={16} strokeWidth={1.5} />
+            Connexion
+          </Button>
+        </form>
+
+        {/* Pied de page */}
+        <p
+          className="text-center text-xs mt-8"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          Pas encore de compte ?{" "}
+          <Link href="/contact" style={{ color: "var(--yessal-green)" }}>
+            Contactez votre administrateur
+          </Link>
+        </p>
+
+        <p
+          className="text-center text-xs mt-3"
+          style={{ color: "var(--border)" }}
+        >
+          Votre compte est validé par un administrateur.
+        </p>
+      </div>
+    </div>
+  );
+}

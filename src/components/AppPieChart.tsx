@@ -10,47 +10,47 @@ import {
 import { TrendingUp } from "lucide-react";
 
 const chartConfig = {
-  visitors: {
-    label: "Visitors",
+  dons: {
+    label: "Dons",
   },
-  chrome: {
-    label: "Chrome",
+  om: {
+    label: "Orange Money",
     color: "var(--chart-1)",
   },
-  safari: {
-    label: "Safari",
+  wave: {
+    label: "Wave",
     color: "var(--chart-2)",
   },
-  firefox: {
-    label: "Firefox",
+  paypal: {
+    label: "PayPal",
     color: "var(--chart-3)",
   },
-  edge: {
-    label: "Edge",
+  manuel: {
+    label: "Espèces (Manuel)",
     color: "var(--chart-4)",
   },
   other: {
-    label: "Other",
+    label: "Autre",
     color: "var(--chart-5)",
   },
 } satisfies ChartConfig;
 
 const chartData = [
-  { browser: "chrome", visitors: 275, fill: "var(--color-chrome)" },
-  { browser: "safari", visitors: 200, fill: "var(--color-safari)" },
-  { browser: "firefox", visitors: 287, fill: "var(--color-firefox)" },
-  { browser: "edge", visitors: 173, fill: "var(--color-edge)" },
-  { browser: "other", visitors: 190, fill: "var(--color-other)" },
+  { method: "om", dons: 2750000, fill: "var(--color-om)" },
+  { method: "wave", dons: 3200000, fill: "var(--color-wave)" },
+  { method: "paypal", dons: 850000, fill: "var(--color-paypal)" },
+  { method: "manuel", dons: 4100000, fill: "var(--color-manuel)" },
+  { method: "other", dons: 190000, fill: "var(--color-other)" },
 ];
 
 const AppPieChart = () => {
 
   // If you don't use React compiler use useMemo hook to improve performance
-  const totalVisitors = chartData.reduce((acc, curr) => acc + curr.visitors, 0);
+  const totalDons = chartData.reduce((acc, curr) => acc + curr.dons, 0);
   
   return (
     <div className="">
-      <h1 className="text-lg font-medium mb-6">Browser Usage</h1>
+      <h1 className="text-lg font-medium mb-6">Répartition par méthode</h1>
       <ChartContainer
         config={chartConfig}
         className="mx-auto aspect-square max-h-[250px]"
@@ -62,8 +62,8 @@ const AppPieChart = () => {
           />
           <Pie
             data={chartData}
-            dataKey="visitors"
-            nameKey="browser"
+            dataKey="dons"
+            nameKey="method"
             innerRadius={60}
             strokeWidth={5}
           >
@@ -80,16 +80,16 @@ const AppPieChart = () => {
                       <tspan
                         x={viewBox.cx}
                         y={viewBox.cy}
-                        className="fill-foreground text-3xl font-bold"
+                        className="fill-foreground text-2xl font-bold"
                       >
-                        {totalVisitors.toLocaleString()}
+                        {(totalDons / 1000000).toFixed(1)}M
                       </tspan>
                       <tspan
                         x={viewBox.cx}
                         y={(viewBox.cy || 0) + 24}
-                        className="fill-muted-foreground"
+                        className="fill-muted-foreground text-xs font-semibold"
                       >
-                        Visitors
+                        FCFA Collectés
                       </tspan>
                     </text>
                   );
@@ -101,10 +101,10 @@ const AppPieChart = () => {
       </ChartContainer>
       <div className="mt-4 flex flex-col gap-2 items-center">
         <div className="flex items-center gap-2 font-medium leading-none">
-          Trending up by 5.2% this month <TrendingUp className="h-4 w-4 text-green-500" />
+          En hausse de 12.5% ce mois <TrendingUp className="h-4 w-4 text-yessal-success" />
         </div>
-        <div className="leading-none text-muted-foreground">
-          Showing total visitors for the last 6 months
+        <div className="leading-none text-muted-foreground text-sm">
+          Cumul des dons sur les 6 derniers mois
         </div>
       </div>
     </div>

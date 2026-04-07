@@ -3,29 +3,29 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartToo
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 const chartConfig = {
-  desktop: {
-    label: "Desktop",
+  online: {
+    label: "Dons en ligne",
     color: "var(--chart-1)",
   },
-  mobile: {
-    label: "Mobile",
-    color: "var(--chart-4)",
+  manual: {
+    label: "Dons manuels",
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
 const chartData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 214, mobile: 140 },
+  { month: "Janvier", online: 186000, manual: 80000 },
+  { month: "Février", online: 305000, manual: 200000 },
+  { month: "Mars", online: 237000, manual: 120000 },
+  { month: "Avril", online: 73000, manual: 190000 },
+  { month: "Mai", online: 209000, manual: 130000 },
+  { month: "Juin", online: 214000, manual: 140000 },
 ];
 
 const AppBarChart = () => {
   return (
     <div className="">
-      <h1 className="text-lg font-medium mb-6">Total Revenue</h1>
+      <h1 className="text-lg font-medium mb-6">Dons collectés par mois</h1>
       <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
         <BarChart accessibilityLayer data={chartData}>
           <CartesianGrid vertical={false} />
@@ -40,11 +40,12 @@ const AppBarChart = () => {
             tickLine={false}
             tickMargin={10}
             axisLine={false}
+            tickFormatter={(value) => `${value / 1000}k`}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
           <ChartLegend content={<ChartLegendContent />} />
-          <Bar dataKey="desktop" fill="var(--color-desktop)" radius={4} />
-          <Bar dataKey="mobile" fill="var(--color-mobile)" radius={4} />
+          <Bar dataKey="online" fill="var(--color-online)" radius={4} />
+          <Bar dataKey="manual" fill="var(--color-manual)" radius={4} />
         </BarChart>
       </ChartContainer>
     </div>

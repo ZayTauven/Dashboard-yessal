@@ -16,29 +16,29 @@ import {
 } from "recharts";
 
 const chartConfig = {
-  desktop: {
-    label: "Desktop",
+  active: {
+    label: "Actifs",
     color: "var(--chart-2)",
   },
-  mobile: {
-    label: "Mobile",
+  new: {
+    label: "Nouveaux inscrits",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
 const chartData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 214, mobile: 140 },
+  { month: "Janvier", active: 186, new: 80 },
+  { month: "Février", active: 305, new: 200 },
+  { month: "Mars", active: 237, new: 120 },
+  { month: "Avril", active: 73, new: 190 },
+  { month: "Mai", active: 209, new: 130 },
+  { month: "Juin", active: 214, new: 140 },
 ];
 
 const AppAreaChart = () => {
   return (
     <div className="">
-      <h1 className="text-lg font-medium mb-6">Total Visitors</h1>
+      <h1 className="text-lg font-medium mb-6">Évolution des membres</h1>
       <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
         <AreaChart accessibilityLayer data={chartData}>
           <CartesianGrid vertical={false} />
@@ -53,45 +53,45 @@ const AppAreaChart = () => {
           <ChartTooltip content={<ChartTooltipContent />} />
           <ChartLegend content={<ChartLegendContent />} />
           <defs>
-            <linearGradient id="fillDesktop" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="fillActive" x1="0" y1="0" x2="0" y2="1">
               <stop
                 offset="5%"
-                stopColor="var(--color-desktop)"
+                stopColor="var(--color-active)"
                 stopOpacity={0.8}
               />
               <stop
                 offset="95%"
-                stopColor="var(--color-desktop)"
+                stopColor="var(--color-active)"
                 stopOpacity={0.1}
               />
             </linearGradient>
-            <linearGradient id="fillMobile" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="fillNew" x1="0" y1="0" x2="0" y2="1">
               <stop
                 offset="5%"
-                stopColor="var(--color-mobile)"
+                stopColor="var(--color-new)"
                 stopOpacity={0.8}
               />
               <stop
                 offset="95%"
-                stopColor="var(--color-mobile)"
+                stopColor="var(--color-new)"
                 stopOpacity={0.1}
               />
             </linearGradient>
           </defs>
           <Area
-            dataKey="mobile"
+            dataKey="new"
             type="natural"
-            fill="url(#fillMobile)"
+            fill="url(#fillNew)"
             fillOpacity={0.4}
-            stroke="var(--color-mobile)"
+            stroke="var(--color-new)"
             stackId="a"
           />
           <Area
-            dataKey="desktop"
+            dataKey="active"
             type="natural"
-            fill="url(#fillDesktop)"
+            fill="url(#fillActive)"
             fillOpacity={0.4}
-            stroke="var(--color-desktop)"
+            stroke="var(--color-active)"
             stackId="a"
           />
         </AreaChart>

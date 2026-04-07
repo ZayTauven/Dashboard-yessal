@@ -41,78 +41,149 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --color-custom-color: var(--custom-color);
+  /* Yessal Gui custom tokens */
+  --color-yessal-green: var(--yessal-green);
+  --color-yessal-gold: var(--yessal-gold);
+  --color-yessal-success: var(--yessal-success);
+  --color-yessal-warning: var(--yessal-warning);
+  --color-yessal-error: var(--yessal-error);
+  --color-yessal-info: var(--yessal-info);
 }
 
+/* ─── Yessal Gui — Spacing Tokens ─── */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --custom-color: oklch(0.6 0.2 150);
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  48px;
+  --space-2xl: 96px;
 }
 
+/* ─── Yessal Gui — Light Mode ─── */
+:root {
+  --radius: 0.5rem; /* 8px — selon DA */
+
+  /* Brand colors */
+  --yessal-green:       #1A5C3A; /* Vert profond — accent principal */
+  --yessal-gold:        #B8860B; /* Or discret — montants, highlights */
+  --yessal-success:     #2D6A4F;
+  --yessal-warning:     #92620A;
+  --yessal-error:       #8B2E2E;
+  --yessal-info:        #1C4E7A;
+
+  /* Backgrounds */
+  --background:         #FAFAF8; /* Blanc cassé */
+  --foreground:         #1C1C1A; /* Charbon doux */
+
+  /* Cards */
+  --card:               #FFFFFF;
+  --card-foreground:    #1C1C1A;
+
+  /* Popovers */
+  --popover:            #FFFFFF;
+  --popover-foreground: #1C1C1A;
+
+  /* Primary = Vert Yessal */
+  --primary:            #1A5C3A;
+  --primary-foreground: #FAFAF8;
+
+  /* Secondary */
+  --secondary:          #F0F0ED;
+  --secondary-foreground: #1C1C1A;
+
+  /* Muted */
+  --muted:              #F0F0ED;
+  --muted-foreground:   #6B6B65; /* Gris pierre */
+
+  /* Accent */
+  --accent:             #F0F0ED;
+  --accent-foreground:  #1A5C3A;
+
+  /* Destructive */
+  --destructive:        #8B2E2E;
+
+  /* Borders */
+  --border:             #E2E2DE;
+  --input:              #E2E2DE;
+  --ring:               #1A5C3A;
+
+  /* Charts — palette naturelle */
+  --chart-1:            #1A5C3A;
+  --chart-2:            #B8860B;
+  --chart-3:            #2D6A4F;
+  --chart-4:            #92620A;
+  --chart-5:            #1C4E7A;
+
+  /* Sidebar */
+  --sidebar:            #FAFAF8;
+  --sidebar-foreground: #1C1C1A;
+  --sidebar-primary:    #1A5C3A;
+  --sidebar-primary-foreground: #FAFAF8;
+  --sidebar-accent:     #EEF5F1;
+  --sidebar-accent-foreground: #1A5C3A;
+  --sidebar-border:     #E2E2DE;
+  --sidebar-ring:       #1A5C3A;
+}
+
+/* ─── Yessal Gui — Dark Mode ─── */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-  --custom-color: oklch(0.6 0.2 150);
+  /* Brand */
+  --yessal-green:       #3D8A5C; /* Légèrement plus clair sur fond sombre */
+  --yessal-gold:        #D4A520;
+
+  /* Backgrounds — DA : fond #0F0F0F, surfaces #1A1A1A */
+  --background:         #0F0F0F;
+  --foreground:         #E8E8E2; /* Texte DA */
+
+  /* Cards */
+  --card:               #1A1A1A;
+  --card-foreground:    #E8E8E2;
+
+  /* Popovers */
+  --popover:            #1A1A1A;
+  --popover-foreground: #E8E8E2;
+
+  /* Primary */
+  --primary:            #3D8A5C;
+  --primary-foreground: #0F0F0F;
+
+  /* Secondary */
+  --secondary:          #262626;
+  --secondary-foreground: #E8E8E2;
+
+  /* Muted */
+  --muted:              #262626;
+  --muted-foreground:   #999990;
+
+  /* Accent */
+  --accent:             #1E3329;
+  --accent-foreground:  #3D8A5C;
+
+  /* Destructive */
+  --destructive:        #C0504A;
+
+  /* Borders */
+  --border:             rgba(255, 255, 255, 0.08);
+  --input:              rgba(255, 255, 255, 0.12);
+  --ring:               #3D8A5C;
+
+  /* Charts */
+  --chart-1:            #3D8A5C;
+  --chart-2:            #D4A520;
+  --chart-3:            #5BAA84;
+  --chart-4:            #B8860B;
+  --chart-5:            #4A9BBF;
+
+  /* Sidebar — DA : fond sombre */
+  --sidebar:            #141414;
+  --sidebar-foreground: #E8E8E2;
+  --sidebar-primary:    #3D8A5C;
+  --sidebar-primary-foreground: #E8E8E2;
+  --sidebar-accent:     #1E3329;
+  --sidebar-accent-foreground: #3D8A5C;
+  --sidebar-border:     rgba(255, 255, 255, 0.06);
+  --sidebar-ring:       #3D8A5C;
 }
 
 @layer base {
@@ -121,5 +192,43 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
   }
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ─── Galerie landing — scroll infini ─── */
+@keyframes scroll-gallery {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+.gallery-scroll {
+  animation: scroll-gallery 30s linear infinite;
+}
+
+.gallery-scroll:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-scroll {
+    animation: none;
+  }
+}
+
+/* ─── Transitions UI ─── */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Focus visible — accessibilité */
+:focus-visible {
+  outline: 2px solid var(--yessal-green);
+  outline-offset: 2px;
 }
