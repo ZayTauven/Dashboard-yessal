@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { loginAction } from "@/app/actions/auth";
 import Link from "next/link";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +11,21 @@ import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState("");
+  const router = useRouter();
+
+  async function handleLogin(formData: FormData) {
+    setErrorMsg("");
+    startTransition(async () => {
+      const res = await loginAction(formData);
+      if (res.error) {
+        setErrorMsg(res.error);
+      } else if (res.success) {
+        router.push("/dashboard");
+      }
+    });
+  }
 
   return (
     <div
@@ -44,12 +61,7 @@ export default function LoginPage() {
         {/* Formulaire */}
         <form
           className="flex flex-col gap-4"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            // MOCK LOGIN — Set cookie and redirect
-            document.cookie = "session-yessal=demotoken; path=/; max-age=86400";
-            window.location.href = "/dashboard";
-          }}
+          action={handleLogin}
         >
           <div className="flex flex-col gap-1.5">
             <Label
@@ -61,6 +73,7 @@ export default function LoginPage() {
             </Label>
             <Input
               id="email"
+              name="email"
               type="email"
               autoComplete="email"
               placeholder="nom@exemple.com"
@@ -96,6 +109,7 @@ export default function LoginPage() {
             <div className="relative">
               <Input
                 id="password"
+                name="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 placeholder="••••••••"
@@ -126,10 +140,17 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {errorMsg && (
+            <div className="text-destructive text-sm font-medium mt-1">
+              {errorMsg}
+            </div>
+          )}
+
           <Button
             type="submit"
             id="btn-connexion"
             className="mt-2 gap-2"
+            disabled={isPending}
             style={{
               background: "var(--yessal-green)",
               color: "#FAFAF8",
@@ -140,7 +161,7 @@ export default function LoginPage() {
             }}
           >
             <LogIn size={16} strokeWidth={1.5} />
-            Connexion
+            {isPending ? "Connexion..." : "Connexion"}
           </Button>
         </form>
 

@@ -1,5 +1,8 @@
 "use client";
 
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { logoutAction } from "@/app/actions/auth";
 import {
   LayoutDashboard,
   Bell,
@@ -116,6 +119,16 @@ const navAdmin = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AppSidebar = () => {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const handleLogout = () => {
+    startTransition(async () => {
+      await logoutAction();
+      router.push("/login");
+    });
+  };
+
   return (
     <Sidebar collapsible="icon">
       {/* ── En-tête : Logo Yessal Gui ── */}
@@ -275,11 +288,8 @@ const AppSidebar = () => {
                   <Link href="/dashboard/profile">Mon profil</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem>Paramètres</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  document.cookie = "session-yessal=; path=/; max-age=0";
-                  window.location.href = "/login";
-                }}>
-                  Déconnexion
+                <DropdownMenuItem disabled={isPending} onClick={handleLogout}>
+                  {isPending ? "Déconnexion..." : "Déconnexion"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
