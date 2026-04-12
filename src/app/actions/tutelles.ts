@@ -3,9 +3,10 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
-async function getAuthHeader() {
+async function getAuthHeader(): Promise<Record<string, string>> {
   const cookiesList = await cookies();
   const token = cookiesList.get("session-yessal")?.value;
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -14,16 +15,19 @@ async function getAuthHeader() {
 export async function getTutelles() {
   try {
     const res = await fetch(`${BACKEND_URL}/api/tutelles/`, {
-      cache: 'no-store',
+      cache: "no-store",
       headers: {
         ...(await getAuthHeader()),
       },
     });
 
     if (!res.ok) {
-      return { error: "Erreur lors de la récupération des tutelles.", data: [] };
+      return {
+        error: "Erreur lors de la récupération des tutelles.",
+        data: [],
+      };
     }
-    
+
     const data = await res.json();
     return { data };
   } catch (err) {

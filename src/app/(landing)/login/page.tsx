@@ -8,6 +8,7 @@ import { Eye, EyeOff, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { BrandMark } from "@/components/BrandMark";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -35,14 +36,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo / nom */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <span
-              className="text-base font-medium"
-              style={{ color: "var(--muted-foreground)", letterSpacing: "-0.01em" }}
-            >
-              Yessal Gui
-            </span>
-          </Link>
+          <BrandMark href="/" size="md" className="justify-center" />
           <h1
             className="mt-3 text-2xl"
             style={{
@@ -99,8 +93,8 @@ export default function LoginPage() {
                 Mot de passe
               </Label>
               <Link
-                href="#"
-                className="text-xs"
+                href="/forgot-password"
+                className="text-xs hover:text-yessal-green transition-colors font-medium underline underline-offset-4 decoration-muted-foreground/30"
                 style={{ color: "var(--muted-foreground)" }}
               >
                 Mot de passe oublié ?
@@ -171,8 +165,8 @@ export default function LoginPage() {
           style={{ color: "var(--muted-foreground)" }}
         >
           Pas encore de compte ?{" "}
-          <Link href="/contact" style={{ color: "var(--yessal-green)" }}>
-            Contactez votre administrateur
+          <Link href="/register" className="font-bold underline underline-offset-4 decoration-yessal-green/30 transition-all hover:decoration-yessal-green" style={{ color: "var(--yessal-green)" }}>
+            S'inscrire au réseau
           </Link>
         </p>
 

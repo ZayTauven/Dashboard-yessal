@@ -5,14 +5,6 @@ import { addTutelle } from "@/app/actions/tutelles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 
 export function TutelleClient({ initialTutelles }: { initialTutelles: any[] }) {
@@ -35,47 +27,66 @@ export function TutelleClient({ initialTutelles }: { initialTutelles: any[] }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex justify-end">
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger asChild>
-            <Button
-              className="gap-2"
-              style={{
-                background: "var(--yessal-green)",
-                color: "#FAFAF8",
-              }}
+        <Button
+          className="gap-2"
+          style={{
+            background: "var(--yessal-green)",
+            color: "#FAFAF8",
+          }}
+          onClick={() => setIsOpen(true)}
+        >
+          <Plus size={16} /> Ajouter un proche
+        </Button>
+
+        {isOpen && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setIsOpen(false)}
+          >
+            <div
+              className="w-full max-w-[425px] rounded-xl border bg-background p-6 shadow-lg"
+              style={{ borderColor: "var(--border)" }}
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Plus size={16} /> Ajouter un proche
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]" style={{ background: "var(--background)", borderColor: "var(--border)" }}>
-            <DialogHeader>
-              <DialogTitle style={{ color: "var(--foreground)" }}>Nouveau proche</DialogTitle>
-              <DialogDescription style={{ color: "var(--muted-foreground)" }}>
-                Enregistrez un membre sous votre tutelle. Vous pourrez ensuite payer des dons en son nom.
-              </DialogDescription>
-            </DialogHeader>
-            <form action={handleAdd} className="grid gap-4 py-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="firstName" style={{ color: "var(--foreground)" }}>Prénom</Label>
-                <Input id="firstName" name="firstName" required />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="lastName" style={{ color: "var(--foreground)" }}>Nom</Label>
-                <Input id="lastName" name="lastName" required />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="relation" style={{ color: "var(--foreground)" }}>Lien de parenté</Label>
-                <Input id="relation" name="relation" placeholder="ex: Fils, Fille, Épouse..." required />
-              </div>
-              {errorMsg && <p className="text-sm text-red-500 font-medium">{errorMsg}</p>}
-              <div className="flex justify-end mt-4">
-                <Button type="submit" disabled={isPending} style={{ background: "var(--yessal-green)", color: "#FAFAF8" }}>
-                  {isPending ? "Enregistrement..." : "Enregistrer"}
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+                    Nouveau proche
+                  </h2>
+                  <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                    Enregistrez un membre sous votre tutelle. Vous pourrez ensuite payer des dons en son nom.
+                  </p>
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+                  Fermer
                 </Button>
               </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+
+              <form action={handleAdd} className="grid gap-4 py-4">
+                <div className="flex flex-col gap-1.5 text-left">
+                  <Label htmlFor="firstName" style={{ color: "var(--foreground)" }}>Prénom</Label>
+                  <Input id="firstName" name="firstName" required />
+                </div>
+                <div className="flex flex-col gap-1.5 text-left">
+                  <Label htmlFor="lastName" style={{ color: "var(--foreground)" }}>Nom</Label>
+                  <Input id="lastName" name="lastName" required />
+                </div>
+                <div className="flex flex-col gap-1.5 text-left">
+                  <Label htmlFor="relation" style={{ color: "var(--foreground)" }}>Lien de parenté</Label>
+                  <Input id="relation" name="relation" placeholder="ex: Fils, Fille, Épouse..." required />
+                </div>
+                {errorMsg && <p className="text-sm text-red-500 font-medium">{errorMsg}</p>}
+                <div className="flex justify-end mt-4">
+                  <Button type="submit" disabled={isPending} style={{ background: "var(--yessal-green)", color: "#FAFAF8" }}>
+                    {isPending ? "Enregistrement..." : "Enregistrer"}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="border rounded-md" style={{ borderColor: "var(--border)" }}>

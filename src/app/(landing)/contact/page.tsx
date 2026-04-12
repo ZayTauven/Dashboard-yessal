@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { BrandMark } from "@/components/BrandMark";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -18,14 +19,7 @@ export default function ContactPage() {
     >
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-block">
-            <span
-              className="text-base font-medium"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Yessal Gui
-            </span>
-          </Link>
+          <BrandMark href="/" size="md" className="justify-center" />
           <h1
             className="mt-3 text-2xl"
             style={{

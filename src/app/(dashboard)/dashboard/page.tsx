@@ -1,30 +1,18 @@
-import AppAreaChart from "@/components/AppAreaChart";
-import AppBarChart from "@/components/AppBarChart";
-import AppPieChart from "@/components/AppPieChart";
-import CardList from "@/components/CardList";
-import TodoList from "@/components/TodoList";
+import { getDashboardStats } from "@/app/actions/analytics";
+import { DashboardClient } from "./DashboardClient";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const { data: stats, error } = await getDashboardStats();
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-4 gap-4">
-      <div className="bg-card p-4 rounded-lg lg:col-span-2 xl:col-span-1 2xl:col-span-2 border shadow-sm">
-        <AppBarChart />
-      </div>
-      <div className="bg-card p-4 rounded-lg border shadow-sm">
-        <CardList title="Derniers dons" />
-      </div>
-      <div className="bg-card p-4 rounded-lg border shadow-sm">
-        <AppPieChart />
-      </div>
-      <div className="bg-card p-4 rounded-lg border shadow-sm">
-        <TodoList />
-      </div>
-      <div className="bg-card p-4 rounded-lg lg:col-span-2 xl:col-span-1 2xl:col-span-2 border shadow-sm">
-        <AppAreaChart />
-      </div>
-      <div className="bg-card p-4 rounded-lg border shadow-sm">
-        <CardList title="Campagnes actives" />
-      </div>
+    <div className="p-4 flex flex-col gap-8">
+      {error ? (
+        <div className="p-8 text-center bg-red-50 text-red-600 rounded-2xl border border-red-100 font-medium">
+          {error} - Veuillez rafraîchir la page.
+        </div>
+      ) : (
+        <DashboardClient stats={stats} />
+      )}
     </div>
   );
 }

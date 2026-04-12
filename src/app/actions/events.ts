@@ -5,19 +5,17 @@ import { revalidatePath } from "next/cache";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
-async function getAuthHeader() {
+async function getAuthHeader(): Promise<HeadersInit | undefined> {
   const cookiesList = await cookies();
   const token = cookiesList.get("session-yessal")?.value;
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
 }
 
 export async function getEvents() {
   try {
     const res = await fetch(`${BACKEND_URL}/api/events/`, {
       cache: 'no-store',
-      headers: {
-        ...(await getAuthHeader()),
-      },
+      headers: await getAuthHeader(),
     });
 
     if (!res.ok) {
@@ -33,29 +31,11 @@ export async function getEvents() {
 }
 
 export async function addEvent(formData: FormData) {
-  const name = formData.get("name");
-  const description = formData.get("description");
-  const eventDate = formData.get("eventDate");
-  const recurrence = formData.get("recurrence");
-
-  if (!name) {
-    return { error: "Le nom de l'événement est requis." };
-  }
-
   try {
     const res = await fetch(`${BACKEND_URL}/api/events/`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(await getAuthHeader()),
-      },
-      body: JSON.stringify({
-        name,
-        description,
-        event_date: eventDate || null,
-        recurrence: recurrence || 'none',
-        is_date_fixed: !!eventDate,
-      }),
+      headers: await getAuthHeader(),
+      body: formData, // Send FormData directly for file support
     });
 
     if (!res.ok) {
@@ -64,9 +44,37 @@ export async function addEvent(formData: FormData) {
     }
 
     revalidatePath("/dashboard/events");
-    return { success: true };
+    return { success: true, data: await res.json() };
   } catch (err) {
     console.error(err);
     return { error: "Erreur de connexion au serveur backend (Django joignable ?)." };
   }
+}
+
+export async function deleteEvent(id: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/events/${id}/`, {
+      method: "DELETE",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) return { error: "Suppression échouée." };
+    revalidatePath("/dashboard/events");
+    return { success: true };
+  } catch (err) {
+    return { error: "Erreur réseau." };
+  }
+}
+
+export async function addEventMedia(eventId: number, formData: FormData) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/events-media/`, {
+        method: "POST",
+        headers: await getAuthHeader(),
+        body: formData,
+      });
+      if (!res.ok) return { error: "Échec de l'ajout du média." };
+      return { success: true, data: await res.json() };
+    } catch (err) {
+      return { error: "Erreur réseau." };
+    }
 }

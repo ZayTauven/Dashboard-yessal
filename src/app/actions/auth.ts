@@ -52,3 +52,34 @@ export async function logoutAction() {
   cookiesList.delete("session-yessal");
   return { success: true };
 }
+
+export async function registerAction(formData: FormData) {
+    const data = Object.fromEntries(formData);
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/register/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        const result = await res.json();
+        if (!res.ok) return { error: result.detail || "Échec de l'inscription." };
+        return { success: true };
+    } catch (err) {
+        return { error: "Erreur réseau." };
+    }
+}
+
+export async function forgotPasswordAction(email: string) {
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/forgot-password/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        const result = await res.json();
+        if (!res.ok) return { error: result.detail || "Échec de la demande." };
+        return { success: true, message: result.detail };
+    } catch (err) {
+        return { error: "Erreur réseau." };
+    }
+}

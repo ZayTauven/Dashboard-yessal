@@ -5,21 +5,14 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import { Moon, Sun, LogIn, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/BrandMark";
 
 export default function LandingPage() {
   return (
     <div className="h-screen w-full overflow-hidden flex flex-col" style={{ background: "var(--background)" }}>
       {/* ── Navbar flottante ── */}
       <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-5">
-        <div className="flex items-center gap-3">
-          {/* Logo texte — remplacer par <Image> avec logo SVG si disponible */}
-          <span
-            className="text-lg font-medium tracking-tight"
-            style={{ color: "var(--foreground)", letterSpacing: "-0.02em" }}
-          >
-            Yessal Gui
-          </span>
-        </div>
+        <BrandMark href="/" size="sm" showSubtitle={false} />
         <nav className="flex items-center gap-3">
           <ThemeToggle />
           <Link href="/contact">
@@ -27,7 +20,7 @@ export default function LandingPage() {
               variant="ghost"
               size="sm"
               className="text-sm gap-2"
-              style={{ color: "var(--muted-foreground)" }}
+              style={{ color: "var(--muted-foreground)", cursor: "pointer" }}
             >
               <HelpCircle size={15} strokeWidth={1.5} />
               Contacter le support
@@ -41,6 +34,7 @@ export default function LandingPage() {
                 background: "var(--yessal-green)",
                 color: "#FAFAF8",
                 borderRadius: "8px",
+                cursor: "pointer",
               }}
             >
               <LogIn size={15} strokeWidth={1.5} />
@@ -97,6 +91,7 @@ export default function LandingPage() {
                   padding: "0 28px",
                   height: "48px",
                   fontSize: "15px",
+                  cursor: "pointer",
                 }}
               >
                 Connexion
@@ -111,7 +106,8 @@ export default function LandingPage() {
                   height: "48px",
                   fontSize: "15px",
                   color: "var(--muted-foreground)",
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--border)",  
+                  cursor: "pointer",
                 }}
               >
                 Contacter le support
