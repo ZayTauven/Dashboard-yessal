@@ -1,6 +1,9 @@
 import { getAnnouncements } from "@/app/actions/announcements";
 import { getDaaras } from "@/app/actions/daara";
-import { AnnouncementManagementClient } from "./AnnouncementManagementClient";
+import {
+  AnnouncementManagementClient,
+  type Announcement,
+} from "./AnnouncementManagementClient";
 
 export default async function AdminAnnouncementsPage() {
   const [{ data: announcements, error: annError }, { data: daaras, error: daaraError }] = await Promise.all([
@@ -22,7 +25,10 @@ export default async function AdminAnnouncementsPage() {
       {error ? (
         <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 font-medium">{error}</div>
       ) : (
-        <AnnouncementManagementClient initialAnnouncements={announcements || []} daaras={daaras || []} />
+        <AnnouncementManagementClient
+          initialAnnouncements={(announcements || []) as Announcement[]}
+          daaras={daaras || []}
+        />
       )}
     </div>
   );

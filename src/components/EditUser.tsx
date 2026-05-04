@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from "./ui/form";
 import { Input } from "./ui/input";
+import PhoneNumberValidation from "./PhoneNumberValidation";
 import {
   Select,
   SelectContent,
@@ -36,7 +37,7 @@ const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address!" }),
   phone: z.string().min(10).max(15),
   location: z.string().min(2),
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "chef_daara", "collector", "member", "tutelle"]),
 });
 
 const EditUser = () => {
@@ -47,7 +48,7 @@ const EditUser = () => {
       email: "john.doe@gmail.com",
       phone: "+1 234 5678",
       location: "New York, NY",
-      role: "admin",
+      role: "member",
     },
   });
   return (
@@ -136,8 +137,11 @@ const EditUser = () => {
                           <SelectValue placeholder="Role" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="admin">Administrateur</SelectItem>
+                          <SelectItem value="chef_daara">Chef Daara</SelectItem>
+                          <SelectItem value="collector">Collecteur</SelectItem>
+                          <SelectItem value="member">Talibé (Membre)</SelectItem>
+                          <SelectItem value="tutelle">Tutelle</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>

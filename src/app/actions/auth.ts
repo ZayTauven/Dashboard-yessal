@@ -2,13 +2,35 @@
 
 import { cookies } from "next/headers";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+
+function extractApiError(payload: unknown, fallback: string) {
+  if (!payload || typeof payload !== "object") return fallback;
+
+  if ("detail" in payload && typeof payload.detail === "string") {
+    return payload.detail;
+  }
+
+  for (const value of Object.values(payload)) {
+    if (typeof value === "string") return value;
+    if (
+      Array.isArray(value) &&
+      value.length > 0 &&
+      typeof value[0] === "string"
+    ) {
+      return value[0];
+    }
+  }
+
+  return fallback;
+}
 
 export async function loginAction(formData: FormData) {
-  const email = formData.get("email");
+  const identifier = formData.get("identifier");
   const password = formData.get("password");
 
-  if (!email || !password) {
+  if (!identifier || !password) {
     return { error: "Veuillez remplir tous les champs." };
   }
 
@@ -18,24 +40,22 @@ export async function loginAction(formData: FormData) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-        // Renvoie l'erreur détaillée de Django (ex: compte inactif ou mauvais identifiants)
-        return { error: data.detail || "Identifiants invalides." };
+      return { error: data.detail || "Identifiants invalides." };
     }
 
-    // On stocke le JWT comme convenu ("session-yessal") pour que le middleware le détecte
     const cookiesList = await cookies();
     cookiesList.set({
       name: "session-yessal",
       value: data.access,
       httpOnly: true,
       path: "/",
-      maxAge: 60 * 60, // 1 heure (Doit matcher avec SIMPLE_JWT)
+      maxAge: 60 * 60,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
     });
@@ -43,7 +63,7 @@ export async function loginAction(formData: FormData) {
     return { success: true };
   } catch (error) {
     console.error("Login Error:", error);
-    return { error: "Erreur de connexion au serveur backend (Django joignable ?)." };
+    return { error: "Erreur de connexion au serveur." };
   }
 }
 
@@ -54,32 +74,48 @@ export async function logoutAction() {
 }
 
 export async function registerAction(formData: FormData) {
-    const data = Object.fromEntries(formData);
-    try {
-        const res = await fetch(`${BACKEND_URL}/api/auth/register/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        });
-        const result = await res.json();
-        if (!res.ok) return { error: result.detail || "Échec de l'inscription." };
-        return { success: true };
-    } catch (err) {
-        return { error: "Erreur réseau." };
+  const data = Object.fromEntries(formData);
+  const email = String(data.email || "").trim();
+  const phone = String(data.phone || "").trim();
+  if (!email && !phone) {
+    return {
+      error: "Un email ou un numéro de téléphone est obligatoire.",
+    };
+  }
+
+  data.email = email;
+  data.phone = phone;
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/register/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (!res.ok) {
+      return {
+        error: extractApiError(result, "Échec de l'inscription."),
+      };
     }
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur réseau." };
+  }
 }
 
 export async function forgotPasswordAction(email: string) {
-    try {
-        const res = await fetch(`${BACKEND_URL}/api/auth/forgot-password/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-        });
-        const result = await res.json();
-        if (!res.ok) return { error: result.detail || "Échec de la demande." };
-        return { success: true, message: result.detail };
-    } catch (err) {
-        return { error: "Erreur réseau." };
-    }
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/forgot-password/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const result = await res.json();
+    if (!res.ok) return { error: result.detail || "Échec de la demande." };
+    return { success: true, message: result.detail };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur réseau." };
+  }
 }

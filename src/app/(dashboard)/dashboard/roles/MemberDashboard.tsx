@@ -8,6 +8,8 @@ import Link from "next/link";
 export default function MemberDashboard({ stats }: { stats: any }) {
   const kpis = stats?.kpis || [];
   const announcements = stats?.announcements || [];
+  const campaignDonations = stats?.campaign_donations || [];
+  const chartData = stats?.chartData || [];
 
   const topAnnouncements = announcements.slice(0, 3); // Show top 3 as alerts
 
@@ -68,6 +70,24 @@ export default function MemberDashboard({ stats }: { stats: any }) {
 
       {/* KPI GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Campaign List as a special card if Member */}
+        {campaignDonations.length > 0 && (
+           <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-3 hover:border-yessal-green/30 transition-all col-span-1 md:col-span-2 lg:col-span-1" style={{ borderColor: "var(--border)" }}>
+              <div className="flex justify-between items-center mb-1">
+                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Dons par Campagne</p>
+                 <Wallet size={16} className="text-yessal-green" />
+              </div>
+              <div className="space-y-2 max-h-[100px] overflow-y-auto pr-2">
+                 {campaignDonations.map((cd: any) => (
+                    <div key={cd.id} className="flex justify-between items-center text-xs border-b border-dashed pb-1 last:border-0" style={{ borderColor: 'var(--border)' }}>
+                       <span className="truncate max-w-[120px] font-medium" title={cd.name}>{cd.name}</span>
+                       <span className="font-bold text-yessal-green">{cd.total.toLocaleString()} <span className="text-[9px]">F</span></span>
+                    </div>
+                 ))}
+              </div>
+           </div>
+        )}
+
         {kpis.map((kpi: any, idx: number) => {
           const Icon = kpi.icon === 'Wallet' ? Wallet : 
                        kpi.icon === 'HandCoins' ? HandCoins : 
@@ -94,7 +114,11 @@ export default function MemberDashboard({ stats }: { stats: any }) {
                 <h3 className="text-lg font-bold">Évolution de mes dons</h3>
                 <span className="text-xs text-muted-foreground">7 derniers jours</span>
              </div>
-             <AppAreaChart />
+              <AppAreaChart 
+                data={chartData} 
+                title="" 
+                subtitle="Dons cumulés par jour"
+              />
         </div>
         <div className="bg-card p-6 rounded-2xl border shadow-sm divide-y" style={{ borderColor: "var(--border)" }}>
              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">

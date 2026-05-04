@@ -1,9 +1,10 @@
-"use server";
+﻿"use server";
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
 async function getAuthHeader(): Promise<HeadersInit | undefined> {
   const cookiesList = await cookies();
@@ -13,15 +14,15 @@ async function getAuthHeader(): Promise<HeadersInit | undefined> {
 
 export async function getEvents() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/events/`, {
-      cache: 'no-store',
+    const res = await fetch(`${BACKEND_URL}/api/events/fetes/`, {
+      cache: "no-store",
       headers: await getAuthHeader(),
     });
 
     if (!res.ok) {
-      return { error: "Erreur lors de la récupération des événements.", data: [] };
+      return { error: "Erreur lors de la récupération des fÃªtes.", data: [] };
     }
-    
+
     const data = await res.json();
     return { data };
   } catch (err) {
@@ -31,29 +32,46 @@ export async function getEvents() {
 }
 
 export async function addEvent(formData: FormData) {
+  const isActiveRaw = String(formData.get("is_active") || "true");
+  const payload = {
+    name: String(formData.get("name") || "").trim(),
+    description: String(formData.get("description") || "").trim(),
+    date: formData.get("event_date") || null,
+    recurrence: formData.get("recurrence") || "none",
+    is_active: isActiveRaw === "true" || isActiveRaw === "on",
+  };
+
   try {
-    const res = await fetch(`${BACKEND_URL}/api/events/`, {
+    const res = await fetch(`${BACKEND_URL}/api/events/fetes/`, {
       method: "POST",
-      headers: await getAuthHeader(),
-      body: formData, // Send FormData directly for file support
+      headers: {
+        ...(await getAuthHeader()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
-      const data = await res.json();
-      return { error: data.detail || "Erreur lors de la création de l'événement." };
+      const data = await res.json().catch(() => ({}));
+      return {
+        error:
+          (data as { detail?: string }).detail ||
+          "Erreur lors de la création de la fÃªte.",
+      };
     }
 
     revalidatePath("/dashboard/events");
+    revalidatePath("/dashboard/campaigns/new");
     return { success: true, data: await res.json() };
   } catch (err) {
     console.error(err);
-    return { error: "Erreur de connexion au serveur backend (Django joignable ?)." };
+    return { error: "Erreur de connexion au serveur." };
   }
 }
 
 export async function deleteEvent(id: number) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/events/${id}/`, {
+    const res = await fetch(`${BACKEND_URL}/api/events/fetes/${id}/`, {
       method: "DELETE",
       headers: await getAuthHeader(),
     });
@@ -65,16 +83,6 @@ export async function deleteEvent(id: number) {
   }
 }
 
-export async function addEventMedia(eventId: number, formData: FormData) {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/events-media/`, {
-        method: "POST",
-        headers: await getAuthHeader(),
-        body: formData,
-      });
-      if (!res.ok) return { error: "Échec de l'ajout du média." };
-      return { success: true, data: await res.json() };
-    } catch (err) {
-      return { error: "Erreur réseau." };
-    }
+export async function addEventMedia() {
+  return { error: "La galerie d'actualités est gérée via /api/news." };
 }

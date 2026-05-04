@@ -14,9 +14,9 @@ export default async function AdminUsersPage() {
     <div className="p-8 max-w-7xl mx-auto flex flex-col gap-8">
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestion des Utilisateurs</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Utilisateurs et rôles</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
-            Pilotez l'ensemble des accès à la plateforme Yessal Gui. Créez des profils, modifiez les rôles et exportez vos listes.
+            Pilotez l&apos;ensemble des accès à la plateforme Yessal Gui, y compris les comptes administrateurs. Créez des profils, modifiez les rôles et validez les inscriptions.
           </p>
         </div>
       </div>

@@ -1,8 +1,11 @@
-import { getAnnouncements } from "@/app/actions/announcements";
-import { NotificationsClient } from "./NotificationsClient";
+import { getNotifications } from "@/app/actions/notifications";
+import {
+  NotificationsClient,
+  type Notification,
+} from "./NotificationsClient";
 
 export default async function NotificationsPage() {
-  const { data: announcements, error } = await getAnnouncements();
+  const { data: notifications, error } = await getNotifications();
 
   return (
     <div className="p-8 max-w-4xl mx-auto flex flex-col gap-8">
@@ -15,7 +18,7 @@ export default async function NotificationsPage() {
             Notifications
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-            Toutes vos alertes et annonces centralisées.
+            Toutes vos alertes personnelles centralisées.
           </p>
         </div>
       </div>
@@ -25,7 +28,9 @@ export default async function NotificationsPage() {
           {error} — Impossible de charger les notifications.
         </div>
       ) : (
-        <NotificationsClient announcements={announcements || []} />
+        <NotificationsClient
+          notifications={(notifications || []) as Notification[]}
+        />
       )}
     </div>
   );

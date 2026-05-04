@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     template: "%s | Yessal Gui",
   },
   description:
-    "Gérez les dons, campagnes et événements de votre communauté. Plateforme dédiée à la confrérie.",
+    "Gérez les Jëfs, les Ndiguels et actualités de votre communauté. Plateforme dédiée à la confrérie.",
 };
 
 export default function RootLayout({

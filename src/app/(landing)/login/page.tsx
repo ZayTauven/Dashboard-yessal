@@ -47,30 +47,30 @@ export default function LoginPage() {
           >
             Connexion à votre espace
           </h1>
-          <p className="mt-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
+          <p
+            className="mt-2 text-sm"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             Réservé aux membres de la confrérie
           </p>
         </div>
 
         {/* Formulaire */}
-        <form
-          className="flex flex-col gap-4"
-          action={handleLogin}
-        >
+        <form className="flex flex-col gap-4" action={handleLogin}>
           <div className="flex flex-col gap-1.5">
             <Label
-              htmlFor="email"
+              htmlFor="identifier"
               className="text-sm"
               style={{ color: "var(--foreground)" }}
             >
-              Adresse email
+              Email ou téléphone
             </Label>
             <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="nom@exemple.com"
+              id="identifier"
+              name="identifier"
+              type="text"
+              autoComplete="username"
+              placeholder="nom@exemple.com ou +221..."
               required
               style={{
                 borderRadius: "8px",
@@ -165,8 +165,12 @@ export default function LoginPage() {
           style={{ color: "var(--muted-foreground)" }}
         >
           Pas encore de compte ?{" "}
-          <Link href="/register" className="font-bold underline underline-offset-4 decoration-yessal-green/30 transition-all hover:decoration-yessal-green" style={{ color: "var(--yessal-green)" }}>
-            S'inscrire au réseau
+          <Link
+            href="/register"
+            className="font-bold underline underline-offset-4 decoration-yessal-green/30 transition-all hover:decoration-yessal-green"
+            style={{ color: "var(--yessal-green)" }}
+          >
+            S&apos;inscrire au réseau
           </Link>
         </p>
 
@@ -180,3 +184,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

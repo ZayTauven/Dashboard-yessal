@@ -28,8 +28,8 @@ export function MembersValidationClient({ initialUsers }: { initialUsers: any[] 
   };
 
   const filtered = users.filter(u => 
-      u.email.toLowerCase().includes(filter.toLowerCase()) || 
-      u.first_name.toLowerCase().includes(filter.toLowerCase())
+      (u.email?.toLowerCase().includes(filter.toLowerCase()) ?? false) || 
+      (u.first_name?.toLowerCase().includes(filter.toLowerCase()) ?? false)
   );
 
   return (

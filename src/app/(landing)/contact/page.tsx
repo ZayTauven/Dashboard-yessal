@@ -38,9 +38,7 @@ export default function ContactPage() {
           </p>
         </div>
 
-        <form
-          className="flex flex-col gap-4"
-        >
+        <form className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label
               htmlFor="contact-name"
@@ -51,6 +49,24 @@ export default function ContactPage() {
             <Input
               id="contact-name"
               placeholder="Votre nom"
+              style={{
+                borderRadius: "8px",
+                height: "44px",
+                border: "1px solid var(--border)",
+              }}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label
+              htmlFor="contact-phone"
+              style={{ color: "var(--foreground)" }}
+            >
+              Téléphone
+            </Label>
+            <Input
+              id="contact-phone"
+              type="phone"
+              placeholder="78 123 .. .."
               style={{
                 borderRadius: "8px",
                 height: "44px",

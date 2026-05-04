@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ExportButton } from "@/components/ExportButton";
+import PhoneNumberValidation from "@/components/PhoneNumberValidation";
 import { 
     updateUserStatus, 
     updateUserRole, 
@@ -68,9 +69,27 @@ function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: stri
     const [search, setSearch] = useState("");
 
     const filteredDaaras = daaras.filter(d => 
-        d.name.toLowerCase().includes(search.toLowerCase()) || 
-        d.code?.toLowerCase().includes(search.toLowerCase())
+        (d.name?.toLowerCase().includes(search.toLowerCase()) ?? false) || 
+        (d.ldd?.name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+        (d.ldd?.code?.toLowerCase().includes(search.toLowerCase()) ?? false)
     );
+
+    // Group daaras by LDD
+    const groupedDaaras = useMemo(() => {
+        const groups: { [key: string]: { name: string, code: string, items: any[] } } = {};
+        filteredDaaras.forEach(d => {
+            const lddId = d.ldd?.id || "unknown";
+            if (!groups[lddId]) {
+                groups[lddId] = { 
+                    name: d.ldd?.name || "Sans LDD", 
+                    code: d.ldd?.code || "??",
+                    items: [] 
+                };
+            }
+            groups[lddId].items.push(d);
+        });
+        return Object.values(groups);
+    }, [filteredDaaras]);
 
     const selectedDaara = daaras.find(d => d.id.toString() === value);
 
@@ -83,24 +102,33 @@ function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: stri
                     aria-expanded={open}
                     className="w-full justify-between bg-muted/20 border-none h-10"
                 >
-                    {selectedDaara ? selectedDaara.name : "Choisir un Daara..."}
+                    <div className="flex items-center gap-2 overflow-hidden">
+                        {selectedDaara ? (
+                            <>
+                                <Badge variant="outline" className="text-[10px] px-1 h-4 border-yessal-green/30 text-yessal-green">
+                                    {selectedDaara.ldd?.code || "??"}
+                                </Badge>
+                                <span className="truncate">{selectedDaara.name}</span>
+                            </>
+                        ) : "Choisir un Daara..."}
+                    </div>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0">
+            <PopoverContent className="w-[350px] p-0" align="start">
                 <div className="flex items-center border-b px-3">
                     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                     <input
-                        className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                        placeholder="Rechercher..."
+                        className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+                        placeholder="Rechercher par Daara ou LDD..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <ScrollArea className="h-[200px]">
+                <ScrollArea className="h-[300px]">
                     <div className="p-1">
                         <div 
-                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                             onClick={() => {
                                 onChange("");
                                 setOpen(false);
@@ -109,19 +137,29 @@ function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: stri
                             <Check className={`mr-2 h-4 w-4 ${value === "" ? "opacity-100" : "opacity-0"}`} />
                             Global (Aucun Daara)
                         </div>
-                        {filteredDaaras.map((daara) => (
-                            <div
-                                key={daara.id}
-                                className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                                onClick={() => {
-                                    onChange(daara.id.toString());
-                                    setOpen(false);
-                                }}
-                            >
-                                <Check className={`mr-2 h-4 w-4 ${value === daara.id.toString() ? "opacity-100" : "opacity-0"}`} />
-                                {daara.name}
+                        
+                        {groupedDaaras.map((group) => (
+                            <div key={group.code} className="mt-2">
+                                <div className="px-2 py-1 text-[10px] font-black uppercase text-muted-foreground bg-muted/30 rounded flex justify-between items-center">
+                                    <span>Ligue : {group.name}</span>
+                                    <span className="text-yessal-green">{group.code}</span>
+                                </div>
+                                {group.items.map((daara) => (
+                                    <div
+                                        key={daara.id}
+                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-4 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                        onClick={() => {
+                                            onChange(daara.id.toString());
+                                            setOpen(false);
+                                        }}
+                                    >
+                                        <Check className={`mr-2 h-4 w-4 ${value === daara.id.toString() ? "opacity-100" : "opacity-0"}`} />
+                                        {daara.name}
+                                    </div>
+                                ))}
                             </div>
                         ))}
+                        
                         {filteredDaaras.length === 0 && (
                             <div className="py-6 text-center text-sm text-muted-foreground">Aucun résultat.</div>
                         )}
@@ -149,9 +187,9 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
       const matchesSearch = 
-        u.email.toLowerCase().includes(search.toLowerCase()) ||
-        u.first_name.toLowerCase().includes(search.toLowerCase()) ||
-        u.last_name.toLowerCase().includes(search.toLowerCase());
+        (u.email?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+        (u.first_name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+        (u.last_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
       const matchesRole = roleFilter === "all" || u.role === roleFilter;
       return matchesSearch && matchesRole;
     });
@@ -246,7 +284,10 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
       const formData = new FormData(e.currentTarget);
       const data = Object.fromEntries(formData);
       // use selectedDaaraId instead of select value if needed
-      const payload = { ...data, daara_id: selectedDaaraId };
+      const payload = { 
+          ...data, 
+          daara_id: selectedDaaraId || null 
+      };
       const { error, data: newUser } = await createUserByAdmin(payload);
       if (!error) {
           setIsAddModalOpen(false);
@@ -262,7 +303,10 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
       if (!editingUser) return;
       const formData = new FormData(e.currentTarget);
       const data = Object.fromEntries(formData);
-      const payload = { ...data, daara_id: selectedDaaraId };
+      const payload = { 
+          ...data, 
+          daara_id: selectedDaaraId || null 
+      };
       const { error, data: updatedUser } = await updateUserAction(editingUser.id, payload);
       if (!error) {
           setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
@@ -395,7 +439,7 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
                         <Input name="last_name" defaultValue={editingUser.last_name} required />
                     </div>
                     <Input name="email" defaultValue={editingUser.email} type="email" required />
-                    <Input name="phone" defaultValue={editingUser.phone} placeholder="Téléphone" />
+                    <PhoneNumberValidation name="phone" hideLabel={true} defaultValue={editingUser.phone?.replace('+', '') || "221"} />
                     
                     <div className="grid grid-cols-2 gap-4">
                         <Select name="role" defaultValue={editingUser.role}>
@@ -474,9 +518,16 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
                                 </Badge>
                             </td>
                             <td className="px-6 py-4">
-                                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                    <Building2 size={14} className="text-yessal-green/50" />
-                                    {user.daara?.name || "Global"}
+                                <div className="flex flex-col gap-1">
+                                    <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                                        <Building2 size={14} className="text-yessal-green/50" />
+                                        {user.daara?.name || "Global"}
+                                    </div>
+                                    {user.daara?.ldd && (
+                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60 uppercase font-bold ml-5">
+                                            Ligue : {user.daara.ldd.code}
+                                        </div>
+                                    )}
                                 </div>
                             </td>
                             <td className="px-6 py-4 text-right">

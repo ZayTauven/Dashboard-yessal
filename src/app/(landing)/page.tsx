@@ -76,7 +76,7 @@ export default function LandingPage() {
             className="text-base mb-10 leading-relaxed"
             style={{ color: "var(--muted-foreground)", maxWidth: "420px" }}
           >
-            Centralisez les campagnes, tracez chaque contribution et renforcez
+            Centralisez les Ndiguels, tracez chaque Jëfs et renforcez
             les liens de votre Daara — depuis n'importe où dans le monde.
           </p>
 

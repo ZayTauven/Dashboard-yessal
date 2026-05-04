@@ -25,7 +25,7 @@ import { createAnnouncement, deleteAnnouncement } from "@/app/actions/announceme
 import { useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface Announcement {
+export interface Announcement {
   id: number;
   title: string;
   content: string;
