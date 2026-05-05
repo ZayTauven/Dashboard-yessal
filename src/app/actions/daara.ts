@@ -39,11 +39,61 @@ export async function getLDDs() {
       cache: "no-store",
       headers: await getAuthHeader(),
     });
-    if (!res.ok) return { error: "Erreur de récupération des LDDs." };
+    if (!res.ok) return { error: "Erreur de récupération des Zones." };
     return { data: await res.json() };
   } catch (err) {
     console.error(err);
     return { error: "Erreur de connexion." };
+  }
+}
+
+export async function createLDD(payload: { name: string; code: string }) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/ldd/`, {
+      method: "POST",
+      headers: {
+        ...((await getAuthHeader()) as object),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return { error: "Échec de création de la Zone." };
+    revalidatePath("/dashboard/admin/daara");
+    return { data: await res.json() };
+  } catch (err) {
+    return { error: "Erreur serveur." };
+  }
+}
+
+export async function updateLDD(id: number, payload: { name?: string; code?: string }) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/ldd/${id}/`, {
+      method: "PATCH",
+      headers: {
+        ...((await getAuthHeader()) as object),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return { error: "Échec de mise à jour de la Zone." };
+    revalidatePath("/dashboard/admin/daara");
+    return { data: await res.json() };
+  } catch (err) {
+    return { error: "Erreur serveur." };
+  }
+}
+
+export async function deleteLDD(id: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/ldd/${id}/`, {
+      method: "DELETE",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) return { error: "Suppression de la Zone impossible (Daaras rattachés ?)." };
+    revalidatePath("/dashboard/admin/daara");
+    return { success: true };
+  } catch (err) {
+    return { error: "Erreur réseau." };
   }
 }
 

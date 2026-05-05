@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -69,6 +69,43 @@ export async function addEvent(formData: FormData) {
   }
 }
 
+export async function updateEvent(id: number, formData: FormData) {
+  const isActiveRaw = String(formData.get("is_active") || "true");
+  const payload = {
+    name: String(formData.get("name") || "").trim(),
+    description: String(formData.get("description") || "").trim(),
+    date: formData.get("event_date") || null,
+    recurrence: formData.get("recurrence") || "none",
+    is_active: isActiveRaw === "true" || isActiveRaw === "on",
+  };
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/events/fetes/${id}/`, {
+      method: "PATCH",
+      headers: {
+        ...(await getAuthHeader()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return {
+        error:
+          (data as { detail?: string }).detail ||
+          "Erreur lors de la mise à jour de la fête.",
+      };
+    }
+
+    revalidatePath("/dashboard/events");
+    return { success: true, data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur." };
+  }
+}
+
 export async function deleteEvent(id: number) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/events/fetes/${id}/`, {
@@ -81,6 +118,15 @@ export async function deleteEvent(id: number) {
   } catch (err) {
     return { error: "Erreur réseau." };
   }
+}
+
+export async function notifyMembersAboutEvent(id: number) {
+  // Simulation d'une notification aux membres
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({ success: true, message: "Les membres ont été notifiés via mobile et email." });
+    }, 1500);
+  });
 }
 
 export async function addEventMedia() {

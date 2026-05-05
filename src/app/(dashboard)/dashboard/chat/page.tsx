@@ -9,8 +9,9 @@ import { jwtDecode } from "jwt-decode";
 export default async function ChatPage({
   searchParams,
 }: {
-  searchParams?: { chat?: string };
+  searchParams: Promise<{ chat?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const [{ data: chats, error }, { data: profile }] = await Promise.all([
     getChats(),
     getProfile(),
@@ -47,8 +48,8 @@ export default async function ChatPage({
   }
 
   const currentUserId = profile?.id ?? jwtPayload?.user_id ?? 0;
-  const initialSelectedChatId = searchParams?.chat
-    ? Number(searchParams.chat)
+  const initialSelectedChatId = resolvedSearchParams.chat
+    ? Number(resolvedSearchParams.chat)
     : null;
 
   const daaraId =

@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
-import { jwtDecode } from "jwt-decode";
+import { getProfile } from "@/app/actions/users";
 
 /**
  * Layout de protection pour toutes les routes /dashboard/admin/*.
@@ -12,22 +11,13 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session-yessal")?.value;
+  const { data: profile, error } = await getProfile();
 
-  if (!token) {
+  if (error || !profile) {
     redirect("/login");
   }
 
-  let role: string | undefined;
-  try {
-    const decoded = jwtDecode<{ role?: string }>(token);
-    role = decoded.role;
-  } catch {
-    redirect("/login");
-  }
-
-  if (role !== "admin") {
+  if (profile.role !== "admin") {
     // Redirige les non-admins vers le dashboard
     redirect("/dashboard");
   }

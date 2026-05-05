@@ -1,6 +1,7 @@
 "use client";
 
 import { CreditCard, History, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { SmartLink } from "@/components/SmartLink";
@@ -37,6 +38,8 @@ export function DonationListClient({
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const filteredDonations = useMemo(() => {
     const q = search.toLowerCase();
@@ -54,6 +57,12 @@ export function DonationListClient({
       return matchesSearch && matchesStatus;
     });
   }, [initialDonations, search, statusFilter, variant]);
+
+  const totalPages = Math.ceil(filteredDonations.length / itemsPerPage);
+  const paginatedDonations = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredDonations.slice(start, start + itemsPerPage);
+  }, [filteredDonations, currentPage]);
 
   const exportData = useMemo(() => {
     return filteredDonations.map((don) => {
@@ -171,7 +180,7 @@ export function DonationListClient({
                 className="divide-y divide-border"
                 style={{ color: "var(--foreground)" }}
               >
-                {filteredDonations.map((don) => (
+                {paginatedDonations.map((don) => (
                   <tr
                     key={don.id}
                     className="hover:bg-muted/30 transition-colors"
@@ -269,6 +278,46 @@ export function DonationListClient({
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="h-9 px-4 rounded-lg font-bold border-none bg-muted/20"
+          >
+            Précédent
+          </Button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <Button
+                key={p}
+                variant={currentPage === p ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setCurrentPage(p)}
+                className={`h-9 w-9 rounded-lg font-bold border-none ${
+                  currentPage === p 
+                    ? "bg-yessal-green text-white shadow-lg shadow-yessal-green/20" 
+                    : "text-muted-foreground hover:text-yessal-green hover:bg-yessal-green/5"
+                }`}
+              >
+                {p}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="h-9 px-4 rounded-lg font-bold border-none bg-muted/20"
+          >
+            Suivant
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

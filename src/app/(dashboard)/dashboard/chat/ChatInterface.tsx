@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Send, Hash, MessageSquare, Search } from "lucide-react";
+import { Send, Hash, MessageSquare, Search, Check, CheckCheck, MoreVertical } from "lucide-react";
 
 type ChatRow = {
   id: number | string;
@@ -145,17 +145,26 @@ export function ChatInterface({
       setMessages([]);
       return;
     }
+
     const chatId = selectedChat.id;
     let cancelled = false;
-    (async () => {
+
+    const fetchMsgs = async () => {
       const { data, error } = await getMessagesForChat(String(chatId));
       if (!cancelled) {
         if (error) setMessages([]);
         else setMessages((data as MessageRow[]) || []);
       }
-    })();
+    };
+
+    fetchMsgs();
+
+    // Polling WhatsApp-style
+    const interval = setInterval(fetchMsgs, 5000);
+
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
   }, [selectedChat]);
 
@@ -377,35 +386,44 @@ export function ChatInterface({
         ) : (
           <>
             <div
-              className="p-4 border-b flex items-center justify-between bg-card z-10"
+              className="p-4 border-b flex items-center justify-between bg-white/80 backdrop-blur-md z-10 sticky top-0"
               style={{ borderColor: "var(--border)" }}
             >
               <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
+                <Avatar className="h-10 w-10 border-2 border-yessal-green/20">
                   <AvatarFallback
                     className="bg-yessal-green text-white"
                     style={{ background: "var(--yessal-green)" }}
                   >
-                    <Hash size={18} />
+                    {selectedChat.name ? selectedChat.name[0].toUpperCase() : <Hash size={18} />}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <div className="font-bold text-sm leading-none">
                     {selectedChat.name || "Discussion"}
                   </div>
-                  <div className="text-[10px] text-muted-foreground mt-1">
-                    Messages chargés depuis le serveur
+                  <div className="text-[10px] text-yessal-green mt-1 font-semibold animate-pulse">
+                    en ligne
                   </div>
                 </div>
               </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                <MoreVertical size={18} />
+              </Button>
             </div>
 
             <div
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-6 space-y-4 min-h-[200px]"
+              className="flex-1 overflow-y-auto p-6 space-y-3 min-h-[200px]"
+              style={{ 
+                backgroundColor: "#e5ddd5",
+                backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
+                backgroundBlendMode: "overlay",
+                backgroundOpacity: 0.06
+              }}
             >
               {messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-xs text-muted-foreground italic">
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground italic bg-white/20 backdrop-blur-sm rounded-lg">
                   Aucun message pour l&apos;instant. Envoyez le premier.
                 </div>
               ) : (
@@ -414,38 +432,38 @@ export function ChatInterface({
                   return (
                     <div
                       key={m.id}
-                      className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                      className={`flex ${isMe ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-1 duration-300`}
                     >
                       <div
-                        className={`max-w-[70%] ${isMe ? "items-end" : "items-start"}`}
+                        className={`max-w-[85%] relative ${isMe ? "items-end" : "items-start"}`}
                       >
                         <div
-                          className={`text-[10px] text-muted-foreground mb-1 px-1 flex gap-2 ${isMe ? "flex-row-reverse" : ""}`}
-                        >
-                          <span className="font-bold">
-                            {isMe ? "Moi" : m.sender_name || "Membre"}
-                          </span>
-                          <span>
-                            {new Date(m.sent_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                        </div>
-                        <div
-                          className={`p-3 rounded-2xl shadow-sm text-sm ${
+                          className={`p-2 px-3 rounded-xl shadow-sm text-[13px] relative ${
                             isMe
-                              ? "text-white rounded-tr-none"
-                              : "bg-card border rounded-tl-none"
+                              ? "bg-[#dcf8c6] text-slate-800 rounded-tr-none"
+                              : "bg-white text-slate-800 rounded-tl-none border border-slate-200"
                           }`}
-                          style={{
-                            background: isMe
-                              ? "var(--yessal-green)"
-                              : "var(--card)",
-                            borderColor: !isMe ? "var(--border)" : "transparent",
-                          }}
                         >
-                          {m.content}
+                          {!isMe && (
+                            <div className="text-[10px] font-black text-yessal-green mb-0.5 uppercase tracking-tighter">
+                                {m.sender_name || "Membre"}
+                            </div>
+                          )}
+                          <div className="leading-relaxed whitespace-pre-wrap break-words pb-4 pr-12">
+                            {m.content}
+                          </div>
+                          
+                          <div className="absolute bottom-1 right-2 flex items-center gap-1">
+                            <span className="text-[9px] text-slate-400 font-medium">
+                                {new Date(m.sent_at).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                })}
+                            </span>
+                            {isMe && (
+                                <CheckCheck size={12} className="text-blue-500" />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

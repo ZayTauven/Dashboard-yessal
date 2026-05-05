@@ -96,6 +96,15 @@ export function CampaignsClient({
   );
   const [assistantSearch, setAssistantSearch] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("orange_money");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const itemsPerPage = 6;
+
+  const filteredByStatus = initialCampaigns.filter(c => {
+    if (statusFilter === "all") return true;
+    const status = c.effective_status ?? c.status;
+    return status === statusFilter;
+  });
 
   useEffect(() => {
     if (!isManageOpen || !selectedCampaign) return;
@@ -261,10 +270,23 @@ export function CampaignsClient({
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex justify-end">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-2 bg-muted/40 p-1 rounded-xl">
+            {["all", "active", "inactive", "completed"].map((s) => (
+                <button
+                    key={s}
+                    onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
+                    className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                        statusFilter === s ? "bg-card shadow-sm text-yessal-green" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                    {s === "all" ? "Tous" : s === "active" ? "En cours" : s === "inactive" ? "Inactifs" : "Terminés"}
+                </button>
+            ))}
+        </div>
         {isAdmin && (
           <Button
-            className="gap-2"
+            className="gap-3 shadow-xl shadow-yessal-green/20 rounded-2xl h-12 px-8 font-black uppercase tracking-widest text-[10px] border-none"
             style={{
               background: "var(--yessal-green)",
               color: "#FAFAF8",
@@ -272,14 +294,14 @@ export function CampaignsClient({
             asChild
           >
             <Link href="/dashboard/campaigns/new">
-              <Plus size={16} /> Nouvelle campagne
+              <Plus size={20} /> Lancer un Ndiguel
             </Link>
           </Button>
         )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {initialCampaigns.length === 0 ? (
+        {filteredByStatus.length === 0 ? (
           <div
             className="col-span-full p-12 text-center border-2 border-dashed rounded-lg"
             style={{
@@ -287,10 +309,12 @@ export function CampaignsClient({
               color: "var(--muted-foreground)",
             }}
           >
-            Aucune campagne de dons active pour le moment.
+            Aucune campagne correspondant à ce statut.
           </div>
         ) : (
-          initialCampaigns.map((camp) => {
+          filteredByStatus
+            .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+            .map((camp) => {
             const collected = camp.collected_amount ?? 0;
             const goal = camp.goal_amount;
             const progressPct =
@@ -359,79 +383,39 @@ export function CampaignsClient({
                     </span>
                   )}
                 </CardHeader>
-                <CardContent className="py-6 space-y-4 flex-1">
-                  {camp.objective && (
-                    <div className="text-sm bg-muted/30 p-3 rounded-lg border text-muted-foreground italic mb-4">
-                      <span className="font-semibold block mb-1 not-italic">
-                        Objectif :
-                      </span>
-                      {camp.objective}
-                    </div>
-                  )}
-
-                  {goal > 0 ? (
-                    <>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            Progression
-                          </span>
-                          <span className="font-bold">
-                            {Math.round(progressPct)}%
-                          </span>
-                        </div>
-                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-yessal-green transition-all"
-                            style={{
-                              width: `${progressPct}%`,
-                              background: "var(--yessal-green)",
-                            }}
-                          />
-                        </div>
+                {goal > 0 && (
+                  <CardContent className="py-6 space-y-4 flex-1">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1">
+                        <span className="text-muted-foreground">Progression</span>
+                        <span className="text-yessal-green">{progressPct.toFixed(0)}%</span>
                       </div>
-                      <div
-                        className="grid grid-cols-2 pt-2 border-t"
-                        style={{ borderColor: "var(--border)" }}
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-[10px] uppercase text-muted-foreground font-semibold">
-                            Objectif
-                          </span>
-                          <span className="text-sm font-bold">
-                            {Number(camp.goal_amount).toLocaleString()} FCFA
-                          </span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-[10px] uppercase text-muted-foreground font-semibold">
-                            Collecté
-                          </span>
-                          <span
-                            className="text-sm font-bold text-yessal-green"
-                            style={{ color: "var(--yessal-green)" }}
-                          >
-                            {Number(
-                              camp.collected_amount || 0,
-                            ).toLocaleString()}{" "}
-                            FCFA
-                          </span>
-                        </div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden border">
+                        <div
+                          className="h-full bg-yessal-green transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                          style={{ width: `${progressPct}%` }}
+                        />
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-center text-sm font-semibold text-muted-foreground p-4 bg-muted/20 rounded-lg">
-                      Campagne sans objectif financier fixe.
                     </div>
-                  )}
-
-                  <div className="text-xs text-muted-foreground">
-                    {typeof camp.days_remaining === "number"
-                      ? camp.days_remaining > 0
-                        ? `${camp.days_remaining} jour(s) restants pour l'organisation`
-                        : "Organisation close: les privilèges du responsable sont retirés"
-                      : null}
-                  </div>
-                </CardContent>
+                    <div
+                      className="grid grid-cols-2 pt-4 mt-2 border-t"
+                      style={{ borderColor: "var(--border)" }}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase text-muted-foreground font-black">Objectif</span>
+                        <span className="text-sm font-black">
+                          {Number(camp.goal_amount).toLocaleString()} FCFA
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] uppercase text-muted-foreground font-black">Collecté</span>
+                        <span className="text-sm font-black text-yessal-green">
+                          {Number(camp.collected_amount || 0).toLocaleString()} FCFA
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                )}
                 <CardFooter
                   className="pt-0 p-0 flex flex-col sm:flex-row border-t"
                   style={{ borderColor: "var(--border)" }}
@@ -506,6 +490,36 @@ export function CampaignsClient({
           })
         )}
       </div>
+
+      {filteredByStatus.length > itemsPerPage && (
+        <div className="flex justify-center gap-2 mt-8">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Précédent
+          </Button>
+          <div className="flex items-center px-4 text-sm font-medium">
+            Page {currentPage} sur {Math.ceil(filteredByStatus.length / itemsPerPage)}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setCurrentPage((prev) =>
+                Math.min(Math.ceil(filteredByStatus.length / itemsPerPage), prev + 1),
+              )
+            }
+            disabled={
+              currentPage === Math.ceil(filteredByStatus.length / itemsPerPage)
+            }
+          >
+            Suivant
+          </Button>
+        </div>
+      )}
 
       {isManageOpen && selectedCampaign && (
         <div

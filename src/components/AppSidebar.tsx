@@ -20,6 +20,7 @@ import {
   ChevronUp,
   Wallet,
   Settings,
+  Newspaper,
 } from "lucide-react";
 import {
   Sidebar,
@@ -94,6 +95,11 @@ const AppSidebar = ({ user }: AppSidebarProps) => {
   const navApplication = [
     { title: "Tableau de bord", url: "/dashboard", icon: LayoutDashboard },
     {
+      title: "Actualités",
+      url: "/dashboard/news",
+      icon: Newspaper,
+    },
+    {
       title: "Notifications",
       url: "/dashboard/notifications",
       icon: Bell,
@@ -108,7 +114,12 @@ const AppSidebar = ({ user }: AppSidebarProps) => {
         : "Mes Jëfs";
 
   const navGestion = [
-    { title: "Fêtes", url: "/dashboard/events", icon: CalendarDays },
+    {
+      title: "Fêtes",
+      url: "/dashboard/events",
+      icon: CalendarDays,
+      roles: ["admin"],
+    },
     { title: "Les Ndiguels", url: "/dashboard/campaigns", icon: Landmark },
     {
       title: "Collecte (Physique)",

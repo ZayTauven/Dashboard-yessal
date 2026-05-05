@@ -2,6 +2,7 @@ import { getCampaignMetrics } from "@/app/actions/analytics";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, CheckCircle2, TrendingUp, Presentation } from "lucide-react";
+import { SmartLink } from "@/components/SmartLink";
 
 type CampaignMetric = {
   id: number;
@@ -137,13 +138,17 @@ export default async function CampaignMetricsPage() {
                 return (
                   <TableRow key={m.id} className="hover:bg-muted/20 transition-colors">
                     <TableCell className="pl-6 font-semibold">
-                      {m.organizer_name}
+                      <SmartLink href="/dashboard/members" className="no-underline text-foreground hover:text-yessal-green">
+                        {m.organizer_name}
+                      </SmartLink>
                       <span className="block text-[10px] uppercase text-muted-foreground mt-0.5">
                         {m.organizer_role}
                       </span>
                     </TableCell>
                     <TableCell className="font-medium text-muted-foreground">
-                      {m.campaign_name}
+                      <SmartLink href={`/dashboard/campaigns/${m.id}`} className="font-bold">
+                        {m.campaign_name}
+                      </SmartLink>
                       {m.objective && <span className="block text-[10px] truncate max-w-[200px] mt-0.5" title={m.objective}>Obj: {m.objective}</span>}
                     </TableCell>
                     <TableCell>

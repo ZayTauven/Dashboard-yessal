@@ -32,7 +32,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 interface AppAreaChartProps {
-  data?: any[];
+  data?: Record<string, unknown>[];
   title?: string;
   subtitle?: string;
   nameKey?: string;

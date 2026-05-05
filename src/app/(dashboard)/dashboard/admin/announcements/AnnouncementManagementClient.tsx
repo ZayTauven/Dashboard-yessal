@@ -24,6 +24,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createAnnouncement, deleteAnnouncement } from "@/app/actions/announcements";
 import { useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useMemo } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown, Search as SearchIcon } from "lucide-react";
 
 export interface Announcement {
   id: number;
@@ -37,7 +40,101 @@ export interface Announcement {
   created_at: string;
 }
 
+// Searchable Daara Selector for Announcements
+function DaaraSelector({ daaras, value, onChange }: { daaras: any[], value: string, onChange: (val: string) => void }) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+
+    const sortedDaaras = useMemo(() => {
+        return [...daaras].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }, [daaras]);
+
+    const filteredDaaras = sortedDaaras.filter(d => 
+        (d.name?.toLowerCase().includes(search.toLowerCase()) ?? false) || 
+        (d.ldd?.name?.toLowerCase().includes(search.toLowerCase()) ?? false)
+    );
+
+    const groupedDaaras = useMemo(() => {
+        const groups: { [key: string]: { name: string, items: any[] } } = {};
+        filteredDaaras.forEach(d => {
+            const lddId = d.ldd?.id || "unknown";
+            if (!groups[lddId]) {
+                groups[lddId] = { name: d.ldd?.name || "Sans Zone", items: [] };
+            }
+            groups[lddId].items.push(d);
+        });
+        return Object.values(groups);
+    }, [filteredDaaras]);
+
+    const selectedDaara = daaras.find(d => d.id.toString() === value);
+
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={open}
+                    className="w-full justify-between bg-muted/20 border-none h-11 rounded-xl px-3"
+                >
+                    <span className="truncate">
+                        {selectedDaara ? selectedDaara.name : "Sélectionner un Daara..."}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[400px] p-0 border-none shadow-2xl" align="start">
+                <div className="flex items-center border-b px-3 bg-muted/10">
+                    <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                    <input
+                        className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
+                        placeholder="Rechercher par Daara ou Zone..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+                <ScrollArea className="h-[350px]">
+                    <div className="p-1">
+                        <div 
+                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground font-bold"
+                            onClick={() => {
+                                onChange("NONE");
+                                setOpen(false);
+                            }}
+                        >
+                            <Check className={`mr-2 h-4 w-4 ${value === "NONE" ? "opacity-100" : "opacity-0"}`} />
+                            Toutes les entités
+                        </div>
+                        
+                        {groupedDaaras.map((group) => (
+                            <div key={group.name} className="mt-2">
+                                <div className="px-2 py-1 text-[10px] font-black uppercase text-yessal-green bg-yessal-green/5 rounded mb-1">
+                                    Zone : {group.name}
+                                </div>
+                                {group.items.map((daara) => (
+                                    <div
+                                        key={daara.id}
+                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-4 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                        onClick={() => {
+                                            onChange(daara.id.toString());
+                                            setOpen(false);
+                                        }}
+                                    >
+                                        <Check className={`mr-2 h-4 w-4 ${value === daara.id.toString() ? "opacity-100" : "opacity-0"}`} />
+                                        {daara.name}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
 export function AnnouncementManagementClient({ initialAnnouncements, daaras }: { initialAnnouncements: Announcement[], daaras: any[] }) {
+    const [selectedDaaraId, setSelectedDaaraId] = useState("NONE");
   const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const router = useRouter();
@@ -102,6 +199,8 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
                         <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Message complet</label>
                         <Textarea name="content" placeholder="Que voulez-vous dire à la communauté ?" className="min-h-[120px] bg-muted/10 border-none focus-visible:ring-1 focus-visible:ring-yessal-green" required />
                     </div>
+
+                    <input type="hidden" name="daara" value={selectedDaaraId} />
                     
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
@@ -148,18 +247,8 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Entité concernée</label>
-                            <Select name="daara">
-                                <SelectTrigger className="bg-muted/10 border-none h-11">
-                                    <SelectValue placeholder="Aucune" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="NONE">Toutes les entités</SelectItem>
-                                    {daaras.map(d => (
-                                        <SelectItem key={d.id} value={d.id.toString()}>{d.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Entité concernée (Daara)</label>
+                            <DaaraSelector daaras={daaras} value={selectedDaaraId} onChange={setSelectedDaaraId} />
                         </div>
                     </div>
                     

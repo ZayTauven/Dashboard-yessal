@@ -85,7 +85,7 @@ export function NewCampaignClient({
             style={{ color: "var(--foreground)" }}
           >
             <Target size={20} style={{ color: "var(--yessal-green)" }} />
-            {isEditMode ? "Modifier la campagne" : "Creer une campagne"}
+            {isEditMode ? "Modifier le Ndiguel" : "Lancer un nouveau Ndiguel"}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
             Une campagne peut etre liee a une fete et pilotee par un membre.
@@ -137,16 +137,6 @@ export function NewCampaignClient({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="objective">Objectif qualitatif (Optionnel)</Label>
-            <Textarea
-              id="objective"
-              name="objective"
-              placeholder="Ex.: Acheter 50 corans et financer la peinture..."
-              rows={2}
-              defaultValue={initialCampaign?.objective ?? ""}
-            />
-          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

@@ -3,7 +3,16 @@
 import Link from "next/link";
 import { AlertCircle, ChevronRight } from "lucide-react";
 
-export default function ProfileCompletionBanner({ profile }: { profile: any }) {
+interface ProfileBannerProps {
+  profile: {
+    birth_date?: string;
+    gender?: string;
+    residence_country?: string;
+    documents?: any[];
+  } | null;
+}
+
+export default function ProfileCompletionBanner({ profile }: ProfileBannerProps) {
   if (!profile) return null;
 
   // Check if profile is complete
@@ -26,7 +35,7 @@ export default function ProfileCompletionBanner({ profile }: { profile: any }) {
             Assurez-vous de compléter votre profil
           </p>
           <p className="text-xs text-orange-700/80 dark:text-orange-400/80 font-medium hidden sm:block">
-            Votre date de naissance, genre, numéro de carte d'identité et pays sont requis.
+            Votre date de naissance, genre, numéro de carte d&apos;identité et pays sont requis.
           </p>
         </div>
       </div>

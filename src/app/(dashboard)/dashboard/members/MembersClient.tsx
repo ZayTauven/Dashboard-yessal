@@ -14,7 +14,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { SmartLink } from "@/components/SmartLink";
-import { Search, Users, Building2, Filter, UserCircle } from "lucide-react";
+import { Search, Users, Building2, Filter, UserCircle, Phone, Mail, Shield, MapPin, FileText, CheckCircle2, XCircle } from "lucide-react";
 import { promoteUserToCollector } from "@/app/actions/directory";
 
 type Role = "chef_daara" | "collector" | "member";
@@ -47,8 +47,11 @@ type MemberRow = {
   role: string;
   status: string;
   daara_name?: string | null;
+  zone_name?: string | null;
+  zone_code?: string | null;
   avatar?: string | null;
   title?: string | null;
+  documents_count?: number;
 };
 
 export function MembersClient({
@@ -64,6 +67,8 @@ export function MembersClient({
   const [detail, setDetail] = useState<MemberRow | null>(null);
   const [isPending, startTransition] = useTransition();
   const [promoteError, setPromoteError] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -79,6 +84,12 @@ export function MembersClient({
       return matchesSearch && matchesRole;
     });
   }, [initialMembers, search, roleFilter]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, currentPage]);
 
   const roleCounts = useMemo(() => {
     const counts: Record<string, number> = { all: initialMembers.length };
@@ -153,7 +164,7 @@ export function MembersClient({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((m) => {
+        {paginated.map((m) => {
           const role = m.role as Role;
           const roleColor = ROLE_COLORS[role] || ROLE_COLORS.member;
           const roleLabel = ROLE_LABELS[role] || m.role;
@@ -208,54 +219,111 @@ export function MembersClient({
       </div>
 
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserCircle size={20} style={{ color: "var(--yessal-green)" }} />
-              Fiche Talibé
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl">
           {detail && (
-            <div className="space-y-3 text-sm">
-              <p>
-                <span className="text-muted-foreground">Nom : </span>
-                <strong>
-                  {detail.first_name} {detail.last_name}
-                </strong>
-              </p>
-              <p>
-                <span className="text-muted-foreground">Titre : </span>
-                {detail.title || "Talibé"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">E-mail : </span>
-                {detail.email}
-              </p>
-              {detail.phone ? (
-                <p>
-                  <span className="text-muted-foreground">Téléphone : </span>
-                  {detail.phone}
-                </p>
-              ) : null}
-              <p>
-                <span className="text-muted-foreground">Rôle : </span>
-                {ROLE_LABELS[detail.role as Role] || detail.role}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Statut : </span>
-                {detail.status}
-              </p>
-              {detail.daara_name ? (
-                <p>
-                  <span className="text-muted-foreground">Daara : </span>
-                  {detail.daara_name}
-                </p>
-              ) : null}
-              {promoteError && (
-                <p className="text-xs text-red-600 font-medium">
-                  {promoteError}
-                </p>
-              )}
+            <div className="flex flex-col">
+              {/* Header Visual */}
+              <div className="bg-yessal-green p-8 flex flex-col items-center gap-4 relative overflow-hidden">
+                <div className="absolute inset-0 opacity-10 pointer-events-none">
+                    <Users size={200} className="absolute -bottom-10 -right-10 rotate-12" />
+                </div>
+                <Avatar className="h-24 w-24 border-4 border-white/30 shadow-xl relative z-10">
+                  <AvatarImage src={detail.avatar || undefined} className="object-cover" />
+                  <AvatarFallback className="bg-white text-yessal-green text-3xl font-black">
+                    {detail.first_name?.[0]}{detail.last_name?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-center text-white relative z-10">
+                  <h3 className="text-2xl font-black">{detail.first_name} {detail.last_name}</h3>
+                  <Badge className="mt-2 bg-white/20 text-white border-none backdrop-blur-md uppercase text-[10px] font-black px-3 py-1">
+                    {ROLE_LABELS[detail.role as Role] || detail.role}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Status & Identity */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-muted/30 p-3 rounded-2xl border flex flex-col gap-1">
+                        <span className="text-[10px] font-black uppercase text-muted-foreground">Statut</span>
+                        <div className="flex items-center gap-2">
+                            {detail.status === 'active' ? (
+                                <><CheckCircle2 size={16} className="text-green-600" /> <span className="font-bold text-sm text-green-700">Actif</span></>
+                            ) : (
+                                <><XCircle size={16} className="text-red-600" /> <span className="font-bold text-sm text-red-700">Inactif</span></>
+                            )}
+                        </div>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded-2xl border flex flex-col gap-1">
+                        <span className="text-[10px] font-black uppercase text-muted-foreground">Titre</span>
+                        <div className="flex items-center gap-2 font-bold text-sm">
+                            <Shield size={16} className="text-yessal-green" /> {detail.title || "Talibé"}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Contact */}
+                <div className="space-y-3">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">Coordonnées</h4>
+                    <div className="flex items-center gap-3 text-sm">
+                        <div className="w-8 h-8 rounded-lg bg-yessal-green/10 flex items-center justify-center text-yessal-green">
+                            <Mail size={16} />
+                        </div>
+                        <span className="font-medium">{detail.email}</span>
+                    </div>
+                    {detail.phone && (
+                        <div className="flex items-center gap-3 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-yessal-green/10 flex items-center justify-center text-yessal-green">
+                                <Phone size={16} />
+                            </div>
+                            <span className="font-medium">{detail.phone}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Localisation */}
+                <div className="space-y-3">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">Localisation</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                        <div className="flex items-center gap-3 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-yessal-green/10 flex items-center justify-center text-yessal-green">
+                                <Building2 size={16} />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="font-bold text-xs">{detail.daara_name || "Non assigné"}</span>
+                                <span className="text-[10px] text-muted-foreground">Daara</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm">
+                            <div className="w-8 h-8 rounded-lg bg-yessal-green/10 flex items-center justify-center text-yessal-green">
+                                <MapPin size={16} />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="font-bold text-xs">{detail.zone_name || "Inconnue"} ({detail.zone_code || "??"})</span>
+                                <span className="text-[10px] text-muted-foreground">Zone Territoriale</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Documents */}
+                <div className="bg-muted/30 p-4 rounded-2xl border flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <FileText size={20} className="text-muted-foreground" />
+                        <div>
+                            <div className="text-xs font-bold">{detail.documents_count || 0} document(s)</div>
+                            <div className="text-[10px] text-muted-foreground">Soumis pour validation</div>
+                        </div>
+                    </div>
+                    <Button variant="link" className="text-yessal-green text-xs font-bold p-0">Consulter</Button>
+                </div>
+
+                {promoteError && (
+                  <p className="text-xs text-red-600 font-medium text-center">
+                    {promoteError}
+                  </p>
+                )}
+              </div>
             </div>
           )}
           <DialogFooter className="gap-2 sm:gap-0">
@@ -291,6 +359,46 @@ export function MembersClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-12">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="h-9 px-4 rounded-lg font-bold border-none bg-muted/20"
+          >
+            Précédent
+          </Button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <Button
+                key={p}
+                variant={currentPage === p ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setCurrentPage(p)}
+                className={`h-9 w-9 rounded-lg font-bold border-none ${
+                  currentPage === p 
+                    ? "bg-yessal-green text-white shadow-lg shadow-yessal-green/20" 
+                    : "text-muted-foreground hover:text-yessal-green hover:bg-yessal-green/5"
+                }`}
+              >
+                {p}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="h-9 px-4 rounded-lg font-bold border-none bg-muted/20"
+          >
+            Suivant
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

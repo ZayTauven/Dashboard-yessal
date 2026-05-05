@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import * as XLSX from "xlsx";
 
 interface ExportButtonProps {
-  data: any[];
+  data: Record<string, unknown>[];
   filename: string;
   label?: string;
   variant?: "default" | "outline" | "ghost";

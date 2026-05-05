@@ -5,7 +5,8 @@ import {
   Search, UserPlus, FileDown, MoreHorizontal, 
   CheckCircle2, XCircle, Shield, Building2, 
   User as UserIcon, Mail, Phone, Filter,
-  FileUp, Edit, Trash2, Loader2, Check, ChevronsUpDown
+  FileUp, Edit, Trash2, Loader2, Check, ChevronsUpDown,
+  FileText, ShieldCheck, Eye, ThumbsUp, ThumbsDown, Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,10 +48,17 @@ import {
     updateUserRole, 
     createUserByAdmin, 
     updateUserAction, 
-    deleteUserAction 
+    deleteUserAction,
+    validateDocument,
+    reviewTitleRequest,
+    getPendingDocuments,
+    getTitleRequests
 } from "@/app/actions/users";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { toast } from "sonner";
 
 interface User {
   id: number;
@@ -61,6 +69,25 @@ interface User {
   role: string;
   status: string;
   daara: any;
+  documents_count?: number;
+}
+
+interface UserDocument {
+    id: number;
+    user_name?: string;
+    doc_type: string;
+    image: string;
+    image_verso?: string;
+    status: string;
+    created_at: string;
+}
+
+interface TitleRequest {
+    id: number;
+    member_name: string;
+    title_name: string;
+    status: string;
+    created_at: string;
 }
 
 // Custom Searchable Combobox for Daara
@@ -141,7 +168,7 @@ function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: stri
                         {groupedDaaras.map((group) => (
                             <div key={group.code} className="mt-2">
                                 <div className="px-2 py-1 text-[10px] font-black uppercase text-muted-foreground bg-muted/30 rounded flex justify-between items-center">
-                                    <span>Ligue : {group.name}</span>
+                                    <span>Zone : {group.name}</span>
                                     <span className="text-yessal-green">{group.code}</span>
                                 </div>
                                 {group.items.map((daara) => (
@@ -170,8 +197,23 @@ function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: stri
     );
 }
 
-export function UserManagementClient({ initialUsers, daaras }: { initialUsers: User[], daaras: any[] }) {
+export function UserManagementClient({ 
+    initialUsers, 
+    daaras, 
+    initialPendingDocs, 
+    initialTitles, 
+    initialTitleRequests 
+}: { 
+    initialUsers: User[], 
+    daaras: any[],
+    initialPendingDocs: any[],
+    initialTitles: any[],
+    initialTitleRequests: any[]
+}) {
   const [users, setUsers] = useState<User[]>(initialUsers);
+  const [pendingDocs, setPendingDocs] = useState<UserDocument[]>(initialPendingDocs);
+  const [titleRequests, setTitleRequests] = useState<TitleRequest[]>(initialTitleRequests);
+  const [selectedDoc, setSelectedDoc] = useState<UserDocument | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -179,6 +221,8 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
   const [loading, setLoading] = useState<number | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
   const router = useRouter();
 
   // Selected Daara ID for new/edit user
@@ -195,6 +239,18 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
     });
   }, [users, search, roleFilter]);
 
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredUsers.slice(start, start + itemsPerPage);
+  }, [filteredUsers, currentPage]);
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+
+  // Reset to page 1 on filter change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [search, roleFilter]);
+
   // ACTIONS
   const handleStatusUpdate = async (id: number, action: 'validate' | 'block') => {
     setLoading(id);
@@ -210,8 +266,35 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
     const { error } = await updateUserRole(id, newRole);
     if (!error) {
         setUsers(prev => prev.map(u => u.id === id ? { ...u, role: newRole } : u));
+        toast.success("Rôle mis à jour");
+    } else {
+        toast.error(error);
     }
     setLoading(null);
+  };
+
+  const handleDocumentReview = async (id: number, accept: boolean) => {
+    const status = accept ? "validated" : "rejected";
+    const note = accept ? "" : prompt("Note de rejet") || "";
+    const res = await validateDocument(id, status, note);
+    if (res.error) {
+        toast.error(res.error);
+    } else {
+        toast.success(accept ? "Document validé" : "Document rejeté");
+        setPendingDocs(prev => prev.filter(d => d.id !== id));
+        setSelectedDoc(null);
+    }
+  };
+
+  const handleTitleReview = async (id: number, action: "approve" | "refuse") => {
+    const note = action === "refuse" ? prompt("Note de refus") || "" : "";
+    const res = await reviewTitleRequest(id, action, note);
+    if (res.error) {
+        toast.error(res.error);
+    } else {
+        toast.success(action === "approve" ? "Titre accordé" : "Demande refusée");
+        setTitleRequests(prev => prev.filter(r => r.id !== id));
+    }
   };
 
   const handleDeleteUser = async (id: number) => {
@@ -316,8 +399,75 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
       }
   };
 
+  const pendingUsers = useMemo(() => users.filter(u => u.status === 'pending'), [users]);
+
   return (
-    <div className="space-y-6">
+    <Tabs defaultValue="list" className="space-y-6">
+        <div className="flex items-center justify-between border-b pb-4">
+            <TabsList className="bg-muted/50 p-1 rounded-xl">
+                <TabsTrigger value="list" className="rounded-lg px-6 font-bold">Membres</TabsTrigger>
+                <TabsTrigger value="requests" className="rounded-lg px-6 font-bold flex gap-2">
+                    Demandes & Docs
+                    {(pendingDocs.length + titleRequests.length) > 0 && (
+                        <Badge className="h-4 w-4 p-0 flex items-center justify-center bg-yessal-green text-white text-[10px]">
+                            {pendingDocs.length + titleRequests.length}
+                        </Badge>
+                    )}
+                </TabsTrigger>
+            </TabsList>
+            
+            <div className="flex gap-2 text-xs text-muted-foreground font-medium">
+                <div className="flex items-center gap-1"><CheckCircle2 size={12} className="text-green-500" /> {users.length} Inscrits</div>
+                <div className="flex items-center gap-1 border-l pl-2"><FileText size={12} className="text-yessal-green" /> {pendingDocs.length} Docs à valider</div>
+            </div>
+        </div>
+
+        <TabsContent value="list" className="space-y-6 m-0">
+      {pendingUsers.length > 0 && (
+        <div className="bg-yessal-green/5 border border-yessal-green/20 p-4 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                    <Badge className="bg-yessal-green text-white">{pendingUsers.length}</Badge>
+                    <h3 className="font-bold text-sm">Demandes d'inscription en attente</h3>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {pendingUsers.map(u => (
+                    <div key={u.id} className="bg-white p-3 rounded-xl border flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-yessal-green/10 flex items-center justify-center text-yessal-green font-bold text-[10px]">
+                                {u.first_name[0]}{u.last_name[0]}
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold truncate max-w-[120px]">{u.first_name} {u.last_name}</span>
+                                <span className="text-[9px] text-muted-foreground">{u.phone || u.email}</span>
+                            </div>
+                        </div>
+                        <div className="flex gap-1">
+                            <Button 
+                                size="icon" 
+                                className="h-7 w-7 rounded-full bg-yessal-green hover:bg-green-700 text-white"
+                                onClick={() => handleStatusUpdate(u.id, 'validate')}
+                                disabled={loading === u.id}
+                            >
+                                {loading === u.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                            </Button>
+                            <Button 
+                                size="icon" 
+                                variant="ghost"
+                                className="h-7 w-7 rounded-full text-red-600 hover:bg-red-50"
+                                onClick={() => handleStatusUpdate(u.id, 'block')}
+                                disabled={loading === u.id}
+                            >
+                                <XCircle size={12} />
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+      )}
+
       {/* TOOLBAR */}
       <div className="flex flex-col xl:flex-row gap-4 bg-card p-5 rounded-2xl border shadow-sm items-center">
         <div className="relative flex-1 group w-full">
@@ -364,7 +514,7 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
                 <DialogTrigger asChild>
                     <Button className="h-11 bg-yessal-green hover:bg-green-700 text-white gap-2 px-6 border-none shadow-lg shadow-yessal-green/20">
                         <UserPlus size={18} />
-                        Nouveau
+                        Inscrire un membre
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-md">
@@ -478,7 +628,7 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-muted/10">
-                    {filteredUsers.map((user) => (
+                    {paginatedUsers.map((user) => (
                         <tr key={user.id} className="hover:bg-muted/10 transition-colors group">
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
@@ -487,7 +637,10 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-bold">{user.first_name} {user.last_name}</span>
-                                        <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Mail size={10} /> {user.email}</span>
+                                        <div className="flex items-center gap-3 mt-0.5">
+                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Mail size={10} /> {user.email}</span>
+                                            <span className="text-[10px] text-yessal-green font-bold flex items-center gap-1"><Phone size={10} /> {user.phone || "N/A"}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </td>
@@ -525,7 +678,7 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
                                     </div>
                                     {user.daara?.ldd && (
                                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60 uppercase font-bold ml-5">
-                                            Ligue : {user.daara.ldd.code}
+                                            Zone : {user.daara.ldd.code}
                                         </div>
                                     )}
                                 </div>
@@ -580,6 +733,168 @@ export function UserManagementClient({ initialUsers, daaras }: { initialUsers: U
             </div>
         )}
       </div>
-    </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Précédent
+          </Button>
+          <div className="flex items-center px-4 text-sm font-medium">
+            Page {currentPage} sur {totalPages}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Suivant
+          </Button>
+        </div>
+      )}
+      </TabsContent>
+
+      <TabsContent value="requests" className="space-y-8 m-0 animate-in fade-in slide-in-from-bottom-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* DOCUMENTS SECTION */}
+              <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                      <ShieldCheck size={20} className="text-yessal-green" />
+                      <h3 className="text-lg font-black tracking-tight">Vérification d&apos;Identité</h3>
+                  </div>
+                  
+                  {pendingDocs.length === 0 ? (
+                      <div className="p-12 text-center border-2 border-dashed rounded-3xl bg-muted/5">
+                          <p className="text-sm text-muted-foreground italic">Aucun document en attente de validation.</p>
+                      </div>
+                  ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                          {pendingDocs.map(doc => (
+                              <Card key={doc.id} className="border-none shadow-sm overflow-hidden group">
+                                  <CardContent className="p-0 flex">
+                                      <div className="w-24 bg-muted flex items-center justify-center border-r relative overflow-hidden">
+                                          <img src={doc.image} className="w-full h-full object-cover opacity-50 group-hover:opacity-100 transition-opacity" alt="Preview" />
+                                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <Eye size={20} className="text-white" />
+                                          </div>
+                                      </div>
+                                      <div className="flex-1 p-4 flex flex-col justify-center">
+                                          <div className="flex justify-between items-start mb-2">
+                                              <div>
+                                                  <div className="text-sm font-black">{doc.user_name || "Membres"}</div>
+                                                  <div className="text-[10px] uppercase font-bold text-muted-foreground">{doc.doc_type}</div>
+                                              </div>
+                                              <Badge variant="outline" className="text-[9px] border-yessal-green/30 text-yessal-green">EN ATTENTE</Badge>
+                                          </div>
+                                          <div className="flex gap-2">
+                                              <Button size="sm" className="h-8 bg-yessal-green text-white gap-1 text-[10px] font-bold" onClick={() => setSelectedDoc(doc)}>
+                                                  <Eye size={12} /> Inspecter
+                                              </Button>
+                                              <Button size="sm" variant="ghost" className="h-8 text-red-600 hover:bg-red-50 text-[10px] font-bold" onClick={() => handleDocumentReview(doc.id, false)}>
+                                                  Rejeter
+                                              </Button>
+                                          </div>
+                                      </div>
+                                  </CardContent>
+                              </Card>
+                          ))}
+                      </div>
+                  )}
+              </div>
+
+              {/* TITLES SECTION */}
+              <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                      <Shield size={20} className="text-yessal-green" />
+                      <h3 className="text-lg font-black tracking-tight">Demandes de Titres Officiels</h3>
+                  </div>
+
+                  {titleRequests.length === 0 ? (
+                      <div className="p-12 text-center border-2 border-dashed rounded-3xl bg-muted/5">
+                          <p className="text-sm text-muted-foreground italic">Aucune demande de titre en attente.</p>
+                      </div>
+                  ) : (
+                      <div className="space-y-3">
+                          {titleRequests.map(req => (
+                              <div key={req.id} className="bg-card border rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                                  <div className="flex items-center gap-4">
+                                      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                                          <Shield size={20} />
+                                      </div>
+                                      <div>
+                                          <div className="text-sm font-black">{req.member_name}</div>
+                                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                              Demande le titre : <span className="font-bold text-yessal-green underline">{req.title_name}</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                      <Button size="icon" className="h-9 w-9 rounded-xl bg-yessal-green text-white" onClick={() => handleTitleReview(req.id, "approve")}>
+                                          <ThumbsUp size={16} />
+                                      </Button>
+                                      <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl text-red-600 hover:bg-red-50" onClick={() => handleTitleReview(req.id, "refuse")}>
+                                          <ThumbsDown size={16} />
+                                      </Button>
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+
+                  <div className="bg-muted/30 p-6 rounded-3xl border border-dashed flex flex-col items-center gap-3 text-center mt-8">
+                      <div className="p-3 rounded-full bg-background border">
+                        <Info size={24} className="text-muted-foreground" />
+                      </div>
+                      <p className="text-xs text-muted-foreground max-w-xs font-medium">
+                          Ces demandes proviennent des membres souhaitant officialiser leur statut. L&apos;approbation mettra à jour leur profil instantanément.
+                      </p>
+                  </div>
+              </div>
+          </div>
+      </TabsContent>
+
+      {/* DOCUMENT LIGHTBOX */}
+      <Dialog open={!!selectedDoc} onOpenChange={() => setSelectedDoc(null)}>
+          <DialogContent className="max-w-4xl border-none shadow-2xl p-8">
+              <DialogHeader>
+                  <DialogTitle className="text-2xl font-black">{selectedDoc?.doc_type} - {selectedDoc?.user_name}</DialogTitle>
+                  <DialogDescription>Vérifiez la validité et la lisibilité des documents avant approbation.</DialogDescription>
+              </DialogHeader>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                  <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground ml-1">Recto du document</p>
+                      <div className="aspect-[4/3] bg-muted rounded-2xl overflow-hidden border shadow-inner">
+                          <img src={selectedDoc?.image} className="w-full h-full object-contain" alt="Recto" />
+                      </div>
+                  </div>
+                  <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground ml-1">Verso du document</p>
+                      <div className="aspect-[4/3] bg-muted rounded-2xl overflow-hidden border shadow-inner flex items-center justify-center">
+                          {selectedDoc?.image_verso ? (
+                              <img src={selectedDoc.image_verso} className="w-full h-full object-contain" alt="Verso" />
+                          ) : (
+                              <span className="text-xs text-muted-foreground font-medium italic">Aucun verso fourni</span>
+                          )}
+                      </div>
+                  </div>
+              </div>
+
+              <DialogFooter className="mt-8 gap-3 sm:gap-0">
+                  <Button variant="outline" className="h-12 px-8 font-bold border-red-100 text-red-600 hover:bg-red-50" onClick={() => selectedDoc && handleDocumentReview(selectedDoc.id, false)}>
+                      Rejeter le document
+                  </Button>
+                  <Button className="h-12 px-8 bg-yessal-green text-white font-bold" onClick={() => selectedDoc && handleDocumentReview(selectedDoc.id, true)}>
+                      Valider l&apos;identité
+                  </Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
+    </Tabs>
   );
 }

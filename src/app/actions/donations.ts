@@ -175,6 +175,7 @@ export async function makeDonation(formData: FormData) {
   const campaignId = formData.get("campaignId");
   const amount = formData.get("amount");
   const beneficiaryId = formData.get("beneficiaryId");
+  const donorId = formData.get("donorId");
   const paymentMethod = formData.get("paymentMethod");
   const wireReference = formData.get("wireReference");
   const isAnonymous = formData.get("isAnonymous") === "on";
@@ -193,9 +194,10 @@ export async function makeDonation(formData: FormData) {
       body: JSON.stringify({
         campaign: campaignId,
         amount,
+        donor: donorId || null,
         beneficiary: beneficiaryId || null,
         payment_method: paymentMethod,
-        payment_status: "pending",
+        payment_status: paymentMethod === "manual" ? "completed" : "pending",
         is_anonymous: isAnonymous,
       }),
     });
@@ -205,20 +207,23 @@ export async function makeDonation(formData: FormData) {
       return {
         error:
           (data as { detail?: string }).detail ||
-          "La création du don a échoué cÃ´té serveur.",
+          "La création du don a échoué côté serveur.",
       };
     }
 
     const donation = await res.json();
 
-    if (paymentMethod === "virement") {
+    if (["virement", "wave", "orange_money", "visa", "mastercard", "bictorys"].includes(paymentMethod as string)) {
       const payRes = await payDonation(
         donation.id,
-        paymentMethod,
+        paymentMethod as string,
         String(wireReference || ""),
       );
       if (payRes.error) {
         return { error: payRes.error };
+      }
+      if (payRes.data?.checkoutUrl || payRes.data?.url) {
+        return { success: true, redirectUrl: payRes.data.checkoutUrl || payRes.data.url };
       }
     }
 

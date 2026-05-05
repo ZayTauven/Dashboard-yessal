@@ -7,7 +7,12 @@ import {
   deleteDaara,
   importDaaraExcel,
   getLDDs,
+  createLDD,
+  updateLDD,
+  deleteLDD,
 } from "@/app/actions/daara";
+import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SmartLink } from "@/components/SmartLink";
@@ -35,6 +40,13 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
   const [daaras, setDaaras] = useState(initialDaaras);
@@ -42,6 +54,8 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [isImporting, setIsImporting] = useState(false);
   const [importSuccessMsg, setImportSuccessMsg] = useState("");
+  const [editingZone, setEditingZone] = useState<any | null>(null);
+  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
 
   // LDDs state for the form selector
   const [ldds, setLdds] = useState<any[]>([]);
@@ -169,12 +183,80 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
       const res = await deleteDaara(id);
       if (!res.error) {
         setDaaras((prev) => prev.filter((d) => d.id !== id));
+        toast.success("Daara supprimé");
+      } else {
+        toast.error(res.error);
+      }
+    });
+  };
+
+  const handleZoneSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get("name") as string;
+    const code = formData.get("code") as string;
+
+    startTransition(async () => {
+      let res;
+      if (editingZone) {
+        res = await updateLDD(editingZone.id, { name, code });
+      } else {
+        res = await createLDD({ name, code });
+      }
+
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(editingZone ? "Zone mise à jour" : "Zone créée");
+        setIsZoneModalOpen(false);
+        setEditingZone(null);
+        // Refresh LDDs
+        const updatedLDDs = await getLDDs();
+        if (updatedLDDs.data) {
+            const arr = Array.isArray(updatedLDDs.data) ? updatedLDDs.data : ((updatedLDDs.data as any).results ?? []);
+            setLdds(arr);
+        }
+      }
+    });
+  };
+
+  const handleZoneDelete = async (id: number) => {
+    if (!confirm("Supprimer cette Zone ? (Échouera si des Daaras y sont rattachés)")) return;
+    startTransition(async () => {
+      const res = await deleteLDD(id);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Zone supprimée");
+        setLdds(prev => prev.filter(l => l.id !== id));
       }
     });
   };
 
   return (
-    <div className="grid grid-cols-3 gap-8">
+    <Tabs defaultValue="daaras" className="w-full">
+      <div className="flex items-center justify-between mb-8">
+        <TabsList className="bg-muted/50 p-1 rounded-xl">
+            <TabsTrigger value="daaras" className="rounded-lg px-6 font-bold">Gestion des Daaras</TabsTrigger>
+            <TabsTrigger value="zones" className="rounded-lg px-6 font-bold">Gestion des Zones</TabsTrigger>
+        </TabsList>
+
+        <div className="flex gap-2">
+            <Button 
+                variant="outline" 
+                className="h-10 border-dashed gap-2"
+                onClick={() => {
+                    setEditingZone(null);
+                    setIsZoneModalOpen(true);
+                }}
+            >
+                <Plus size={16} /> Nouvelle Zone
+            </Button>
+        </div>
+      </div>
+
+      <TabsContent value="daaras" className="m-0">
+        <div className="grid grid-cols-3 gap-8">
       {/* LISTE DES DAARAS */}
       <div className="col-span-2 space-y-4">
         <div className="flex items-center justify-between">
@@ -210,7 +292,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
                   onClick={() => handleSort("ldd_code")}
                 >
                   <div className="flex items-center gap-1">
-                    LDD / Code <ArrowUpDown size={12} />
+                    Zone / Code <ArrowUpDown size={12} />
                   </div>
                 </TableHead>
                 <TableHead
@@ -408,14 +490,14 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
             {/* Sélecteur LDD — champ obligatoire */}
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1">
-                <Layers size={11} /> LDD (Ligue de Daara)
+                <Layers size={11} /> Zone Territoriale
                 <span className="text-red-500">*</span>
               </label>
               {lddsLoading ? (
                 <div className="h-10 rounded-md bg-muted animate-pulse" />
               ) : ldds.length === 0 ? (
                 <div className="text-xs text-orange-600 p-2 bg-orange-50 rounded-md">
-                  Aucune LDD trouvée. Importez d'abord un fichier Excel.
+                  Aucune Zone trouvée. Importez d'abord un fichier Excel.
                 </div>
               ) : (
                 <select
@@ -423,7 +505,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
                   required
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yessal-green/50"
                 >
-                  <option value="">Choisir une LDD...</option>
+                  <option value="">Choisir une Zone...</option>
                   {ldds.map((ldd: any) => (
                     <option key={ldd.id} value={ldd.id}>
                       [{ldd.code}] {ldd.name}
@@ -473,6 +555,76 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
           </form>
         </div>
       </div>
-    </div>
+      </div>
+      </TabsContent>
+
+      <TabsContent value="zones" className="m-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {ldds.map((ldd: any) => (
+                <div key={ldd.id} className="bg-card border rounded-2xl p-5 shadow-sm group">
+                    <div className="flex justify-between items-start mb-4">
+                        <div className="p-3 rounded-xl bg-yessal-green/10 text-yessal-green">
+                            <Layers size={24} />
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-blue-600"
+                                onClick={() => {
+                                    setEditingZone(ldd);
+                                    setIsZoneModalOpen(true);
+                                }}
+                            >
+                                <Edit size={14} />
+                            </Button>
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-red-600"
+                                onClick={() => handleZoneDelete(ldd.id)}
+                            >
+                                <Trash2 size={14} />
+                            </Button>
+                        </div>
+                    </div>
+                    <h4 className="font-black text-lg mb-1">{ldd.name}</h4>
+                    <div className="flex items-center gap-2">
+                        <Badge className="bg-yessal-green text-white border-none uppercase text-[10px] font-black">
+                            {ldd.code}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground font-medium">
+                            Zone Territoriale
+                        </span>
+                    </div>
+                </div>
+            ))}
+        </div>
+      </TabsContent>
+
+      {/* ZONE MODAL */}
+      <Dialog open={isZoneModalOpen} onOpenChange={setIsZoneModalOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{editingZone ? "Modifier la Zone" : "Nouvelle Zone Territoriale"}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleZoneSubmit} className="space-y-4 py-4">
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nom de la Zone</label>
+                    <Input name="name" defaultValue={editingZone?.name} placeholder="Ex: Zone Dakar Nord" required />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Code (3-4 lettres)</label>
+                    <Input name="code" defaultValue={editingZone?.code} placeholder="Ex: DKR" required />
+                </div>
+                <DialogFooter>
+                    <Button type="submit" disabled={isPending} className="w-full bg-yessal-green text-white h-11 font-bold">
+                        {editingZone ? "Mettre à jour" : "Créer la Zone"}
+                    </Button>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+      </Dialog>
+    </Tabs>
   );
 }

@@ -1,11 +1,20 @@
-import { getAllUsers } from "@/app/actions/users";
+import { getAllUsers, getPendingDocuments, getTitles, getTitleRequests } from "@/app/actions/users";
 import { getDaaras } from "@/app/actions/daara";
 import { UserManagementClient } from "./UserManagementClient";
 
 export default async function AdminUsersPage() {
-  const [{ data: users, error: userError }, { data: daaras, error: daaraError }] = await Promise.all([
+  const [
+    { data: users, error: userError }, 
+    { data: daaras, error: daaraError },
+    { data: pendingDocs },
+    { data: titles },
+    { data: titleRequests }
+  ] = await Promise.all([
     getAllUsers(),
-    getDaaras()
+    getDaaras(),
+    getPendingDocuments(),
+    getTitles(),
+    getTitleRequests()
   ]);
 
   const error = userError || daaraError;
@@ -26,7 +35,13 @@ export default async function AdminUsersPage() {
           {error} - Veuillez rafraîchir la page ou vérifier votre connexion.
         </div>
       ) : (
-        <UserManagementClient initialUsers={users || []} daaras={daaras || []} />
+        <UserManagementClient 
+          initialUsers={users || []} 
+          daaras={daaras || []} 
+          initialPendingDocs={pendingDocs || []}
+          initialTitles={titles || []}
+          initialTitleRequests={(titleRequests || []).filter((r: any) => r.status === 'pending')}
+        />
       )}
     </div>
   );

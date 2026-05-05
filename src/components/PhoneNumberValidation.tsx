@@ -28,12 +28,17 @@ export default function PhoneNumberValidation({
   const [internalValue, setInternalValue] = useState(value || defaultValue);
   const [valid, setValid] = useState(true);
 
+  const validatePhoneNumber = React.useCallback((phoneVal: string) => {
+    if (!required && (!phoneVal || phoneVal.trim() === "")) return true;
+    return /^[0-9]{6,15}$/.test(phoneVal);
+  }, [required]);
+
   useEffect(() => {
     if (value !== undefined) {
       setInternalValue(value);
       setValid(validatePhoneNumber(value));
     }
-  }, [value]);
+  }, [value, validatePhoneNumber]);
 
   const handleChange = (val: string) => {
     setInternalValue(val);
@@ -41,11 +46,6 @@ export default function PhoneNumberValidation({
     if (onChange) {
       onChange(val);
     }
-  };
-
-  const validatePhoneNumber = (phoneVal: string) => {
-    if (!required && (!phoneVal || phoneVal.trim() === "")) return true;
-    return /^[0-9]{6,15}$/.test(phoneVal);
   };
 
   return (
