@@ -88,9 +88,12 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
     if (searchTerm) {
       sortableItems = sortableItems.filter(
         (daara) =>
-          (daara.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-          (daara.ldd?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
-          (daara.ldd?.code?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false),
+          (daara.name?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+            false) ||
+          (daara.ldd?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+            false) ||
+          (daara.ldd?.code?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+            false),
       );
     }
 
@@ -213,22 +216,29 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
         // Refresh LDDs
         const updatedLDDs = await getLDDs();
         if (updatedLDDs.data) {
-            const arr = Array.isArray(updatedLDDs.data) ? updatedLDDs.data : ((updatedLDDs.data as any).results ?? []);
-            setLdds(arr);
+          const arr = Array.isArray(updatedLDDs.data)
+            ? updatedLDDs.data
+            : ((updatedLDDs.data as any).results ?? []);
+          setLdds(arr);
         }
       }
     });
   };
 
   const handleZoneDelete = async (id: number) => {
-    if (!confirm("Supprimer cette Zone ? (Échouera si des Daaras y sont rattachés)")) return;
+    if (
+      !confirm(
+        "Supprimer cette Zone ? (Échouera si des Daaras y sont rattachés)",
+      )
+    )
+      return;
     startTransition(async () => {
       const res = await deleteLDD(id);
       if (res.error) {
         toast.error(res.error);
       } else {
         toast.success("Zone supprimée");
-        setLdds(prev => prev.filter(l => l.id !== id));
+        setLdds((prev) => prev.filter((l) => l.id !== id));
       }
     });
   };
@@ -237,392 +247,419 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
     <Tabs defaultValue="daaras" className="w-full">
       <div className="flex items-center justify-between mb-8">
         <TabsList className="bg-muted/50 p-1 rounded-xl">
-            <TabsTrigger value="daaras" className="rounded-lg px-6 font-bold">Gestion des Daaras</TabsTrigger>
-            <TabsTrigger value="zones" className="rounded-lg px-6 font-bold">Gestion des Zones</TabsTrigger>
+          <TabsTrigger value="daaras" className="rounded-lg px-6 font-bold">
+            Gestion des Daaras
+          </TabsTrigger>
+          <TabsTrigger value="zones" className="rounded-lg px-6 font-bold">
+            Gestion des Zones
+          </TabsTrigger>
         </TabsList>
 
         <div className="flex gap-2">
-            <Button 
-                variant="outline" 
-                className="h-10 border-dashed gap-2"
-                onClick={() => {
-                    setEditingZone(null);
-                    setIsZoneModalOpen(true);
-                }}
-            >
-                <Plus size={16} /> Nouvelle Zone
-            </Button>
+          <Button
+            variant="outline"
+            className="h-10 border-dashed gap-2"
+            onClick={() => {
+              setEditingZone(null);
+              setIsZoneModalOpen(true);
+            }}
+          >
+            <Plus size={16} /> Nouvelle Zone
+          </Button>
         </div>
       </div>
 
       <TabsContent value="daaras" className="m-0">
         <div className="grid grid-cols-3 gap-8">
-      {/* LISTE DES DAARAS */}
-      <div className="col-span-2 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="relative w-64">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              size={16}
-            />
-            <Input
-              placeholder="Rechercher un Daara..."
-              className="pl-9 h-10 bg-card border"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="text-xs text-muted-foreground font-medium">
-            {filteredAndSortedDaaras.length}{" "}
-            {filteredAndSortedDaaras.length > 1
-              ? "Daaras trouvés"
-              : "Daara trouvé"}
-          </div>
-        </div>
-
-        <div
-          className="bg-card rounded-2xl border shadow-sm overflow-hidden"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead
-                  className="font-bold uppercase text-[10px] tracking-widest pl-6 cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort("ldd_code")}
-                >
-                  <div className="flex items-center gap-1">
-                    Zone / Code <ArrowUpDown size={12} />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="font-bold uppercase text-[10px] tracking-widest cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort("name")}
-                >
-                  <div className="flex items-center gap-1">
-                    Nom du Daara <ArrowUpDown size={12} />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="font-bold uppercase text-[10px] tracking-widest cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort("members_count")}
-                >
-                  <div className="flex items-center gap-1">
-                    Membres <ArrowUpDown size={12} />
-                  </div>
-                </TableHead>
-                <TableHead
-                  className="font-bold uppercase text-[10px] tracking-widest cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort("is_active")}
-                >
-                  <div className="flex items-center gap-1">
-                    Statut <ArrowUpDown size={12} />
-                  </div>
-                </TableHead>
-                <TableHead className="text-right font-bold uppercase text-[10px] tracking-widest pr-6">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedDaaras.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-center py-16 text-muted-foreground italic text-sm"
-                  >
-                    {daaras.length === 0
-                      ? "Aucun Daara enregistré. Importez un fichier Excel ou créez-en un manuellement."
-                      : "Aucun résultat trouvé pour votre recherche."}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedDaaras.map((daara: any) => (
-                  <TableRow key={daara.id}>
-                    <TableCell className="pl-6">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-yessal-green text-xs">
-                          {daara.ldd?.code ?? "—"}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {daara.ldd?.name ?? ""}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <SmartLink
-                        href={`/dashboard/daara`}
-                        className="font-medium"
-                      >
-                        {daara.name}
-                      </SmartLink>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs">
-                        {daara.members_count ?? daara.memberCount ?? "—"}{" "}
-                        membres
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          daara.is_active
-                            ? "bg-green-50 text-green-600 border-green-100"
-                            : "bg-red-50 text-red-500 border-red-100"
-                        }
-                      >
-                        {daara.is_active ? "Actif" : "Inactif"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right pr-6">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
-                        className="text-blue-400 hover:text-blue-600 hover:bg-blue-50"
-                      >
-                        <Link href={`/dashboard/admin/daara/${daara.id}`}>
-                          <Eye size={16} />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        asChild
-                        className="text-grey-400 hover:text-grey-600 hover:bg-green-50"
-                      >
-                        <Link href={`/dashboard/admin/daara/${daara.id}`}>
-                          <Edit size={16} />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(daara.id)}
-                        className="text-red-400 hover:text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between bg-card p-4 rounded-2xl border shadow-sm">
-            <span className="text-xs text-muted-foreground">
-              Page <span className="font-bold">{currentPage}</span> sur{" "}
-              <span className="font-bold">{totalPages}</span>
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft size={16} /> Précédent
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
-              >
-                Suivant <ChevronRight size={16} />
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* FORMULAIRE D'AJOUT */}
-      <div className="col-span-1">
-        <div
-          className="bg-card p-6 rounded-2xl border shadow-sm sticky top-8"
-          style={{ borderColor: "var(--border)" }}
-        >
-          {importSuccessMsg && (
-            <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-lg text-xs flex items-center gap-2">
-              <CheckCircle size={14} /> {importSuccessMsg}
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 mb-6 justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-yessal-green/10 text-yessal-green">
-                <Building2 size={20} />
+          {/* LISTE DES DAARAS */}
+          <div className="col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="relative w-64">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  size={16}
+                />
+                <Input
+                  placeholder="Rechercher un Daara..."
+                  className="pl-9 h-10 bg-card border"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-              <h3 className="text-lg font-bold">Nouveau Daara</h3>
+              <div className="text-xs text-muted-foreground font-medium">
+                {filteredAndSortedDaaras.length}{" "}
+                {filteredAndSortedDaaras.length > 1
+                  ? "Daaras trouvés"
+                  : "Daara trouvé"}
+              </div>
             </div>
 
-            <label
-              className="cursor-pointer flex items-center justify-center p-2 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground transition-all"
-              title="Importer fichier Excel"
+            <div
+              className="bg-card rounded-2xl border shadow-sm overflow-hidden"
+              style={{ borderColor: "var(--border)" }}
             >
-              {isImporting ? (
-                <div className="h-4 w-4 rounded-full border-2 border-yessal-green border-t-transparent animate-spin" />
-              ) : (
-                <Upload size={16} />
-              )}
-              <input
-                type="file"
-                className="hidden"
-                accept=".xlsx, .xls"
-                onChange={handleImport}
-                disabled={isImporting}
-              />
-            </label>
-          </div>
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow>
+                    <TableHead
+                      className="font-bold uppercase text-[10px] tracking-widest pl-6 cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort("ldd_code")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Zone / Code <ArrowUpDown size={12} />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="font-bold uppercase text-[10px] tracking-widest cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort("name")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Nom du Daara <ArrowUpDown size={12} />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="font-bold uppercase text-[10px] tracking-widest cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort("members_count")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Membres <ArrowUpDown size={12} />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="font-bold uppercase text-[10px] tracking-widest cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSort("is_active")}
+                    >
+                      <div className="flex items-center gap-1">
+                        Statut <ArrowUpDown size={12} />
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right font-bold uppercase text-[10px] tracking-widest pr-6">
+                      Actions
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedDaaras.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={5}
+                        className="text-center py-16 text-muted-foreground italic text-sm"
+                      >
+                        {daaras.length === 0
+                          ? "Aucun Daara enregistré. Importez un fichier Excel ou créez-en un manuellement."
+                          : "Aucun résultat trouvé pour votre recherche."}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedDaaras.map((daara: any) => (
+                      <TableRow key={daara.id}>
+                        <TableCell className="pl-6">
+                          <div className="flex flex-col">
+                            <span className="font-bold text-yessal-green text-xs">
+                              {daara.ldd?.code ?? "—"}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {daara.ldd?.name ?? ""}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <SmartLink
+                            href={`/dashboard/daara`}
+                            className="font-medium"
+                          >
+                            {daara.name}
+                          </SmartLink>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs">
+                            {daara.members_count ?? daara.memberCount ?? "—"}{" "}
+                            membres
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              daara.is_active
+                                ? "bg-green-50 text-green-600 border-green-100"
+                                : "bg-red-50 text-red-500 border-red-100"
+                            }
+                          >
+                            {daara.is_active ? "Actif" : "Inactif"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                            className="text-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                          >
+                            <Link href={`/dashboard/admin/daara/${daara.id}`}>
+                              <Eye size={16} />
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                            className="text-grey-400 hover:text-grey-600 hover:bg-green-50"
+                          >
+                            <Link href={`/dashboard/admin/daara/${daara.id}`}>
+                              <Edit size={16} />
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(daara.id)}
+                            className="text-red-400 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
-          <form
-            id="daara-create-form"
-            action={handleSubmit}
-            className="space-y-4"
-          >
-            {/* Sélecteur LDD — champ obligatoire */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1">
-                <Layers size={11} /> Zone Territoriale
-                <span className="text-red-500">*</span>
-              </label>
-              {lddsLoading ? (
-                <div className="h-10 rounded-md bg-muted animate-pulse" />
-              ) : ldds.length === 0 ? (
-                <div className="text-xs text-orange-600 p-2 bg-orange-50 rounded-md">
-                  Aucune Zone trouvée. Importez d'abord un fichier Excel.
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between bg-card p-4 rounded-2xl border shadow-sm">
+                <span className="text-xs text-muted-foreground">
+                  Page <span className="font-bold">{currentPage}</span> sur{" "}
+                  <span className="font-bold">{totalPages}</span>
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft size={16} /> Précédent
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                  >
+                    Suivant <ChevronRight size={16} />
+                  </Button>
                 </div>
-              ) : (
-                <select
-                  name="ldd_id"
-                  required
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yessal-green/50"
-                >
-                  <option value="">Choisir une Zone...</option>
-                  {ldds.map((ldd: any) => (
-                    <option key={ldd.id} value={ldd.id}>
-                      [{ldd.code}] {ldd.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
-                Nom du Daara <span className="text-red-500">*</span>
-              </label>
-              <Input
-                name="name"
-                placeholder="Ex: Daara de Dakar Plateau"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
-                Description (Optionnel)
-              </label>
-              <textarea
-                name="description"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm min-h-[80px] outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="Précisions géographiques ou historiques..."
-              />
-            </div>
-
-            {errorMsg && (
-              <div className="p-3 bg-red-50 text-red-600 rounded-lg text-xs flex items-center gap-2">
-                <AlertCircle size={14} /> {errorMsg}
               </div>
             )}
+          </div>
 
-            <Button
-              type="submit"
-              className="w-full h-11 gap-2 mt-4"
-              disabled={isPending || ldds.length === 0}
-              style={{ background: "var(--yessal-green)", color: "white" }}
+          {/* FORMULAIRE D'AJOUT */}
+          <div className="col-span-1">
+            <div
+              className="bg-card p-6 rounded-2xl border shadow-sm sticky top-8"
+              style={{ borderColor: "var(--border)" }}
             >
-              <Plus size={18} />{" "}
-              {isPending ? "Création..." : "Ajouter le Daara"}
-            </Button>
-          </form>
+              {importSuccessMsg && (
+                <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-lg text-xs flex items-center gap-2">
+                  <CheckCircle size={14} /> {importSuccessMsg}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mb-6 justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-yessal-green/10 text-yessal-green">
+                    <Building2 size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold">Nouveau Daara</h3>
+                </div>
+
+                <label
+                  className="cursor-pointer flex items-center justify-center p-2 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground transition-all"
+                  title="Importer fichier Excel"
+                >
+                  {isImporting ? (
+                    <div className="h-4 w-4 rounded-full border-2 border-yessal-green border-t-transparent animate-spin" />
+                  ) : (
+                    <Upload size={16} />
+                  )}
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".xlsx, .xls"
+                    onChange={handleImport}
+                    disabled={isImporting}
+                  />
+                </label>
+              </div>
+
+              <form
+                id="daara-create-form"
+                action={handleSubmit}
+                className="space-y-4"
+              >
+                {/* Sélecteur LDD — champ obligatoire */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1">
+                    <Layers size={11} /> Zone LDD
+                    <span className="text-red-500">*</span>
+                  </label>
+                  {lddsLoading ? (
+                    <div className="h-10 rounded-md bg-muted animate-pulse" />
+                  ) : ldds.length === 0 ? (
+                    <div className="text-xs text-orange-600 p-2 bg-orange-50 rounded-md">
+                      Aucun LDD trouvé. Importez d'abord un fichier Excel.
+                    </div>
+                  ) : (
+                    <select
+                      name="ldd_id"
+                      required
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yessal-green/50"
+                    >
+                      <option value="">Choisir une Zone...</option>
+                      {ldds.map((ldd: any) => (
+                        <option key={ldd.id} value={ldd.id}>
+                          [{ldd.code}] {ldd.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                    Nom du Daara <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    name="name"
+                    placeholder="Ex: Daara de Dakar Plateau"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
+                    Description (Optionnel)
+                  </label>
+                  <textarea
+                    name="description"
+                    className="w-full rounded-md border bg-background px-3 py-2 text-sm min-h-[80px] outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Précisions géographiques ou historiques..."
+                  />
+                </div>
+
+                {errorMsg && (
+                  <div className="p-3 bg-red-50 text-red-600 rounded-lg text-xs flex items-center gap-2">
+                    <AlertCircle size={14} /> {errorMsg}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full h-11 gap-2 mt-4"
+                  disabled={isPending || ldds.length === 0}
+                  style={{ background: "var(--yessal-green)", color: "white" }}
+                >
+                  <Plus size={18} />{" "}
+                  {isPending ? "Création..." : "Ajouter le Daara"}
+                </Button>
+              </form>
+            </div>
+          </div>
         </div>
-      </div>
-      </div>
       </TabsContent>
 
       <TabsContent value="zones" className="m-0">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ldds.map((ldd: any) => (
-                <div key={ldd.id} className="bg-card border rounded-2xl p-5 shadow-sm group">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 rounded-xl bg-yessal-green/10 text-yessal-green">
-                            <Layers size={24} />
-                        </div>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-blue-600"
-                                onClick={() => {
-                                    setEditingZone(ldd);
-                                    setIsZoneModalOpen(true);
-                                }}
-                            >
-                                <Edit size={14} />
-                            </Button>
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-red-600"
-                                onClick={() => handleZoneDelete(ldd.id)}
-                            >
-                                <Trash2 size={14} />
-                            </Button>
-                        </div>
-                    </div>
-                    <h4 className="font-black text-lg mb-1">{ldd.name}</h4>
-                    <div className="flex items-center gap-2">
-                        <Badge className="bg-yessal-green text-white border-none uppercase text-[10px] font-black">
-                            {ldd.code}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground font-medium">
-                            Zone Territoriale
-                        </span>
-                    </div>
+          {ldds.map((ldd: any) => (
+            <div
+              key={ldd.id}
+              className="bg-card border rounded-2xl p-5 shadow-sm group"
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className="p-3 rounded-xl bg-yessal-green/10 text-yessal-green">
+                  <Layers size={24} />
                 </div>
-            ))}
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-blue-600"
+                    onClick={() => {
+                      setEditingZone(ldd);
+                      setIsZoneModalOpen(true);
+                    }}
+                  >
+                    <Edit size={14} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-red-600"
+                    onClick={() => handleZoneDelete(ldd.id)}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              </div>
+              <h4 className="font-black text-lg mb-1">{ldd.name}</h4>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-yessal-green text-white border-none uppercase text-[10px] font-black">
+                  {ldd.code}
+                </Badge>
+                <span className="text-xs text-muted-foreground font-medium">
+                  Code LDD
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </TabsContent>
 
       {/* ZONE MODAL */}
       <Dialog open={isZoneModalOpen} onOpenChange={setIsZoneModalOpen}>
         <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{editingZone ? "Modifier la Zone" : "Nouvelle Zone Territoriale"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleZoneSubmit} className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nom de la Zone</label>
-                    <Input name="name" defaultValue={editingZone?.name} placeholder="Ex: Zone Dakar Nord" required />
-                </div>
-                <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Code (3-4 lettres)</label>
-                    <Input name="code" defaultValue={editingZone?.code} placeholder="Ex: DKR" required />
-                </div>
-                <DialogFooter>
-                    <Button type="submit" disabled={isPending} className="w-full bg-yessal-green text-white h-11 font-bold">
-                        {editingZone ? "Mettre à jour" : "Créer la Zone"}
-                    </Button>
-                </DialogFooter>
-            </form>
+          <DialogHeader>
+            <DialogTitle>
+              {editingZone ? "Modifier la Zone" : "Nouvelle Zone LDD"}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleZoneSubmit} className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Nom du LDD
+              </label>
+              <Input
+                name="name"
+                defaultValue={editingZone?.name}
+                placeholder="Ex: Zone Dakar Nord"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Code (3-4 lettres)
+              </label>
+              <Input
+                name="code"
+                defaultValue={editingZone?.code}
+                placeholder="Ex: DKR"
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="submit"
+                disabled={isPending}
+                className="w-full bg-yessal-green text-white h-11 font-bold"
+              >
+                {editingZone ? "Mettre à jour" : "Créer la Zone"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </Tabs>

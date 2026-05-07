@@ -52,11 +52,11 @@
 
 /* ─── Yessal Gui — Spacing Tokens ─── */
 :root {
-  --space-xs:  4px;
-  --space-sm:  8px;
-  --space-md:  16px;
-  --space-lg:  24px;
-  --space-xl:  48px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 48px;
   --space-2xl: 96px;
 }
 
@@ -65,125 +65,125 @@
   --radius: 0.5rem; /* 8px — selon DA */
 
   /* Brand colors */
-  --yessal-green:       #1A5C3A; /* Vert profond — accent principal */
-  --yessal-gold:        #B8860B; /* Or discret — montants, highlights */
-  --yessal-success:     #2D6A4F;
-  --yessal-warning:     #92620A;
-  --yessal-error:       #8B2E2E;
-  --yessal-info:        #1C4E7A;
+  --yessal-green: #6b3ad4; /* Vert profond — accent principal */
+  --yessal-gold: #b8860b; /* Or discret — montants, highlights */
+  --yessal-success: #2d6a4f;
+  --yessal-warning: #92620a;
+  --yessal-error: #8b2e2e;
+  --yessal-info: #1c4e7a;
 
   /* Backgrounds */
-  --background:         #FAFAF8; /* Blanc cassé */
-  --foreground:         #1C1C1A; /* Charbon doux */
+  --background: #fafaf8; /* Blanc cassé */
+  --foreground: #1c1c1a; /* Charbon doux */
 
   /* Cards */
-  --card:               #FFFFFF;
-  --card-foreground:    #1C1C1A;
+  --card: #ffffff;
+  --card-foreground: #1c1c1a;
 
   /* Popovers */
-  --popover:            #FFFFFF;
-  --popover-foreground: #1C1C1A;
+  --popover: #ffffff;
+  --popover-foreground: #1c1c1a;
 
   /* Primary = Vert Yessal */
-  --primary:            #1A5C3A;
-  --primary-foreground: #FAFAF8;
+  --primary: #1a5c3a;
+  --primary-foreground: #fafaf8;
 
   /* Secondary */
-  --secondary:          #F0F0ED;
-  --secondary-foreground: #1C1C1A;
+  --secondary: #f0f0ed;
+  --secondary-foreground: #1c1c1a;
 
   /* Muted */
-  --muted:              #F0F0ED;
-  --muted-foreground:   #6B6B65; /* Gris pierre */
+  --muted: #f0f0ed;
+  --muted-foreground: #6b6b65; /* Gris pierre */
 
   /* Accent */
-  --accent:             #F0F0ED;
-  --accent-foreground:  #1A5C3A;
+  --accent: #f0f0ed;
+  --accent-foreground: #1a5c3a;
 
   /* Destructive */
-  --destructive:        #8B2E2E;
+  --destructive: #8b2e2e;
 
   /* Borders */
-  --border:             #E2E2DE;
-  --input:              #E2E2DE;
-  --ring:               #1A5C3A;
+  --border: #e2e2de;
+  --input: #e2e2de;
+  --ring: #1a5c3a;
 
   /* Charts — palette naturelle */
-  --chart-1:            #1A5C3A;
-  --chart-2:            #B8860B;
-  --chart-3:            #2D6A4F;
-  --chart-4:            #92620A;
-  --chart-5:            #1C4E7A;
+  --chart-1: #1a5c3a;
+  --chart-2: #b8860b;
+  --chart-3: #2d6a4f;
+  --chart-4: #92620a;
+  --chart-5: #1c4e7a;
 
   /* Sidebar */
-  --sidebar:            #FAFAF8;
-  --sidebar-foreground: #1C1C1A;
-  --sidebar-primary:    #1A5C3A;
-  --sidebar-primary-foreground: #FAFAF8;
-  --sidebar-accent:     #EEF5F1;
-  --sidebar-accent-foreground: #1A5C3A;
-  --sidebar-border:     #E2E2DE;
-  --sidebar-ring:       #1A5C3A;
+  --sidebar: #fafaf8;
+  --sidebar-foreground: #1c1c1a;
+  --sidebar-primary: #1a5c3a;
+  --sidebar-primary-foreground: #fafaf8;
+  --sidebar-accent: #eef5f1;
+  --sidebar-accent-foreground: #1a5c3a;
+  --sidebar-border: #e2e2de;
+  --sidebar-ring: #1a5c3a;
 }
 
 /* ─── Yessal Gui — Dark Mode ─── */
 .dark {
   /* Brand */
-  --yessal-green:       #3D8A5C; /* Légèrement plus clair sur fond sombre */
-  --yessal-gold:        #D4A520;
+  --yessal-green: #3d8a5c; /* Légèrement plus clair sur fond sombre */
+  --yessal-gold: #d4a520;
 
   /* Backgrounds — DA : fond #0F0F0F, surfaces #1A1A1A */
-  --background:         #0F0F0F;
-  --foreground:         #E8E8E2; /* Texte DA */
+  --background: #0f0f0f;
+  --foreground: #e8e8e2; /* Texte DA */
 
   /* Cards */
-  --card:               #1A1A1A;
-  --card-foreground:    #E8E8E2;
+  --card: #1a1a1a;
+  --card-foreground: #e8e8e2;
 
   /* Popovers */
-  --popover:            #1A1A1A;
-  --popover-foreground: #E8E8E2;
+  --popover: #1a1a1a;
+  --popover-foreground: #e8e8e2;
 
   /* Primary */
-  --primary:            #3D8A5C;
-  --primary-foreground: #0F0F0F;
+  --primary: #3d8a5c;
+  --primary-foreground: #0f0f0f;
 
   /* Secondary */
-  --secondary:          #262626;
-  --secondary-foreground: #E8E8E2;
+  --secondary: #262626;
+  --secondary-foreground: #e8e8e2;
 
   /* Muted */
-  --muted:              #262626;
-  --muted-foreground:   #999990;
+  --muted: #262626;
+  --muted-foreground: #999990;
 
   /* Accent */
-  --accent:             #1E3329;
-  --accent-foreground:  #3D8A5C;
+  --accent: #1e3329;
+  --accent-foreground: #3d8a5c;
 
   /* Destructive */
-  --destructive:        #C0504A;
+  --destructive: #c0504a;
 
   /* Borders */
-  --border:             rgba(255, 255, 255, 0.08);
-  --input:              rgba(255, 255, 255, 0.12);
-  --ring:               #3D8A5C;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #3d8a5c;
 
   /* Charts */
-  --chart-1:            #3D8A5C;
-  --chart-2:            #D4A520;
-  --chart-3:            #5BAA84;
-  --chart-4:            #B8860B;
-  --chart-5:            #4A9BBF;
+  --chart-1: #3d8a5c;
+  --chart-2: #d4a520;
+  --chart-3: #5baa84;
+  --chart-4: #b8860b;
+  --chart-5: #4a9bbf;
 
   /* Sidebar — DA : fond sombre */
-  --sidebar:            #141414;
-  --sidebar-foreground: #E8E8E2;
-  --sidebar-primary:    #3D8A5C;
-  --sidebar-primary-foreground: #E8E8E2;
-  --sidebar-accent:     #1E3329;
-  --sidebar-accent-foreground: #3D8A5C;
-  --sidebar-border:     rgba(255, 255, 255, 0.06);
-  --sidebar-ring:       #3D8A5C;
+  --sidebar: #141414;
+  --sidebar-foreground: #e8e8e2;
+  --sidebar-primary: #3d8a5c;
+  --sidebar-primary-foreground: #e8e8e2;
+  --sidebar-accent: #1e3329;
+  --sidebar-accent-foreground: #3d8a5c;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #3d8a5c;
 }
 
 @layer base {
@@ -192,12 +192,17 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     line-height: 1.7;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     line-height: 1.2;
     letter-spacing: -0.02em;
   }
@@ -205,8 +210,12 @@
 
 /* ─── Galerie landing — scroll infini ─── */
 @keyframes scroll-gallery {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(-50%); }
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
 }
 
 .gallery-scroll {
@@ -225,23 +234,46 @@
 
 /* ─── Animations utilitaires ─── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-16px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes pulseGreen {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(26, 92, 58, 0.4); }
-  50%       { box-shadow: 0 0 0 8px rgba(26, 92, 58, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(26, 92, 58, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(26, 92, 58, 0);
+  }
 }
 
 .animate-fade-in {
@@ -264,15 +296,27 @@
 .stagger-children > * {
   animation: fadeIn 0.4s ease-out both;
 }
-.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
-.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
-.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
-.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 0.2s;
+}
 
 /* ─── Skeleton Loader ─── */
 @keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .skeleton {
@@ -344,7 +388,10 @@ main {
 
 /* ─── Card hover premium ─── */
 .card-hover {
-  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .card-hover:hover {
