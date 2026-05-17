@@ -8,6 +8,8 @@ import { getProfile, getUserDocuments } from "@/app/actions/users";
 import { getNotificationsPreview } from "@/app/actions/notifications";
 import ProfileCompletionBanner from "@/components/ProfileCompletionBanner";
 
+export const dynamic = 'force-dynamic';
+
 type DashboardUser = {
   user_id?: number;
   email?: string;

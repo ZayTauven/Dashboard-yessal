@@ -419,7 +419,7 @@ export function ChatInterface({
                 backgroundColor: "#e5ddd5",
                 backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
                 backgroundBlendMode: "overlay",
-                backgroundOpacity: 0.06
+                opacity: 0.95
               }}
             >
               {messages.length === 0 ? (

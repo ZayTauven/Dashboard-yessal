@@ -12,11 +12,14 @@ services:
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
       NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://localhost:8000}
+      PNPM_STORE_DIR: /app/.pnpm-store
+      CI: "true"
+      PNPM_CONFIG_CONFIRM_MODULES_PURGE: "false"
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
+      - .:/app:delegated
       - /app/node_modules
-      - /app/.next
-    command: pnpm dev --turbopack
+      - /app/.pnpm-store
+    command: sh -c "pnpm install --frozen-lockfile && pnpm dev --turbopack"
     restart: unless-stopped

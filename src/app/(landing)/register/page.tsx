@@ -13,10 +13,13 @@ type DaaraOption = {
 function normalizeDaaras(raw: unknown): DaaraOption[] {
   if (Array.isArray(raw)) return raw as DaaraOption[];
   if (raw && typeof raw === "object" && "results" in raw) {
-    return ((raw as { results?: DaaraOption[] }).results ?? []) as DaaraOption[];
+    return ((raw as { results?: DaaraOption[] }).results ??
+      []) as DaaraOption[];
   }
   return [];
 }
+
+export const dynamic = "force-dynamic";
 
 export default async function RegisterPage() {
   const { data, error } = await getDaaras();

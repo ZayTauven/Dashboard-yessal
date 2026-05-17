@@ -6,7 +6,7 @@ import UserDetailClient from "./UserDetailClient";
 export default async function UserDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
 
