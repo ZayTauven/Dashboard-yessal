@@ -36,6 +36,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "./ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -52,6 +53,8 @@ interface AppSidebarProps {
     email: string;
     first_name: string;
     last_name: string;
+    avatar?: string | null;
+    avatar_url?: string | null;
     role: "admin" | "chef_daara" | "collector" | "member" | "tutelle";
   };
 }
@@ -285,28 +288,22 @@ const AppSidebar = ({ user }: AppSidebarProps) => {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton className="gap-3">
-                  <div
-                    className="flex-shrink-0 flex items-center justify-center rounded-full"
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      background: "var(--yessal-green)",
-                      border: "1px solid var(--border)",
-                    }}
-                  >
-                    {user?.first_name?.[0] ? (
-                      <span className="text-[10px] font-black text-white">
-                        {user.first_name[0]}
-                        {user.last_name?.[0] ?? ""}
-                      </span>
-                    ) : (
-                      <User
-                        size={13}
-                        strokeWidth={1.5}
-                        style={{ color: "white" }}
-                      />
-                    )}
-                  </div>
+                  <Avatar className="h-6 w-6 border" style={{ borderColor: "var(--border)" }}>
+                    <AvatarImage
+                      src={user?.avatar || user?.avatar_url || undefined}
+                      className="object-cover"
+                    />
+                    <AvatarFallback
+                      className="text-[10px] font-black text-white"
+                      style={{ background: "var(--yessal-green)" }}
+                    >
+                      {user?.first_name?.[0] ? (
+                        `${user.first_name[0]}${user.last_name?.[0] ?? ""}`
+                      ) : (
+                        <User size={13} strokeWidth={1.5} />
+                      )}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex flex-col items-start text-left gap-0">
                     <span
                       className="text-xs font-medium"

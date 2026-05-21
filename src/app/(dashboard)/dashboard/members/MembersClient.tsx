@@ -63,6 +63,7 @@ type MemberRow = {
   zone_name?: string | null;
   zone_code?: string | null;
   avatar?: string | null;
+  avatar_url?: string | null;
   title?: string | null;
   documents_count?: number;
 };
@@ -193,7 +194,7 @@ export function MembersClient({
             >
               <Avatar className="h-14 w-14 flex-shrink-0 ring-2 ring-transparent group-hover:ring-yessal-green/20 transition-all">
                 <AvatarImage
-                  src={m.avatar || undefined}
+                  src={m.avatar || m.avatar_url || undefined}
                   className="object-cover"
                 />
                 <AvatarFallback
@@ -245,7 +246,7 @@ export function MembersClient({
                 </div>
                 <Avatar className="h-24 w-24 border-4 border-white/30 shadow-xl relative z-10">
                   <AvatarImage
-                    src={detail.avatar || undefined}
+                    src={detail.avatar || detail.avatar_url || undefined}
                     className="object-cover"
                   />
                   <AvatarFallback className="bg-white text-yessal-green text-3xl font-black">

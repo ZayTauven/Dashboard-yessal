@@ -59,6 +59,29 @@ export async function sendMessage(chatId: string, content: string) {
   }
 }
 
+export async function sendChatMessage(formData: FormData) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/messages/`, {
+      method: "POST",
+      headers: {
+        ...(await getAuthHeader() as Record<string, string>),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: err.detail || "Impossible d'envoyer le message." };
+    }
+
+    revalidatePath("/dashboard/chat");
+    return { success: true, data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur backend." };
+  }
+}
+
 export async function getMessagesForChat(chatId: string) {
   try {
     const res = await fetch(
@@ -76,6 +99,246 @@ export async function getMessagesForChat(chatId: string) {
   } catch (err) {
     console.error(err);
     return { error: "Erreur de connexion.", data: [] };
+  }
+}
+
+export async function deleteMessage(messageId: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/messages/${messageId}/`, {
+      method: "DELETE",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      return { error: "Impossible de supprimer le message." };
+    }
+    revalidatePath("/dashboard/chat");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur backend." };
+  }
+}
+
+export async function toggleMessageReaction(messageId: number, emoji: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/messages/${messageId}/react/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeader() as Record<string, string>),
+      },
+      body: JSON.stringify({ emoji }),
+    });
+    if (!res.ok) {
+      return { error: "Impossible d'ajouter la réaction." };
+    }
+    return { success: true, data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur backend." };
+  }
+}
+
+export async function markChatAsRead(chatId: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/${chatId}/read/`, {
+      method: "POST",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      return { error: "Erreur lors du marquage comme lu." };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion." };
+  }
+}
+
+export async function getChatMembers(chatId: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/${chatId}/members/`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      return { error: "Impossible de charger les membres.", data: [] };
+    }
+    return { data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion.", data: [] };
+  }
+}
+
+export async function searchMembers(query: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/search-members/?q=${encodeURIComponent(query)}`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      return { error: "Erreur lors de la recherche.", data: [] };
+    }
+    return { data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion.", data: [] };
+  }
+}
+
+export async function getInvitations() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/invitations/`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      return { error: "Erreur lors du chargement des invitations.", data: [] };
+    }
+    const raw = await res.json();
+    return { data: Array.isArray(raw) ? raw : raw?.results ?? [] };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion.", data: [] };
+  }
+}
+
+export async function createInvitation(recipientId: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/invitations/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeader() as Record<string, string>),
+      },
+      body: JSON.stringify({ recipient: recipientId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: err.detail || (Array.isArray(err) ? err[0] : "Impossible d'envoyer l'invitation.") };
+    }
+    return { success: true, data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion." };
+  }
+}
+
+export async function respondToInvitation(invitationId: number, accept: boolean) {
+  try {
+    const endpoint = accept ? 'accept' : 'decline';
+    const res = await fetch(`${BACKEND_URL}/api/comms/invitations/${invitationId}/${endpoint}/`, {
+      method: "POST",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: err.detail || "Action impossible." };
+    }
+    revalidatePath("/dashboard/chat");
+    return { success: true, data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion." };
+  }
+}
+
+export async function getMessagingPreferences() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/preferences/`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      return { error: "Impossible de charger les préférences.", data: null };
+    }
+    return { data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion.", data: null };
+  }
+}
+
+export async function updateMessagingPreferences(payload: any) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/preferences/`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeader() as Record<string, string>),
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: err.detail || "Impossible de sauvegarder les préférences." };
+    }
+    return { success: true, data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion." };
+  }
+}
+
+export async function getPilotageConfig(daaraId?: number) {
+  try {
+    const url = daaraId 
+      ? `${BACKEND_URL}/api/comms/pilotage/?daara_id=${daaraId}` 
+      : `${BACKEND_URL}/api/comms/pilotage/`;
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      return { error: "Impossible de charger le pilotage.", data: null };
+    }
+    return { data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion.", data: null };
+  }
+}
+
+export async function updatePilotageConfig(payload: any) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/pilotage/`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeader() as Record<string, string>),
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: err.detail || "Action impossible." };
+    }
+    return { success: true, data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion." };
+  }
+}
+
+export async function getPusherAuthSignature(channelName: string, socketId: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/pusher/auth/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeader() as Record<string, string>),
+      },
+      body: JSON.stringify({ channel_name: channelName, socket_id: socketId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: err.detail || "Authentification Pusher impossible." };
+    }
+    return await res.json();
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur d'authentification." };
   }
 }
 

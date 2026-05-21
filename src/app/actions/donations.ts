@@ -33,13 +33,19 @@ export async function getDonations() {
 
 export async function getUserDonations(userId: number | string) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/contributions/?user_id=${userId}`, {
-      cache: "no-store",
-      headers: await getAuthHeader(),
-    });
+    const res = await fetch(
+      `${BACKEND_URL}/api/contributions/?user_id=${userId}`,
+      {
+        cache: "no-store",
+        headers: await getAuthHeader(),
+      },
+    );
 
     if (!res.ok) {
-      return { error: "Erreur lors de la récupération des dons de l'utilisateur.", data: [] };
+      return {
+        error: "Erreur lors de la récupération des dons de l'utilisateur.",
+        data: [],
+      };
     }
 
     const data = await res.json();
@@ -197,7 +203,7 @@ export async function makeDonation(formData: FormData) {
         donor: donorId || null,
         beneficiary: beneficiaryId || null,
         payment_method: paymentMethod,
-        payment_status: paymentMethod === "manual" ? "completed" : "pending",
+        payment_status: paymentMethod === "manual" ? "confirmed" : "pending",
         is_anonymous: isAnonymous,
       }),
     });
@@ -213,7 +219,16 @@ export async function makeDonation(formData: FormData) {
 
     const donation = await res.json();
 
-    if (["virement", "wave", "orange_money", "visa", "mastercard", "bictorys"].includes(paymentMethod as string)) {
+    if (
+      [
+        "virement",
+        "wave",
+        "orange_money",
+        "visa",
+        "mastercard",
+        "bictorys",
+      ].includes(paymentMethod as string)
+    ) {
       const payRes = await payDonation(
         donation.id,
         paymentMethod as string,
@@ -223,7 +238,10 @@ export async function makeDonation(formData: FormData) {
         return { error: payRes.error };
       }
       if (payRes.data?.checkoutUrl || payRes.data?.url) {
-        return { success: true, redirectUrl: payRes.data.checkoutUrl || payRes.data.url };
+        return {
+          success: true,
+          redirectUrl: payRes.data.checkoutUrl || payRes.data.url,
+        };
       }
     }
 
