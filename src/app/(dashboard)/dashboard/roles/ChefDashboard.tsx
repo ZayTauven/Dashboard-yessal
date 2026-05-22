@@ -1,6 +1,7 @@
 "use client";
 
 import AppBarChart from "@/components/AppBarChart";
+import AppAreaChart from "@/components/AppAreaChart";
 import AppPieChart from "@/components/AppPieChart";
 import { Wallet, HandCoins, Landmark, Users, TrendingUp, Building2, UserPlus, FileEdit, Medal } from "lucide-react";
 import { Button } from "@/components/ui/button";

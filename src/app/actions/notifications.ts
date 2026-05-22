@@ -73,6 +73,37 @@ export async function markNotificationRead(id: number, isRead = true) {
   }
 }
 
+export async function registerFCMToken(token: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/fcm-token/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...((await getAuthHeader()) as Record<string, string>),
+      },
+      body: JSON.stringify({ token, device_type: 'web' }),
+    });
+    return { success: res.ok };
+  } catch {
+    return { error: 'Impossible d\'enregistrer le token FCM.' };
+  }
+}
+
+export async function unregisterFCMToken(token: string) {
+  try {
+    await fetch(`${BACKEND_URL}/api/comms/fcm-token/`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...((await getAuthHeader()) as Record<string, string>),
+      },
+      body: JSON.stringify({ token }),
+    });
+  } catch {
+    // silent
+  }
+}
+
 export async function markAllNotificationsRead() {
   try {
     const res = await fetch(`${BACKEND_URL}/api/comms/notifications/mark-all-read/`, {

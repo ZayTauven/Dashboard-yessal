@@ -7,6 +7,7 @@ import { jwtDecode } from "jwt-decode";
 import { getProfile, getUserDocuments } from "@/app/actions/users";
 import { getNotificationsPreview } from "@/app/actions/notifications";
 import ProfileCompletionBanner from "@/components/ProfileCompletionBanner";
+import { FCMProvider } from "@/components/FCMProvider";
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +68,7 @@ export default async function DashboardLayout({
         <ProfileCompletionBanner profile={profile} />
         <div className="flex-1 p-4 lg:p-6">{children}</div>
       </main>
+      <FCMProvider />
     </SidebarProvider>
   );
 }

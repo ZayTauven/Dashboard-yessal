@@ -66,10 +66,16 @@ type UserDocument = {
 type Donation = {
   id: number;
   donor_name?: string;
-  amount: number;
-  wire_reference?: string;
-  created_at: string;
+  donor_daara_name?: string;
+  campaign_name?: string;
+  collector_name?: string;
+  beneficiary_name?: string;
+  amount: number | string;
+  payment_method?: string;
   payment_status: string;
+  wire_reference?: string;
+  is_anonymous?: boolean;
+  created_at: string;
 };
 type Archive = {
   id: number;
@@ -211,7 +217,7 @@ export default function PilotagePage() {
     startTransition(async () => {
       const res = await getArchiveDonations(id);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
         return;
       }
       setArchiveDetails(res.data || []);
@@ -275,18 +281,21 @@ export default function PilotagePage() {
               pendingWires.map((wire) => (
                 <div
                   key={wire.id}
-                  className="border rounded-md p-3 text-sm space-y-2"
+                  className="border rounded-lg p-3 text-sm space-y-2 hover:bg-muted/10"
                 >
-                  <div className="font-semibold">
-                    REF-{wire.id} - {Number(wire.amount || 0).toLocaleString()}{" "}
-                    FCFA
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">JEF-{wire.id}</span>
+                    <span className="font-bold text-yessal-green">{Number(wire.amount || 0).toLocaleString("fr-FR")} FCFA</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {wire.donor_name || "Membre"} - ref:{" "}
-                    {wire.wire_reference || "-"}
+                  <div className="grid grid-cols-2 gap-x-3 text-xs text-muted-foreground">
+                    <span><span className="font-semibold text-foreground">Donateur:</span> {wire.is_anonymous ? "Anonyme" : (wire.donor_name || "—")}</span>
+                    <span><span className="font-semibold text-foreground">Daara:</span> {wire.donor_daara_name || "—"}</span>
+                    <span><span className="font-semibold text-foreground">Réf. banc.:</span> {wire.wire_reference || "—"}</span>
+                    <span><span className="font-semibold text-foreground">Campagne:</span> {wire.campaign_name || "—"}</span>
                   </div>
-                  <Button size="sm" onClick={() => handleConfirmWire(wire.id)}>
-                    Confirmer reception
+                  <div className="text-xs text-muted-foreground">{new Date(wire.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}</div>
+                  <Button size="sm" className="bg-green-600 text-white h-7" onClick={() => handleConfirmWire(wire.id)} disabled={isPending}>
+                    Confirmer réception
                   </Button>
                 </div>
               ))
@@ -340,18 +349,24 @@ export default function PilotagePage() {
               <div className="space-y-2 border-t pt-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-semibold">
-                    Detail archive #{selectedArchiveId}
+                    Détail archive #{selectedArchiveId}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      {archiveDetails.length} jefs · {archiveDetails.reduce((s, d) => s + Number(d.amount || 0), 0).toLocaleString("fr-FR")} FCFA
+                    </span>
                   </div>
                   {archiveDetails.length > 0 && (
                     <ExportButton
                       data={archiveDetails.map((d) => ({
-                        Ref: `REF-${d.id}`,
-                        Contributeur: d.donor_name || "-",
-                        Montant: Number(d.amount || 0),
+                        Ref: `JEF-${d.id}`,
+                        Donateur: d.is_anonymous ? "Anonyme" : (d.donor_name || "-"),
+                        Daara: d.donor_daara_name || "-",
+                        Campagne: d.campaign_name || "-",
+                        Collecteur: d.collector_name || "-",
+                        Methode: d.payment_method || "-",
+                        Montant_FCFA: Number(d.amount || 0),
                         Statut: (d.payment_status || "").toUpperCase(),
-                        Date: new Date(d.created_at).toLocaleDateString(
-                          "fr-FR",
-                        ),
+                        Reference_bancaire: d.wire_reference || "-",
+                        Date: new Date(d.created_at).toLocaleDateString("fr-FR"),
                       }))}
                       filename={`archive-${selectedArchiveId}-jefs`}
                       label="Exporter CSV"
@@ -360,22 +375,34 @@ export default function PilotagePage() {
                     />
                   )}
                 </div>
-                <div className="max-h-44 overflow-y-auto border rounded-md">
+                <div className="max-h-64 overflow-y-auto border rounded-md">
                   <table className="w-full text-xs">
-                    <thead className="bg-muted/40">
+                    <thead className="bg-muted/40 sticky top-0">
                       <tr>
-                        <th className="px-2 py-2 text-left">Ref</th>
-                        <th className="px-2 py-2 text-left">Contributeur</th>
-                        <th className="px-2 py-2 text-left">Montant</th>
+                        <th className="px-2 py-2 text-left font-bold">Ref</th>
+                        <th className="px-2 py-2 text-left font-bold">Donateur</th>
+                        <th className="px-2 py-2 text-left font-bold">Daara</th>
+                        <th className="px-2 py-2 text-left font-bold">Campagne</th>
+                        <th className="px-2 py-2 text-left font-bold">Méthode</th>
+                        <th className="px-2 py-2 text-right font-bold">Montant</th>
+                        <th className="px-2 py-2 text-right font-bold">Date</th>
                       </tr>
                     </thead>
                     <tbody>
                       {archiveDetails.map((d) => (
-                        <tr key={d.id} className="border-t">
-                          <td className="px-2 py-2">REF-{d.id}</td>
-                          <td className="px-2 py-2">{d.donor_name || "-"}</td>
+                        <tr key={d.id} className="border-t hover:bg-muted/10">
+                          <td className="px-2 py-2 font-mono text-[10px] text-muted-foreground">JEF-{d.id}</td>
+                          <td className="px-2 py-2 font-medium">{d.is_anonymous ? "Anonyme" : (d.donor_name || "—")}</td>
+                          <td className="px-2 py-2 text-muted-foreground">{d.donor_daara_name || "—"}</td>
+                          <td className="px-2 py-2 text-muted-foreground">{d.campaign_name || "—"}</td>
                           <td className="px-2 py-2">
-                            {Number(d.amount).toLocaleString()} FCFA
+                            <span className="capitalize">{(d.payment_method || "—").replace("_", " ")}</span>
+                          </td>
+                          <td className="px-2 py-2 text-right font-bold text-yessal-green">
+                            {Number(d.amount || 0).toLocaleString("fr-FR")}
+                          </td>
+                          <td className="px-2 py-2 text-right text-muted-foreground">
+                            {new Date(d.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
                           </td>
                         </tr>
                       ))}
