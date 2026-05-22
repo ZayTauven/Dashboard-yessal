@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { LogOut, Moon, Settings, Sun, User as UserIcon, ChevronRight, Home } from "lucide-react";
 import Link from "next/link";
@@ -138,11 +138,11 @@ const Navbar = ({
         {/* USER MENU */}
         <DropdownMenu>
           <DropdownMenuTrigger className="outline-none group">
-            <Avatar className="h-9 w-9 border-2 border-yessal-green/20 group-hover:border-yessal-green group-hover:scale-105 transition-all duration-300 shadow-sm" style={{ borderColor: "var(--yessal-green-20)" }}>
+            <Avatar className="h-9 w-9 border-2 border-yessal-violet/20 group-hover:border-yessal-violet group-hover:scale-105 transition-all duration-300 shadow-sm">
               <AvatarImage src={user?.avatar || user?.avatar_url || undefined} className="object-cover" />
               <AvatarFallback
                 className="text-white font-black text-[10px] uppercase"
-                style={{ background: "var(--yessal-green)" }}
+                style={{ background: "var(--primary)" }}
               >
                 {user?.first_name?.charAt(0) || "U"}
                 {user?.last_name?.charAt(0) || ""}
@@ -157,7 +157,7 @@ const Navbar = ({
               <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-black flex items-center gap-1">
                 <span
                   className="h-1.5 w-1.5 rounded-full"
-                  style={{ background: "var(--yessal-green)" }}
+                  style={{ background: "var(--primary)" }}
                 />
                 {user?.role === "member" ? "Talibé" : user?.role || "Talibé"}
               </span>

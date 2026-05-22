@@ -41,8 +41,9 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  /* Yessal Gui custom tokens */
-  --color-yessal-green: var(--yessal-green);
+  /* ── Yessal Gui — Brand tokens ── */
+  --color-yessal-violet: var(--yessal-violet);   /* Primaire confrérie */
+  --color-yessal-green: var(--yessal-green);     /* Accent nature/argent */
   --color-yessal-gold: var(--yessal-gold);
   --color-yessal-success: var(--yessal-success);
   --color-yessal-warning: var(--yessal-warning);
@@ -62,19 +63,20 @@
 
 /* ─── Yessal Gui — Light Mode ─── */
 :root {
-  --radius: 0.5rem; /* 8px — selon DA */
+  --radius: 0.625rem; /* 10px — arrondi doux et moderne */
 
-  /* Brand colors */
-  --yessal-green: #6b3ad4; /* Vert profond — accent principal */
-  --yessal-gold: #b8860b; /* Or discret — montants, highlights */
+  /* ── Brand — Violet confrérie + Vert nature ── */
+  --yessal-violet: #916ee7;   /* Violet confrérie — couleur primaire */
+  --yessal-green: #1a5c3a;    /* Vert — accent montants, succès */
+  --yessal-gold: #b8860b;     /* Or — highlights financiers */
   --yessal-success: #2d6a4f;
   --yessal-warning: #92620a;
   --yessal-error: #8b2e2e;
   --yessal-info: #1c4e7a;
 
   /* Backgrounds */
-  --background: #fafaf8; /* Blanc cassé */
-  --foreground: #1c1c1a; /* Charbon doux */
+  --background: #fafaf8;
+  --foreground: #1c1c1a;
 
   /* Cards */
   --card: #ffffff;
@@ -84,9 +86,9 @@
   --popover: #ffffff;
   --popover-foreground: #1c1c1a;
 
-  /* Primary = Vert Yessal */
-  --primary: #1a5c3a;
-  --primary-foreground: #fafaf8;
+  /* Primary = Violet Yessal */
+  --primary: #916ee7;
+  --primary-foreground: #ffffff;
 
   /* Secondary */
   --secondary: #f0f0ed;
@@ -94,11 +96,11 @@
 
   /* Muted */
   --muted: #f0f0ed;
-  --muted-foreground: #6b6b65; /* Gris pierre */
+  --muted-foreground: #6b6b65;
 
-  /* Accent */
-  --accent: #f0f0ed;
-  --accent-foreground: #1a5c3a;
+  /* Accent = teinté violet très clair */
+  --accent: #f3effe;
+  --accent-foreground: #6b48c8;
 
   /* Destructive */
   --destructive: #8b2e2e;
@@ -106,35 +108,36 @@
   /* Borders */
   --border: #e2e2de;
   --input: #e2e2de;
-  --ring: #1a5c3a;
+  --ring: #916ee7;
 
-  /* Charts — palette naturelle */
-  --chart-1: #1a5c3a;
-  --chart-2: #b8860b;
-  --chart-3: #2d6a4f;
-  --chart-4: #92620a;
-  --chart-5: #1c4e7a;
+  /* Charts — violet lead, vert second */
+  --chart-1: #916ee7;
+  --chart-2: #1a5c3a;
+  --chart-3: #b49aea;
+  --chart-4: #2d6a4f;
+  --chart-5: #b8860b;
 
   /* Sidebar */
   --sidebar: #fafaf8;
   --sidebar-foreground: #1c1c1a;
-  --sidebar-primary: #1a5c3a;
-  --sidebar-primary-foreground: #fafaf8;
-  --sidebar-accent: #eef5f1;
-  --sidebar-accent-foreground: #1a5c3a;
+  --sidebar-primary: #916ee7;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f3effe;
+  --sidebar-accent-foreground: #6b48c8;
   --sidebar-border: #e2e2de;
-  --sidebar-ring: #1a5c3a;
+  --sidebar-ring: #916ee7;
 }
 
 /* ─── Yessal Gui — Dark Mode ─── */
 .dark {
-  /* Brand */
-  --yessal-green: #3d8a5c; /* Légèrement plus clair sur fond sombre */
+  /* ── Brand dark ── */
+  --yessal-violet: #b49aea;   /* Violet plus clair sur fond sombre */
+  --yessal-green: #3d8a5c;
   --yessal-gold: #d4a520;
 
-  /* Backgrounds — DA : fond #0F0F0F, surfaces #1A1A1A */
+  /* Backgrounds */
   --background: #0f0f0f;
-  --foreground: #e8e8e2; /* Texte DA */
+  --foreground: #e8e8e2;
 
   /* Cards */
   --card: #1a1a1a;
@@ -144,8 +147,8 @@
   --popover: #1a1a1a;
   --popover-foreground: #e8e8e2;
 
-  /* Primary */
-  --primary: #3d8a5c;
+  /* Primary = Violet clair */
+  --primary: #b49aea;
   --primary-foreground: #0f0f0f;
 
   /* Secondary */
@@ -156,9 +159,9 @@
   --muted: #262626;
   --muted-foreground: #999990;
 
-  /* Accent */
-  --accent: #1e3329;
-  --accent-foreground: #3d8a5c;
+  /* Accent = teinté violet sombre */
+  --accent: #2a1f3d;
+  --accent-foreground: #b49aea;
 
   /* Destructive */
   --destructive: #c0504a;
@@ -166,24 +169,24 @@
   /* Borders */
   --border: rgba(255, 255, 255, 0.08);
   --input: rgba(255, 255, 255, 0.12);
-  --ring: #3d8a5c;
+  --ring: #b49aea;
 
   /* Charts */
-  --chart-1: #3d8a5c;
-  --chart-2: #d4a520;
-  --chart-3: #5baa84;
-  --chart-4: #b8860b;
-  --chart-5: #4a9bbf;
+  --chart-1: #b49aea;
+  --chart-2: #3d8a5c;
+  --chart-3: #916ee7;
+  --chart-4: #5baa84;
+  --chart-5: #d4a520;
 
-  /* Sidebar — DA : fond sombre */
+  /* Sidebar */
   --sidebar: #141414;
   --sidebar-foreground: #e8e8e2;
-  --sidebar-primary: #3d8a5c;
-  --sidebar-primary-foreground: #e8e8e2;
-  --sidebar-accent: #1e3329;
-  --sidebar-accent-foreground: #3d8a5c;
+  --sidebar-primary: #b49aea;
+  --sidebar-primary-foreground: #0f0f0f;
+  --sidebar-accent: #2a1f3d;
+  --sidebar-accent-foreground: #b49aea;
   --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #3d8a5c;
+  --sidebar-ring: #b49aea;
 }
 
 @layer base {
@@ -266,13 +269,13 @@
   }
 }
 
-@keyframes pulseGreen {
+@keyframes pulseViolet {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(26, 92, 58, 0.4);
+    box-shadow: 0 0 0 0 rgba(145, 110, 231, 0.4);
   }
   50% {
-    box-shadow: 0 0 0 8px rgba(26, 92, 58, 0);
+    box-shadow: 0 0 0 8px rgba(145, 110, 231, 0);
   }
 }
 
@@ -288,8 +291,8 @@
   animation: scaleIn 0.3s ease-out both;
 }
 
-.animate-pulse-green {
-  animation: pulseGreen 2s ease-in-out infinite;
+.animate-pulse-violet {
+  animation: pulseViolet 2s ease-in-out infinite;
 }
 
 /* Staggered children */
@@ -368,20 +371,28 @@ main {
 
 /* ─── Focus visible — accessibilité ─── */
 :focus-visible {
-  outline: 2px solid var(--yessal-green);
+  outline: 2px solid var(--yessal-violet);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
 /* ─── Text utilities Yessal ─── */
+.text-yessal-violet {
+  color: var(--yessal-violet);
+}
+.bg-yessal-violet {
+  background-color: var(--yessal-violet);
+}
+.border-yessal-violet {
+  border-color: var(--yessal-violet);
+}
+
 .text-yessal-green {
   color: var(--yessal-green);
 }
-
 .bg-yessal-green {
   background-color: var(--yessal-green);
 }
-
 .border-yessal-green {
   border-color: var(--yessal-green);
 }

@@ -1,5 +1,6 @@
 import { getAnnouncements } from "@/app/actions/announcements";
 import { getDaaras } from "@/app/actions/daara";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import {
   AnnouncementManagementClient,
   type Announcement,
@@ -23,7 +24,7 @@ export default async function AdminAnnouncementsPage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 font-medium">{error}</div>
+        <ErrorAlert message={error} />
       ) : (
         <AnnouncementManagementClient
           initialAnnouncements={(announcements || []) as Announcement[]}

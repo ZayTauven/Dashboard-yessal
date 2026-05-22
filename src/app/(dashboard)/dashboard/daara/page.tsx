@@ -1,4 +1,4 @@
-import { getMyDaara } from "@/app/actions/daara";
+﻿import { getMyDaara } from "@/app/actions/daara";
 import { getProfile, getDirectoryUsers, getPilotageSettings } from "@/app/actions/users";
 import {
   Activity,
@@ -88,7 +88,7 @@ export default async function DaaraPage() {
           </p>
           <Button
             asChild
-            style={{ background: "var(--yessal-green)", color: "white" }}
+            style={{ background: "var(--primary)", color: "white" }}
           >
             <Link href="/dashboard">Retour au tableau de bord</Link>
           </Button>
@@ -107,7 +107,7 @@ export default async function DaaraPage() {
         className="relative overflow-hidden rounded-3xl p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
         style={{
           background:
-            "linear-gradient(135deg, var(--yessal-green) 0%, #2D7A4F 100%)",
+            "linear-gradient(135deg, var(--primary) 0%, #2D7A4F 100%)",
         }}
       >
         <div className="relative z-10 text-white">
@@ -229,7 +229,7 @@ export default async function DaaraPage() {
       {/* AUTRES MEMBRES DU DAARA */}
       <div className="space-y-4">
         <h3 className="text-xl font-bold flex items-center gap-2">
-            <Users2 size={20} className="text-yessal-green" /> Les autres membres de mon Daara
+            <Users2 size={20} className="text-yessal-violet" /> Les autres membres de mon Daara
         </h3>
         
         <div className="bg-card rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--border)" }}>
@@ -262,7 +262,7 @@ export default async function DaaraPage() {
                                             variant="ghost" 
                                             size="sm" 
                                             asChild
-                                            className="text-yessal-green hover:bg-yessal-green/10 font-bold gap-2"
+                                            className="text-yessal-violet hover:bg-yessal-violet/10 font-bold gap-2"
                                         >
                                             <Link href={`/dashboard/chat/nouveau?with=${member.id}`}>
                                                 <MessageSquare size={14} /> 

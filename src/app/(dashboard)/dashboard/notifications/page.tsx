@@ -3,6 +3,7 @@ import {
   NotificationsClient,
   type Notification,
 } from "./NotificationsClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function NotificationsPage() {
   const { data: notifications, error } = await getNotifications();
@@ -24,9 +25,7 @@ export default async function NotificationsPage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 font-medium">
-          {error} — Impossible de charger les notifications.
-        </div>
+        <ErrorAlert message={`${error} — Impossible de charger les notifications.`} />
       ) : (
         <NotificationsClient
           notifications={(notifications || []) as Notification[]}

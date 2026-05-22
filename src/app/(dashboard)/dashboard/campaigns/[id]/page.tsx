@@ -3,6 +3,7 @@ import { getProfile, getAllUsers } from "@/app/actions/users";
 import { getEvents } from "@/app/actions/events";
 import { getCampaignById } from "@/app/actions/campaigns";
 import { NewCampaignClient } from "../new/NewCampaignClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function EditCampaignPage({
   params,
@@ -46,7 +47,7 @@ export default async function EditCampaignPage({
       </div>
 
       {fetesError ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md">{fetesError}</div>
+        <ErrorAlert message={fetesError} />
       ) : (
         <NewCampaignClient
           fetes={fetes || []}

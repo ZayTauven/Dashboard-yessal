@@ -1,9 +1,10 @@
-"use client";
+﻿"use client";
 
 import { CreditCard, History, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SmartLink } from "@/components/SmartLink";
 import { useState, useMemo } from "react";
 import { ExportButton } from "@/components/ExportButton";
@@ -93,7 +94,7 @@ export function DonationListClient({
       >
         <div className="relative flex-1 group w-full">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-yessal-green transition-colors"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-yessal-violet transition-colors"
             size={16}
           />
           <Input
@@ -102,7 +103,7 @@ export function DonationListClient({
                 ? "Campagne, contributeur, Daara, référence…"
                 : "Campagne, bénéficiaire ou référence…"
             }
-            className="pl-10 bg-card border-none focus-visible:ring-1 focus-visible:ring-yessal-green h-11"
+            className="pl-10 bg-card border-none focus-visible:ring-1 focus-visible:ring-yessal-violet h-11"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -129,11 +130,12 @@ export function DonationListClient({
         style={{ borderColor: "var(--border)" }}
       >
         {filteredDonations.length === 0 ? (
-          <div className="p-12 text-center flex flex-col items-center gap-3 bg-card">
-            <History className="text-muted-foreground opacity-20" size={48} />
-            <p className="text-muted-foreground italic">
-              Aucun don ne correspond à votre recherche.
-            </p>
+          <div className="bg-card">
+            <EmptyState
+              icon={History}
+              title="Aucun don trouvé"
+              description="Aucune contribution ne correspond à votre recherche."
+            />
           </div>
         ) : (
           <div className="overflow-x-auto bg-card">
@@ -258,18 +260,19 @@ export function DonationListClient({
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
+                      <Badge
+                        variant={
                           don.payment_status === "confirmed"
-                            ? "bg-green-100 text-green-700"
+                            ? "confirmed"
                             : don.payment_status === "pending" ||
                                 don.payment_status === "pending_wire"
-                              ? "bg-orange-100 text-orange-700"
-                              : "bg-red-100 text-red-700"
-                        }`}
+                              ? "pending"
+                              : "failed"
+                        }
+                        className="text-[10px] font-bold uppercase"
                       >
-                        {don.payment_status}
-                      </span>
+                        {don.payment_status.replace("_", " ")}
+                      </Badge>
                     </td>
                   </tr>
                 ))}
@@ -299,8 +302,8 @@ export function DonationListClient({
                 onClick={() => setCurrentPage(p)}
                 className={`h-9 w-9 rounded-lg font-bold border-none ${
                   currentPage === p 
-                    ? "bg-yessal-green text-white shadow-lg shadow-yessal-green/20" 
-                    : "text-muted-foreground hover:text-yessal-green hover:bg-yessal-green/5"
+                    ? "bg-yessal-violet text-white shadow-lg shadow-yessal-violet/20" 
+                    : "text-muted-foreground hover:text-yessal-violet hover:bg-yessal-violet/5"
                 }`}
               >
                 {p}

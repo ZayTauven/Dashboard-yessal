@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -124,7 +124,7 @@ export function EventsClient({
         {isAdmin && (
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-yessal-green hover:bg-green-700 text-white gap-3 border-none px-8 h-12 shadow-xl shadow-yessal-green/20 rounded-2xl font-black uppercase tracking-widest text-[10px]">
+              <Button className="bg-yessal-violet hover:bg-violet-700 text-white gap-3 border-none px-8 h-12 shadow-xl shadow-yessal-violet/20 rounded-2xl font-black uppercase tracking-widest text-[10px]">
                 <Plus size={20} /> Programmer une fête
               </Button>
             </DialogTrigger>
@@ -163,7 +163,7 @@ export function EventsClient({
                     <Label htmlFor="recurrence">Récurrence</Label>
                     <select
                       name="recurrence"
-                      className="w-full h-11 px-3 bg-muted/10 border-none rounded-md text-sm outline-none focus:ring-1 focus:ring-yessal-green"
+                      className="w-full h-11 px-3 bg-muted/10 border-none rounded-md text-sm outline-none focus:ring-1 focus:ring-yessal-violet"
                     >
                       <option value="annual">Annuelle</option>
                       <option value="quarterly">Trimestrielle</option>
@@ -175,7 +175,7 @@ export function EventsClient({
                     <Label htmlFor="is_active">Active</Label>
                     <select
                       name="is_active"
-                      className="w-full h-11 px-3 bg-muted/10 border-none rounded-md text-sm outline-none focus:ring-1 focus:ring-yessal-green"
+                      className="w-full h-11 px-3 bg-muted/10 border-none rounded-md text-sm outline-none focus:ring-1 focus:ring-yessal-violet"
                       defaultValue="true"
                     >
                       <option value="true">Oui</option>
@@ -192,7 +192,7 @@ export function EventsClient({
                   <Button
                     type="submit"
                     disabled={isPending}
-                    className="w-full bg-yessal-green text-white border-none h-12 font-bold uppercase tracking-widest text-xs"
+                    className="w-full bg-yessal-violet text-white border-none h-12 font-bold uppercase tracking-widest text-xs"
                   >
                     {isPending ? "Création en cours..." : "Enregistrer la fête"}
                   </Button>
@@ -253,7 +253,7 @@ export function EventsClient({
                     <select
                         name="recurrence"
                         defaultValue={editingEvent.recurrence || "annual"}
-                        className="w-full h-11 px-3 bg-muted/10 border-none rounded-md text-sm outline-none focus:ring-1 focus:ring-yessal-green"
+                        className="w-full h-11 px-3 bg-muted/10 border-none rounded-md text-sm outline-none focus:ring-1 focus:ring-yessal-violet"
                     >
                         <option value="annual">Annuelle</option>
                         <option value="quarterly">Trimestrielle</option>
@@ -266,7 +266,7 @@ export function EventsClient({
                     <select
                         name="is_active"
                         defaultValue={String(editingEvent.is_active)}
-                        className="w-full h-11 px-3 bg-muted/10 border-none rounded-md text-sm outline-none focus:ring-1 focus:ring-yessal-green"
+                        className="w-full h-11 px-3 bg-muted/10 border-none rounded-md text-sm outline-none focus:ring-1 focus:ring-yessal-violet"
                     >
                         <option value="true">Oui</option>
                         <option value="false">Non</option>
@@ -282,7 +282,7 @@ export function EventsClient({
                     <Button
                         type="submit"
                         disabled={isPending}
-                        className="w-full bg-yessal-green text-white border-none h-12 font-bold uppercase tracking-widest text-xs"
+                        className="w-full bg-yessal-violet text-white border-none h-12 font-bold uppercase tracking-widest text-xs"
                     >
                         {isPending ? "Mise à jour..." : "Sauvegarder les modifications"}
                     </Button>
@@ -309,17 +309,17 @@ export function EventsClient({
             return (
                 <Card
                   key={event.id}
-                  className={`overflow-hidden hover:shadow-xl transition-all duration-300 border shadow-sm group ${soon ? 'ring-2 ring-yessal-green/20' : ''}`}
+                  className={`overflow-hidden hover:shadow-xl transition-all duration-300 border shadow-sm group ${soon ? 'ring-2 ring-yessal-violet/20' : ''}`}
                 >
                   <CardHeader className="pb-3 px-5">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                            <span className="text-lg font-black group-hover:text-yessal-green transition-colors">
+                            <span className="text-lg font-black group-hover:text-yessal-violet transition-colors">
                                 {event.name}
                             </span>
                             {soon && (
-                                <Badge className="bg-yessal-green text-white text-[8px] animate-pulse">PROCHE</Badge>
+                                <Badge className="bg-yessal-violet text-white text-[8px] animate-pulse">PROCHE</Badge>
                             )}
                         </div>
                       </div>

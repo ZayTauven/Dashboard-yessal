@@ -41,7 +41,7 @@ export default function MemberDashboard({ stats }: { stats: any }) {
                           <p className="text-xs text-muted-foreground line-clamp-1">{ann.content}</p>
                       </div>
 
-                      <Button variant="ghost" size="sm" className="h-8 px-3 text-[10px] uppercase font-black tracking-widest text-yessal-green hover:bg-yessal-green/10 border-none transition-all">
+                      <Button variant="ghost" size="sm" className="h-8 px-3 text-[10px] uppercase font-black tracking-widest text-yessal-violet hover:bg-yessal-violet/10 border-none transition-all">
                           Lire la suite
                       </Button>
                   </div>
@@ -50,32 +50,47 @@ export default function MemberDashboard({ stats }: { stats: any }) {
       )}
 
       {/* WELCOME SECTION */}
-      <div className="bg-gradient-to-r from-yessal-green to-green-600 p-8 rounded-3xl text-white shadow-lg relative overflow-hidden">
-             <div className="relative z-10">
-                <h2 className="text-3xl font-bold">Heureux de vous revoir !</h2>
-                <p className="mt-2 opacity-90 max-w-md text-sm leading-relaxed">
-                    Votre engagement fait revivre nos Daaras. Voici l'état de vos contributions et de vos membres sous tutelle.
-                </p>
-                <div className="flex gap-3 mt-6">
-                    <Button asChild variant="secondary" className="bg-white text-yessal-green hover:bg-gray-100 border-none shadow-sm font-bold">
-                        <Link href="/dashboard/donations">Mes contributions</Link>
-                    </Button>
-                    <Button variant="ghost" className="text-white border border-white/20 hover:bg-white/10 font-bold">
-                        <Link href="/dashboard/campaigns">Voir les Jëfs</Link>
-                    </Button>
-                </div>
-             </div>
-             <Heart className="absolute -right-8 -bottom-8 w-64 h-64 text-white/10 rotate-12" />
+      <div
+        className="p-8 rounded-3xl text-white shadow-lg relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, var(--yessal-violet) 0%, #6b3fd4 100%)",
+          boxShadow: "0 8px 32px rgba(145,110,231,0.35)",
+        }}
+      >
+        <div className="relative z-10">
+          <h2 className="text-3xl font-bold">Heureux de vous revoir !</h2>
+          <p className="mt-2 opacity-85 max-w-md text-sm leading-relaxed">
+            Votre engagement fait revivre nos Daaras. Voici l'état de vos contributions et de vos membres sous tutelle.
+          </p>
+          <div className="flex gap-3 mt-6">
+            <Button
+              asChild
+              variant="secondary"
+              className="bg-white hover:bg-gray-100 border-none shadow-sm font-bold"
+              style={{ color: "var(--yessal-violet)" }}
+            >
+              <Link href="/dashboard/donations">Mes contributions</Link>
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-white border border-white/20 hover:bg-white/10 font-bold"
+            >
+              <Link href="/dashboard/campaigns">Voir les Jëfs</Link>
+            </Button>
+          </div>
+        </div>
+        <Heart className="absolute -right-8 -bottom-8 w-64 h-64 text-white/10 rotate-12" />
       </div>
 
       {/* KPI GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Campaign List as a special card if Member */}
         {campaignDonations.length > 0 && (
-           <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-3 hover:border-yessal-green/30 transition-all col-span-1 md:col-span-2 lg:col-span-1" style={{ borderColor: "var(--border)" }}>
+           <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-3 hover:border-yessal-violet/30 transition-all col-span-1 md:col-span-2 lg:col-span-1" style={{ borderColor: "var(--border)" }}>
               <div className="flex justify-between items-center mb-1">
                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Dons par Campagne</p>
-                 <Wallet size={16} className="text-yessal-green" />
+                 <Wallet size={16} className="text-yessal-violet" />
               </div>
               <div className="space-y-2 max-h-[100px] overflow-y-auto pr-2">
                  {campaignDonations.map((cd: any) => (
@@ -93,9 +108,9 @@ export default function MemberDashboard({ stats }: { stats: any }) {
                        kpi.icon === 'HandCoins' ? HandCoins : 
                        kpi.icon === 'Landmark' ? Landmark : Users;
           return (
-            <div key={idx} className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2 hover:border-yessal-green/30 transition-all" style={{ borderColor: "var(--border)" }}>
+            <div key={idx} className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2 hover:border-yessal-violet/30 transition-all" style={{ borderColor: "var(--border)" }}>
               <div className="flex justify-between items-start">
-                <div className="p-2 rounded-lg bg-yessal-green/10 text-yessal-green">
+                <div className="p-2 rounded-lg bg-yessal-violet/10 text-yessal-violet">
                     <Icon size={20} />
                 </div>
               </div>
@@ -122,7 +137,7 @@ export default function MemberDashboard({ stats }: { stats: any }) {
         </div>
         <div className="bg-card p-6 rounded-2xl border shadow-sm divide-y" style={{ borderColor: "var(--border)" }}>
              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Bell size={18} className="text-yessal-green" /> Annonces de la Direction
+                <Bell size={18} className="text-yessal-violet" /> Annonces de la Direction
              </h3>
              {announcements.length === 0 ? (
                 <p className="text-xs text-muted-foreground py-4 italic">Aucune annonce récente.</p>
@@ -130,7 +145,7 @@ export default function MemberDashboard({ stats }: { stats: any }) {
                 announcements.map((ann: any) => (
                     <div key={ann.id} className="py-4 flex flex-col gap-1 group cursor-pointer">
                        <div className="flex justify-between items-start">
-                           <p className="text-sm font-bold group-hover:text-yessal-green transition-colors">{ann.title}</p>
+                           <p className="text-sm font-bold group-hover:text-yessal-violet transition-colors">{ann.title}</p>
                            <span className="text-[9px] uppercase font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
                                {ann.target === 'global' ? 'National' : 'Daara'}
                            </span>
@@ -140,7 +155,7 @@ export default function MemberDashboard({ stats }: { stats: any }) {
                     </div>
                 ))
              )}
-             <Button variant="link" className="w-full text-xs text-yessal-green h-auto pt-4 font-bold">Voir toutes les annonces</Button>
+             <Button variant="link" className="w-full text-xs text-yessal-violet h-auto pt-4 font-bold">Voir toutes les annonces</Button>
         </div>
       </div>
     </div>

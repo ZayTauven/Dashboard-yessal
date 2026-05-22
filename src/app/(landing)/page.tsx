@@ -3,27 +3,30 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { Moon, Sun, LogIn, HelpCircle } from "lucide-react";
+import { Moon, Sun, LogIn, HelpCircle, Users, Heart, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/BrandMark";
 
 export default function LandingPage() {
   return (
-    <div className="h-screen w-full overflow-hidden flex flex-col" style={{ background: "var(--background)" }}>
+    <div
+      className="h-screen w-full overflow-hidden flex flex-col"
+      style={{ background: "var(--background)" }}
+    >
       {/* ── Navbar flottante ── */}
       <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-5">
         <BrandMark href="/" size="sm" showSubtitle={false} />
-        <nav className="flex items-center gap-3">
+        <nav className="flex items-center gap-2">
           <ThemeToggle />
           <Link href="/contact">
             <Button
               variant="ghost"
               size="sm"
-              className="text-sm gap-2"
-              style={{ color: "var(--muted-foreground)", cursor: "pointer" }}
+              className="text-sm gap-2 hidden sm:flex"
+              style={{ color: "var(--muted-foreground)" }}
             >
-              <HelpCircle size={15} strokeWidth={1.5} />
-              Contacter le support
+              <HelpCircle size={14} strokeWidth={1.5} />
+              Support
             </Button>
           </Link>
           <Link href="/login">
@@ -31,13 +34,12 @@ export default function LandingPage() {
               size="sm"
               className="text-sm gap-2"
               style={{
-                background: "var(--yessal-green)",
-                color: "#FAFAF8",
+                background: "var(--yessal-violet)",
+                color: "#ffffff",
                 borderRadius: "8px",
-                cursor: "pointer",
               }}
             >
-              <LogIn size={15} strokeWidth={1.5} />
+              <LogIn size={14} strokeWidth={1.5} />
               Connexion
             </Button>
           </Link>
@@ -47,54 +49,79 @@ export default function LandingPage() {
       {/* ── Hero 50/50 ── */}
       <main className="flex-1 flex overflow-hidden">
         {/* ── Gauche : Texte ── */}
-        <section
-          className="w-1/2 h-full flex flex-col justify-center pl-16 pr-8"
-          style={{ maxWidth: "640px" }}
-        >
-          <p
-            className="text-sm font-medium mb-6 tracking-widest uppercase"
-            style={{ color: "var(--yessal-green)", letterSpacing: "0.12em" }}
-          >
-            Confrérie · Daara · Solidarité
-          </p>
+        <section className="w-1/2 h-full flex flex-col justify-center pl-16 pr-8 max-w-2xl">
 
+          {/* Pill badge */}
+          <div className="flex items-center mb-8">
+            <span
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide"
+              style={{
+                background: "var(--accent)",
+                color: "var(--yessal-violet)",
+                border: "1px solid",
+                borderColor: "color-mix(in srgb, var(--yessal-violet) 20%, transparent)",
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: "var(--yessal-violet)" }}
+              />
+              Réseau Yessal Gui · Confrérie Mouride
+            </span>
+          </div>
+
+          {/* Headline */}
           <h1
-            className="text-5xl mb-6"
+            className="text-5xl mb-5"
             style={{
               fontWeight: 300,
               lineHeight: 1.15,
-              letterSpacing: "-0.02em",
+              letterSpacing: "-0.03em",
               color: "var(--foreground)",
             }}
           >
-            Gérez les dons
+            Gérez les dons{" "}
             <br />
-            de votre communauté
+            <span style={{ color: "var(--yessal-violet)", fontWeight: 400 }}>
+              de votre Daara
+            </span>
           </h1>
 
           <p
             className="text-base mb-10 leading-relaxed"
-            style={{ color: "var(--muted-foreground)", maxWidth: "420px" }}
+            style={{ color: "var(--muted-foreground)", maxWidth: "400px" }}
           >
             Centralisez les Ndiguels, tracez chaque Jëfs et renforcez
-            les liens de votre Daara — depuis n'importe où dans le monde.
+            les liens de votre communauté — depuis n&apos;importe où dans le monde.
           </p>
 
-          <div className="flex items-center gap-4">
+          {/* Stats rapides */}
+          <div className="flex items-center gap-6 mb-10">
+            <Stat icon={Users} label="Membres" />
+            <div style={{ width: "1px", height: "28px", background: "var(--border)" }} />
+            <Stat icon={Heart} label="Daaras" />
+            <div style={{ width: "1px", height: "28px", background: "var(--border)" }} />
+            <Stat icon={Globe} label="Pays" />
+          </div>
+
+          {/* CTAs */}
+          <div className="flex items-center gap-3">
             <Link href="/login">
               <Button
                 size="lg"
                 style={{
-                  background: "var(--yessal-green)",
-                  color: "#FAFAF8",
-                  borderRadius: "8px",
+                  background: "var(--yessal-violet)",
+                  color: "#ffffff",
+                  borderRadius: "10px",
                   padding: "0 28px",
                   height: "48px",
                   fontSize: "15px",
-                  cursor: "pointer",
+                  fontWeight: 500,
+                  boxShadow: "0 4px 16px rgba(145,110,231,0.35)",
                 }}
               >
-                Connexion
+                <LogIn size={15} strokeWidth={1.5} />
+                Se connecter
               </Button>
             </Link>
             <Link href="/contact">
@@ -102,12 +129,11 @@ export default function LandingPage() {
                 variant="ghost"
                 size="lg"
                 style={{
-                  borderRadius: "8px",
+                  borderRadius: "10px",
                   height: "48px",
                   fontSize: "15px",
                   color: "var(--muted-foreground)",
-                  border: "1px solid var(--border)",  
-                  cursor: "pointer",
+                  border: "1px solid var(--border)",
                 }}
               >
                 Contacter le support
@@ -118,24 +144,36 @@ export default function LandingPage() {
 
         {/* ── Droite : Galerie défilante ── */}
         <section
-          className="w-1/2 h-full relative overflow-hidden"
+          className="flex-1 h-full relative overflow-hidden"
           style={{
             maskImage:
-              "linear-gradient(transparent 0%, black 12%, black 88%, transparent 100%)",
+              "linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)",
             WebkitMaskImage:
-              "linear-gradient(transparent 0%, black 12%, black 88%, transparent 100%)",
+              "linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)",
           }}
         >
-          <div className="absolute inset-0 flex gap-6 px-6 py-4 justify-center pointer-events-none">
+          {/* Gradient overlay gauche pour transition douce */}
+          <div
+            className="absolute inset-y-0 left-0 w-16 z-10 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(to right, var(--background), transparent)",
+            }}
+          />
+
+          <div className="absolute inset-0 flex gap-4 px-4 py-4 justify-center pointer-events-none">
             {/* Colonne 1 */}
-            <div className="gallery-scroll w-1/2 flex flex-col gap-6" style={{ marginTop: "-10vh" }}>
+            <div
+              className="gallery-scroll flex flex-col gap-4"
+              style={{ width: "48%", marginTop: "-8vh" }}
+            >
               {gallerySlots.concat(gallerySlots).map((slot, i) => (
                 <div
                   key={`col1-${i}`}
-                  className="relative flex-shrink-0 overflow-hidden shadow-sm"
+                  className="relative flex-shrink-0 overflow-hidden"
                   style={{
                     aspectRatio: i % 2 === 0 ? "4 / 5" : "1 / 1",
-                    borderRadius: "16px",
+                    borderRadius: "14px",
                   }}
                 >
                   <Image
@@ -143,22 +181,38 @@ export default function LandingPage() {
                     alt={slot.label}
                     fill
                     className="object-cover"
-                    sizes="25vw"
+                    sizes="22vw"
                   />
-                  <div className="absolute inset-0 bg-black/10" />
+                  <div className="absolute inset-0 bg-black/15" />
+                  {/* Label flottant */}
+                  <div className="absolute bottom-2 left-2 right-2">
+                    <span
+                      className="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full truncate"
+                      style={{
+                        background: "rgba(0,0,0,0.45)",
+                        color: "rgba(255,255,255,0.9)",
+                        backdropFilter: "blur(4px)",
+                      }}
+                    >
+                      {slot.label}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Colonne 2 (décalée vers le haut, ordre invérsé) */}
-            <div className="gallery-scroll w-1/2 flex flex-col gap-6" style={{ marginTop: "10vh" }}>
+            {/* Colonne 2 (décalée) */}
+            <div
+              className="gallery-scroll flex flex-col gap-4"
+              style={{ width: "48%", marginTop: "8vh" }}
+            >
               {[...gallerySlots].reverse().concat([...gallerySlots].reverse()).map((slot, i) => (
                 <div
                   key={`col2-${i}`}
-                  className="relative flex-shrink-0 overflow-hidden shadow-sm"
+                  className="relative flex-shrink-0 overflow-hidden"
                   style={{
                     aspectRatio: i % 2 === 0 ? "1 / 1" : "4 / 5",
-                    borderRadius: "16px",
+                    borderRadius: "14px",
                   }}
                 >
                   <Image
@@ -166,9 +220,9 @@ export default function LandingPage() {
                     alt={slot.label}
                     fill
                     className="object-cover"
-                    sizes="25vw"
+                    sizes="22vw"
                   />
-                  <div className="absolute inset-0 bg-black/10" />
+                  <div className="absolute inset-0 bg-black/15" />
                 </div>
               ))}
             </div>
@@ -179,14 +233,30 @@ export default function LandingPage() {
   );
 }
 
-/* ── Slots galerie — à remplacer par vos photos ── */
+/* ── Composant stat ── */
+function Stat({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon
+        size={14}
+        strokeWidth={1.5}
+        style={{ color: "var(--yessal-violet)", opacity: 0.7 }}
+      />
+      <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/* ── Slots galerie ── */
 const gallerySlots = [
-  { label: "Photo événement · Magal", src: "/assets/yessal-event-1.jpg" },
-  { label: "Photo événement · Gamou", src: "/assets/yessal-event-2.jpg" },
-  { label: "Photo événement · Tog Ajumma", src: "/assets/yessal-event-3.jpg" },
-  { label: "Photo événement · Rassemblement", src: "/assets/yessal-event-4.jpg" },
-  { label: "Photo événement · Ziar", src: "/assets/yessal-event-5.jpg" },
-  { label: "Photo événement · Communauté", src: "/assets/yessal-event-6.jpg" },
+  { label: "Magal de Touba", src: "/assets/yessal-event-1.jpg" },
+  { label: "Gamou", src: "/assets/yessal-event-2.jpg" },
+  { label: "Tog Ajumma", src: "/assets/yessal-event-3.jpg" },
+  { label: "Rassemblement", src: "/assets/yessal-event-4.jpg" },
+  { label: "Ziar", src: "/assets/yessal-event-5.jpg" },
+  { label: "Communauté", src: "/assets/yessal-event-6.jpg" },
 ];
 
 /* ── Toggle dark/light ── */
@@ -198,19 +268,15 @@ function ThemeToggle() {
       size="icon"
       aria-label="Basculer le thème"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      style={{
-        width: "36px",
-        height: "36px",
-        color: "var(--muted-foreground)",
-      }}
+      style={{ width: "36px", height: "36px", color: "var(--muted-foreground)" }}
     >
       <Sun
-        size={16}
+        size={15}
         strokeWidth={1.5}
         className="rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0"
       />
       <Moon
-        size={16}
+        size={15}
         strokeWidth={1.5}
         className="absolute rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100"
       />

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
@@ -37,7 +37,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ExportButton } from "@/components/ExportButton";
-import { Eye, Loader2, Save, Settings } from "lucide-react";
+import { Loader2, Save, Settings } from "lucide-react";
+import { toast } from "sonner";
 
 type PilotageSettings = { enable_salons: boolean };
 type Title = {
@@ -134,11 +135,8 @@ export default function PilotagePage() {
     if (!settings) return;
     startTransition(async () => {
       const { error } = await updatePilotageSettings(settings);
-      if (error) {
-        alert(error);
-        return;
-      }
-      alert("Parametres enregistres.");
+      if (error) { toast.error(error); return; }
+      toast.success("Paramètres enregistrés.");
     });
   };
 
@@ -146,81 +144,65 @@ export default function PilotagePage() {
     if (!newTitle.trim()) return;
     startTransition(async () => {
       const res = await createTitle({ name: newTitle.trim(), is_active: true });
-      if (res.error) {
-        alert(res.error);
-        return;
-      }
+      if (res.error) { toast.error(res.error); return; }
       setNewTitle("");
       await loadAll();
+      toast.success("Titre créé.");
     });
   };
 
   const handleDeleteTitle = (id: number) => {
+    if (!confirm("Supprimer ce titre ?")) return;
     startTransition(async () => {
       const res = await deleteTitle(id);
-      if (res.error) {
-        alert(res.error);
-        return;
-      }
+      if (res.error) { toast.error(res.error); return; }
       await loadAll();
+      toast.success("Titre supprimé.");
     });
   };
 
   const handleReviewTitle = (id: number, action: "approve" | "refuse") => {
-    const note =
-      action === "refuse" ? prompt("Note de refus (optionnel)") || "" : "";
+    const note = action === "refuse" ? (window.prompt("Note de refus (optionnel)") || "") : "";
     startTransition(async () => {
       const res = await reviewTitleRequest(id, action, note);
-      if (res.error) {
-        alert(res.error);
-        return;
-      }
+      if (res.error) { toast.error(res.error); return; }
       await loadAll();
+      toast.success(action === "approve" ? "Demande approuvée." : "Demande refusée.");
     });
   };
 
   const handleValidateDocument = (id: number, accept: boolean) => {
     const status = accept ? "validated" : "rejected";
-    const note = accept ? "" : prompt("Note de rejet") || "";
+    const note = accept ? "" : (window.prompt("Note de rejet") || "");
     startTransition(async () => {
       const res = await validateDocument(id, status, note);
-      if (res.error) {
-        alert(res.error);
-        return;
-      }
+      if (res.error) { toast.error(res.error); return; }
       await loadAll();
+      toast.success(accept ? "Document validé." : "Document rejeté.");
     });
   };
 
   const handleConfirmWire = (id: number) => {
     startTransition(async () => {
       const res = await confirmWireDonation(id);
-      if (res.error) {
-        alert(res.error);
-        return;
-      }
+      if (res.error) { toast.error(res.error); return; }
       await loadAll();
+      toast.success("Virement confirmé.");
     });
   };
 
   const handleCreateArchive = () => {
     if (!archiveName.trim()) {
-      alert("Nom d'archive requis");
+      toast.error("Nom d'archive requis.");
       return;
     }
     startTransition(async () => {
-      const res = await createDonationArchive(
-        archiveName.trim(),
-        archiveDescription.trim(),
-      );
-      if (res.error) {
-        alert(res.error);
-        return;
-      }
+      const res = await createDonationArchive(archiveName.trim(), archiveDescription.trim());
+      if (res.error) { toast.error(res.error); return; }
       setArchiveName("");
       setArchiveDescription("");
       await loadAll();
-      alert("Archive creee.");
+      toast.success("Archive créée.");
     });
   };
 
@@ -239,7 +221,7 @@ export default function PilotagePage() {
   if (isLoading) {
     return (
       <div className="p-8 flex justify-center">
-        <Loader2 className="animate-spin text-yessal-green" />
+        <Loader2 className="animate-spin text-yessal-violet" />
       </div>
     );
   }
@@ -248,12 +230,12 @@ export default function PilotagePage() {
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Settings className="text-yessal-green" /> Pilotage du systeme
+          <Settings className="text-yessal-violet" /> Pilotage du systeme
         </h1>
         <Button
           onClick={handleSaveSettings}
           disabled={isPending}
-          className="bg-yessal-green text-white gap-2"
+          className="bg-yessal-violet text-white gap-2"
         >
           {isPending ? (
             <Loader2 className="animate-spin" size={16} />
@@ -405,6 +387,142 @@ export default function PilotagePage() {
           </CardContent>
         </Card>
       </div>
-    </div >
+
+      {/* Titles management */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Gestion des Titres honorifiques</CardTitle>
+            <CardDescription>Créez les titres attribuables aux membres.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Nouveau titre (ex: Serigne, Mame...)"
+                onKeyDown={(e) => e.key === "Enter" && handleCreateTitle()}
+              />
+              <Button onClick={handleCreateTitle} disabled={isPending || !newTitle.trim()}>
+                Ajouter
+              </Button>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto border-t pt-3">
+              {titles.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">Aucun titre enregistré.</p>
+              ) : (
+                titles.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between p-2 rounded-lg border hover:bg-muted/10">
+                    <span className="text-sm font-medium">{t.name}</span>
+                    <Button size="sm" variant="ghost" className="text-red-600 h-7" onClick={() => handleDeleteTitle(t.id)} disabled={isPending}>
+                      Supprimer
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Demandes de titres
+              {titleRequests.length > 0 && (
+                <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">{titleRequests.length} en attente</span>
+              )}
+            </CardTitle>
+            <CardDescription>Approuvez ou refusez les demandes en attente.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {titleRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">Aucune demande en attente.</p>
+            ) : (
+              titleRequests.map((req) => (
+                <div key={req.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div>
+                    <div className="text-sm font-bold">{req.member_name}</div>
+                    <div className="text-xs text-muted-foreground">{req.title_name}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="bg-green-600 text-white h-7" onClick={() => handleReviewTitle(req.id, "approve")} disabled={isPending}>
+                      Approuver
+                    </Button>
+                    <Button size="sm" variant="outline" className="border-red-300 text-red-600 h-7" onClick={() => handleReviewTitle(req.id, "refuse")} disabled={isPending}>
+                      Refuser
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Document validation */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Validation des Documents d&apos;identité
+            {pendingDocs.length > 0 && (
+              <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-bold">{pendingDocs.length} en attente</span>
+            )}
+          </CardTitle>
+          <CardDescription>Vérifiez et validez les pièces d&apos;identité soumises.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pendingDocs.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">Aucun document en attente de validation.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {pendingDocs.map((doc) => (
+                <div key={doc.id} className="border rounded-xl p-4 space-y-3 hover:border-yessal-violet/30 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-bold uppercase">{doc.doc_type.replace("_", " ")}</div>
+                    <span className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full font-bold uppercase">En attente</span>
+                  </div>
+                  {doc.image && (
+                    <button type="button" onClick={() => setSelectedDocForLightbox(doc)} className="w-full">
+                      <img src={doc.image} alt="Recto" className="w-full h-32 object-cover rounded-lg border hover:opacity-90 transition-opacity cursor-zoom-in" />
+                    </button>
+                  )}
+                  <div className="flex gap-2">
+                    <Button size="sm" className="flex-1 bg-green-600 text-white" onClick={() => handleValidateDocument(doc.id, true)} disabled={isPending}>
+                      Valider
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1 border-red-300 text-red-600" onClick={() => handleValidateDocument(doc.id, false)} disabled={isPending}>
+                      Rejeter
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Document lightbox */}
+      <Dialog open={!!selectedDocForLightbox} onOpenChange={(o) => !o && setSelectedDocForLightbox(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Document — {selectedDocForLightbox?.doc_type?.replace("_", " ")}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+            {selectedDocForLightbox?.image && (
+              <div>
+                <p className="text-[10px] font-black uppercase mb-2 text-muted-foreground">Recto</p>
+                <img src={selectedDocForLightbox.image} alt="Recto" className="w-full rounded-xl border" />
+              </div>
+            )}
+            {selectedDocForLightbox?.image_verso && (
+              <div>
+                <p className="text-[10px] font-black uppercase mb-2 text-muted-foreground">Verso</p>
+                <img src={selectedDocForLightbox.image_verso} alt="Verso" className="w-full rounded-xl border" />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

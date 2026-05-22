@@ -50,7 +50,7 @@ export default function CollectorDashboard({ stats }: { stats: any }) {
         <Button
           asChild
           className="h-12 px-8 gap-2 font-bold rounded-xl transition-all shadow-lg active:scale-95 border-none text-white"
-          style={{ background: "var(--yessal-green)" }}
+          style={{ background: "var(--primary)" }}
         >
           <Link href="/dashboard/collect">
             <Plus size={20} /> Nouvelle Collecte
@@ -69,7 +69,7 @@ export default function CollectorDashboard({ stats }: { stats: any }) {
               style={{ borderColor: "var(--border)" }}
             >
               <div className="flex justify-between items-start">
-                <div className="p-2 rounded-lg" style={{ background: "rgba(26,92,58,0.1)", color: "var(--yessal-green)" }}>
+                <div className="p-2 rounded-lg" style={{ background: "rgba(145,110,231,0.1)", color: "var(--primary)" }}>
                   <Icon size={20} />
                 </div>
                 {kpi.change && (
@@ -112,7 +112,7 @@ export default function CollectorDashboard({ stats }: { stats: any }) {
             <Link
               href="/dashboard/donations"
               className="text-xs font-bold hover:underline"
-              style={{ color: "var(--yessal-green)" }}
+              style={{ color: "var(--primary)" }}
             >
               Tout voir
             </Link>
@@ -124,7 +124,7 @@ export default function CollectorDashboard({ stats }: { stats: any }) {
               <p className="text-xs text-muted-foreground italic">
                 Aucune collecte enregistrée aujourd'hui.
               </p>
-              <Button asChild size="sm" className="border-none text-white" style={{ background: "var(--yessal-green)" }}>
+              <Button asChild size="sm" className="border-none text-white" style={{ background: "var(--primary)" }}>
                 <Link href="/dashboard/collect">
                   <Plus size={14} className="mr-1" /> Première collecte
                 </Link>

@@ -1,4 +1,4 @@
-import { getNewsPost } from "@/app/actions/news";
+﻿import { getNewsPost } from "@/app/actions/news";
 import { Newspaper, Calendar, User, ArrowLeft, Youtube, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
             <ArrowLeft size={20} />
           </Button>
         </Link>
-        <Badge variant="outline" className="bg-yessal-green/10 text-yessal-green border-none uppercase font-black px-3 py-1">
+        <Badge variant="outline" className="bg-yessal-violet/10 text-yessal-violet border-none uppercase font-black px-3 py-1">
           Actualité
         </Badge>
       </div>
@@ -47,7 +47,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
         
         <div className="flex flex-wrap items-center gap-6 text-sm font-bold text-muted-foreground border-b pb-6">
           <div className="flex items-center gap-2">
-            <Calendar size={18} className="text-yessal-green" />
+            <Calendar size={18} className="text-yessal-violet" />
             {new Date(post.created_at).toLocaleDateString("fr-FR", {
               day: "numeric",
               month: "long",
@@ -55,7 +55,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ slu
             })}
           </div>
           <div className="flex items-center gap-2">
-            <User size={18} className="text-yessal-green" />
+            <User size={18} className="text-yessal-violet" />
             {post.created_by_name || "Confrérie Yessal"}
           </div>
         </div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -153,7 +153,7 @@ export function NewsClient({
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-black tracking-tight flex items-center gap-3">
-            <Newspaper size={28} className="text-yessal-green" /> Actualités
+            <Newspaper size={28} className="text-yessal-violet" /> Actualités
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
             Le journal de la confrérie : événements, annonces et récits.
@@ -162,7 +162,7 @@ export function NewsClient({
         {isAdmin && (
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-yessal-green hover:bg-green-700 text-white gap-3 border-none px-8 h-12 shadow-xl shadow-yessal-green/20 rounded-2xl font-black uppercase tracking-widest text-[10px]">
+              <Button className="bg-yessal-violet hover:bg-violet-700 text-white gap-3 border-none px-8 h-12 shadow-xl shadow-yessal-violet/20 rounded-2xl font-black uppercase tracking-widest text-[10px]">
                 <Plus size={20} /> Publier une actualité
               </Button>
             </DialogTrigger>
@@ -203,7 +203,7 @@ export function NewsClient({
                   <Label htmlFor="is_published">Publier immédiatement</Label>
                 </div>
                 <DialogFooter>
-                  <Button type="submit" disabled={isPending} className="w-full bg-yessal-green text-white h-11 rounded-xl font-bold">
+                  <Button type="submit" disabled={isPending} className="w-full bg-yessal-violet text-white h-11 rounded-xl font-bold">
                     {isPending ? "Publication..." : "Publier maintenant"}
                   </Button>
                 </DialogFooter>
@@ -252,7 +252,7 @@ export function NewsClient({
                         <div className="flex items-center justify-between">
                             <Label className="font-bold flex items-center gap-2"><ImageIcon size={16}/> Galerie</Label>
                             <label className="cursor-pointer">
-                                <Badge variant="outline" className="text-[10px] gap-1 hover:bg-yessal-green hover:text-white transition-colors">
+                                <Badge variant="outline" className="text-[10px] gap-1 hover:bg-yessal-violet hover:text-white transition-colors">
                                     {galleryLoading ? <Loader2 size={10} className="animate-spin" /> : <Plus size={10} />} Ajouter
                                 </Badge>
                                 <input type="file" className="hidden" accept="image/*" onChange={(e) => handleAddGallery(editingPost.slug, e)} />
@@ -271,7 +271,7 @@ export function NewsClient({
                     </div>
 
                     <DialogFooter>
-                        <Button type="submit" disabled={isPending} className="w-full bg-yessal-green text-white h-11 rounded-xl font-bold">
+                        <Button type="submit" disabled={isPending} className="w-full bg-yessal-violet text-white h-11 rounded-xl font-bold">
                             Enregistrer les modifications
                         </Button>
                     </DialogFooter>
@@ -291,8 +291,8 @@ export function NewsClient({
             <CardHeader className="pb-3 pt-6 px-8">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1 flex-1">
-                    <Badge variant="outline" className="bg-yessal-green/10 text-yessal-green border-none text-[10px] uppercase font-black px-2 py-0.5 mb-2">Actualité</Badge>
-                    <CardTitle className="text-xl font-black group-hover:text-yessal-green transition-colors leading-tight line-clamp-2">{post.title}</CardTitle>
+                    <Badge variant="outline" className="bg-yessal-violet/10 text-yessal-violet border-none text-[10px] uppercase font-black px-2 py-0.5 mb-2">Actualité</Badge>
+                    <CardTitle className="text-xl font-black group-hover:text-yessal-violet transition-colors leading-tight line-clamp-2">{post.title}</CardTitle>
                   </div>
                   {isAdmin && (
                     <DropdownMenu>
@@ -308,12 +308,12 @@ export function NewsClient({
                 </div>
             </CardHeader>
             <CardContent className="px-8 pb-4 flex-1">
-              <p className="text-sm font-bold text-yessal-green mb-2 line-clamp-1">{post.excerpt}</p>
+              <p className="text-sm font-bold text-yessal-violet mb-2 line-clamp-1">{post.excerpt}</p>
               <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{post.content}</p>
             </CardContent>
             <CardFooter className="px-8 pb-8 pt-0">
               <Link href={`/dashboard/news/${post.slug}`} className="w-full">
-                <Button variant="outline" className="w-full rounded-2xl border-yessal-green/20 text-yessal-green font-black uppercase text-[10px] tracking-widest h-10 transition-all">Lire la suite</Button>
+                <Button variant="outline" className="w-full rounded-2xl border-yessal-violet/20 text-yessal-violet font-black uppercase text-[10px] tracking-widest h-10 transition-all">Lire la suite</Button>
               </Link>
             </CardFooter>
           </Card>

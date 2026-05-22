@@ -4,6 +4,7 @@ import { getCampaigns } from "@/app/actions/campaigns";
 import { getTutelles } from "@/app/actions/tutelles";
 import { getBankAccountConfig } from "@/app/actions/donations";
 import { NewDonationClient } from "./NewDonationClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 const DONATE_ROLES = new Set(["member", "collector", "chef_daara"]);
 
@@ -48,7 +49,7 @@ export default async function NewDonationPage({
       </div>
 
       {campError ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md">{campError}</div>
+        <ErrorAlert message={campError} />
       ) : (
         <NewDonationClient
           campaigns={list}

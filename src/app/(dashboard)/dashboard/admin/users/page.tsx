@@ -1,6 +1,7 @@
 import { getAllUsers, getPendingDocuments, getTitles, getTitleRequests } from "@/app/actions/users";
 import { getDaaras } from "@/app/actions/daara";
 import { UserManagementClient } from "./UserManagementClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function AdminUsersPage() {
   const [
@@ -31,9 +32,7 @@ export default async function AdminUsersPage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 font-medium">
-          {error} - Veuillez rafraîchir la page ou vérifier votre connexion.
-        </div>
+        <ErrorAlert message={`${error} — Veuillez rafraîchir la page ou vérifier votre connexion.`} />
       ) : (
         <UserManagementClient 
           initialUsers={users || []} 

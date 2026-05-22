@@ -1,5 +1,6 @@
 import { getAllUsers } from "@/app/actions/users";
 import { MembersValidationClient } from "./MembersValidationClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function AdminMembersPage() {
   const { data: users, error } = await getAllUsers();
@@ -12,7 +13,7 @@ export default async function AdminMembersPage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-xl border border-red-100">{error}</div>
+        <ErrorAlert message={error} />
       ) : (
         <MembersValidationClient initialUsers={users || []} />
       )}

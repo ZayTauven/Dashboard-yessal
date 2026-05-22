@@ -1,6 +1,8 @@
 import { getAuditLogs } from "@/app/actions/analytics";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ScrollText, ShieldCheck } from "lucide-react";
 
 const ACTION_COLORS: Record<string, string> = {
@@ -35,7 +37,7 @@ export default async function AdminAuditPage() {
         </div>
         <div
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold"
-          style={{ background: "rgba(26,92,58,0.1)", color: "var(--yessal-green)" }}
+          style={{ background: "rgba(145,110,231,0.1)", color: "var(--primary)" }}
         >
           <ShieldCheck size={15} />
           Audit activé
@@ -43,26 +45,15 @@ export default async function AdminAuditPage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 font-medium">
-          {error} — Impossible de charger les logs d'audit.
-        </div>
+        <ErrorAlert message={`${error} — Impossible de charger les logs d'audit.`} />
       ) : !logs || logs.length === 0 ? (
-        <div
-          className="flex flex-col items-center gap-5 py-24 text-center bg-card rounded-2xl border shadow-sm"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{ background: "rgba(26,92,58,0.08)" }}
-          >
-            <ScrollText size={28} style={{ color: "var(--yessal-green)" }} />
-          </div>
-          <div>
-            <p className="font-bold text-foreground">Aucune activité enregistrée</p>
-            <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-              Les actions administratives et financières apparaîtront ici automatiquement.
-            </p>
-          </div>
+        <div className="bg-card rounded-2xl border shadow-sm" style={{ borderColor: "var(--border)" }}>
+          <EmptyState
+            icon={ScrollText}
+            title="Aucune activité enregistrée"
+            description="Les actions administratives et financières apparaîtront ici automatiquement."
+            size="lg"
+          />
         </div>
       ) : (
         <div

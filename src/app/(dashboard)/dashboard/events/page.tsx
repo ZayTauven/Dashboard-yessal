@@ -1,6 +1,7 @@
 import { getEvents } from "@/app/actions/events";
 import { getProfile } from "@/app/actions/users";
 import { EventsClient } from "./EventsClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function EventsPage() {
   const [{ data: fetes, error }, { data: profile }] = await Promise.all([
@@ -24,7 +25,7 @@ export default async function EventsPage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md">{error}</div>
+        <ErrorAlert message={error} />
       ) : (
         <EventsClient initialEvents={fetes || []} isAdmin={isAdmin} />
       )}

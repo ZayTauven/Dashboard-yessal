@@ -43,7 +43,7 @@ export default function AdminDashboard({ stats }: { stats: any }) {
                     : "bg-blue-400"
                 }`}
               />
-              <Megaphone size={16} style={{ color: "var(--yessal-green)" }} />
+              <Megaphone size={16} style={{ color: "var(--primary)" }} />
               <span className="flex-1 truncate font-bold text-xs">{ann.title}</span>
               <div className="hidden md:flex items-center gap-2">
                 <Badge
@@ -56,8 +56,8 @@ export default function AdminDashboard({ stats }: { stats: any }) {
                   asChild
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-[10px] font-black uppercase tracking-widest border-none hover:bg-yessal-green/10"
-                  style={{ color: "var(--yessal-green)" }}
+                  className="h-7 text-[10px] font-black uppercase tracking-widest border-none hover:bg-yessal-violet/10"
+                  style={{ color: "var(--primary)" }}
                 >
                   <Link href="/dashboard/admin/announcements">Gérer</Link>
                 </Button>
@@ -75,11 +75,11 @@ export default function AdminDashboard({ stats }: { stats: any }) {
             <Link
               key={idx}
               href={kpi.href || "/dashboard"}
-              className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2 group hover:shadow-md hover:border-yessal-green/30 transition-all ease-out"
+              className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2 group hover:shadow-md hover:border-yessal-violet/30 transition-all ease-out"
               style={{ borderColor: "var(--border)" }}
             >
               <div className="flex justify-between items-start">
-                <div className="p-2 rounded-lg font-bold" style={{ background: "var(--yessal-green)10", color: "var(--yessal-green)" }}>
+                <div className="p-2 rounded-lg font-bold" style={{ background: "color-mix(in srgb, var(--primary) 12%, transparent)", color: "var(--primary)" }}>
                   <Icon size={20} />
                 </div>
                 {kpi.change && (
@@ -92,7 +92,7 @@ export default function AdminDashboard({ stats }: { stats: any }) {
                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-60">
                   {kpi.title}
                 </p>
-                <h3 className="text-2xl font-black mt-1 tracking-tight group-hover:text-yessal-green transition-colors" style={{ color: "var(--foreground)" }}>
+                <h3 className="text-2xl font-black mt-1 tracking-tight group-hover:text-yessal-violet transition-colors" style={{ color: "var(--foreground)" }}>
                   {kpi.value}
                 </h3>
               </div>

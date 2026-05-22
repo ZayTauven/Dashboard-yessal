@@ -1,5 +1,6 @@
 import { getTutelles } from "@/app/actions/tutelles";
 import { TutelleClient } from "./TutelleClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function TutellesPage() {
   const { data: tutelles, error } = await getTutelles();
@@ -18,7 +19,7 @@ export default async function TutellesPage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md">{error}</div>
+        <ErrorAlert message={error} />
       ) : (
         <TutelleClient initialTutelles={tutelles || []} />
       )}

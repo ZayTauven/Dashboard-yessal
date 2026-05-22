@@ -1,6 +1,7 @@
 import { getProfile } from "@/app/actions/users";
 import { getTitles, getUserDocuments } from "@/app/actions/users";
 import { ProfileClient } from "./ProfileClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function ProfilePage() {
   const { data: profile, error } = await getProfile();
@@ -21,7 +22,7 @@ export default async function ProfilePage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md">{error}</div>
+        <ErrorAlert message={error} />
       ) : (
         <ProfileClient profile={profile} titles={titles || []} initialDocuments={documents || []} />
       )}

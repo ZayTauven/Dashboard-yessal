@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -55,7 +55,7 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-background">
         <div className="w-full max-w-sm text-center space-y-6">
-          <div className="h-20 w-20 bg-yessal-green/10 text-yessal-green rounded-full flex items-center justify-center mx-auto shadow-sm border border-yessal-green/20">
+          <div className="h-20 w-20 bg-yessal-violet/10 text-yessal-violet rounded-full flex items-center justify-center mx-auto shadow-sm border border-yessal-violet/20">
             <UserPlus size={32} />
           </div>
           <h1 className="text-2xl font-black tracking-tight text-foreground">
@@ -68,7 +68,7 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
           </p>
           <Button
             asChild
-            className="w-full bg-yessal-green hover:bg-green-700 text-white rounded-xl h-12 shadow-xl shadow-yessal-green/10"
+            className="w-full bg-yessal-violet hover:bg-violet-700 text-white rounded-xl h-12 shadow-xl shadow-yessal-violet/10"
           >
             <Link href="/login">Retour à la connexion</Link>
           </Button>
@@ -82,7 +82,7 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
       <div className="w-full max-w-md">
         <Link
           href="/login"
-          className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-yessal-green transition-colors mb-8 uppercase tracking-widest"
+          className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-yessal-violet transition-colors mb-8 uppercase tracking-widest"
         >
           <ChevronLeft size={14} /> Retour
         </Link>
@@ -153,7 +153,7 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
                 name="daara_id"
                 required
                 defaultValue=""
-                className="flex h-11 w-full rounded-xl bg-muted/20 dark:bg-card px-4 text-sm border-none text-foreground dark:text-foreground focus:ring-2 focus:ring-yessal-green dark:focus:ring-yessal-green/50 cursor-pointer"
+                className="flex h-11 w-full rounded-xl bg-muted/20 dark:bg-card px-4 text-sm border-none text-foreground dark:text-foreground focus:ring-2 focus:ring-yessal-violet dark:focus:ring-yessal-violet/50 cursor-pointer"
               >
                 <option
                   value=""
@@ -207,7 +207,7 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-yessal-green transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-yessal-violet transition-colors"
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -223,7 +223,7 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
           <Button
             type="submit"
             disabled={isPending || daaras.length === 0}
-            className="w-full mt-4 bg-yessal-green hover:bg-green-700 text-white rounded-xl h-12 font-black uppercase tracking-widest text-xs shadow-xl shadow-yessal-green/10 border-none transition-all hover:scale-[1.02] active:scale-95"
+            className="w-full mt-4 bg-yessal-violet hover:bg-violet-700 text-white rounded-xl h-12 font-black uppercase tracking-widest text-xs shadow-xl shadow-yessal-violet/10 border-none transition-all hover:scale-[1.02] active:scale-95"
           >
             {isPending ? "Création..." : "S'inscrire au réseau"}
           </Button>
@@ -231,7 +231,7 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
 
         <p className="text-center text-xs text-muted-foreground mt-8 font-medium">
           Vous avez déjà un compte ?{" "}
-          <Link href="/login" className="text-yessal-green font-bold">
+          <Link href="/login" className="text-yessal-violet font-bold">
             Connectez-vous
           </Link>
         </p>

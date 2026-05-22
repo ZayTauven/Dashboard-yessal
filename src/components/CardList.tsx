@@ -1,6 +1,7 @@
 import { Card, CardContent, CardFooter, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { AlertCircle } from "lucide-react";
+import { EmptyState } from "./ui/empty-state";
+import { LayoutList } from "lucide-react";
 
 interface CardListItem {
   id: number | string;
@@ -33,10 +34,7 @@ const CardList = ({ title, items }: { title: string; items?: CardListItem[] }) =
     <div className="">
       <h1 className="text-lg font-medium mb-6">{title}</h1>
       {isEmpty ? (
-        <div className="flex flex-col items-center gap-3 py-10 text-center">
-          <AlertCircle size={28} className="text-muted-foreground/20" />
-          <p className="text-xs text-muted-foreground italic">Aucune donnée à afficher.</p>
-        </div>
+        <EmptyState icon={LayoutList} title="Aucune donnée" size="sm" />
       ) : (
         <div className="flex flex-col gap-2">
           {list.map((item) => {

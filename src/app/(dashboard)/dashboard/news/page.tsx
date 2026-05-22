@@ -1,5 +1,6 @@
 import { getNews } from "@/app/actions/news";
 import { NewsClient } from "./NewsClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { cookies } from "next/headers";
 
 export const metadata = {
@@ -25,11 +26,7 @@ export default async function NewsPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 lg:px-8">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6 text-sm font-medium">
-          {error}
-        </div>
-      )}
+      {error && <ErrorAlert message={error} className="mb-6" />}
       <NewsClient initialPosts={posts || []} isAdmin={isAdmin} />
     </div>
   );

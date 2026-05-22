@@ -2,6 +2,7 @@ import { getUserDashboardStats } from "@/app/actions/analytics";
 import { getUser, getUserDocuments, getUserTutelle } from "@/app/actions/users";
 import { getUserDonations } from "@/app/actions/donations";
 import UserDetailClient from "./UserDetailClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function UserDetailPage({
   params,
@@ -28,8 +29,8 @@ export default async function UserDetailPage({
 
   if (userRes.error && !user) {
     return (
-      <div className="p-8 text-center bg-red-50 text-red-600 rounded-2xl border border-red-100 font-medium m-4">
-        Utilisateur introuvable — {userRes.error}
+      <div className="p-8">
+        <ErrorAlert title="Utilisateur introuvable" message={userRes.error} />
       </div>
     );
   }

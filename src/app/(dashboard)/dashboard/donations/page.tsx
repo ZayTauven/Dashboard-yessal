@@ -1,8 +1,9 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { getDonations } from "@/app/actions/donations";
 import { getProfile } from "@/app/actions/users";
 import { DonationListClient } from "./DonationListClient";
 import { Button } from "@/components/ui/button";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { Plus } from "lucide-react";
 
 export default async function DonationsPage() {
@@ -50,7 +51,7 @@ export default async function DonationsPage() {
         {canNewDonation && (
           <Button
             className="gap-2 shrink-0"
-            style={{ background: "var(--yessal-green)", color: "#FAFAF8" }}
+            style={{ background: "var(--primary)", color: "#FAFAF8" }}
             asChild
           >
             <Link href="/dashboard/donations/new">
@@ -62,7 +63,7 @@ export default async function DonationsPage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md">{error}</div>
+        <ErrorAlert message={error} />
       ) : (
         <DonationListClient
           initialDonations={donations || []}

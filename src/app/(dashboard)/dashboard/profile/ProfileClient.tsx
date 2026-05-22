@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,7 @@ import {
   updateUserDocument,
 } from "@/app/actions/users";
 import PhoneNumberValidation from "@/components/PhoneNumberValidation";
+import { toast } from "sonner";
 
 type TitleOption = { id: number; name: string; is_active?: boolean };
 type UserDocument = {
@@ -87,7 +88,7 @@ export function ProfileClient({
     const lastName = rawData.get("last_name") as string;
 
     if (!firstName?.trim() || !lastName?.trim()) {
-      alert("Le prénom et le nom sont obligatoires.");
+      toast.error("Le prénom et le nom sont obligatoires.");
       return;
     }
 
@@ -97,7 +98,7 @@ export function ProfileClient({
     // Other fields can be sent as empty strings if they are allowed to be blank
     for (const [key, value] of Array.from(rawData.entries())) {
       if (key === "birth_date" && typeof value === "string" && value.trim() === "") {
-        continue; 
+        continue;
       }
       formData.append(key, value);
     }
@@ -109,12 +110,12 @@ export function ProfileClient({
     startTransition(async () => {
       const { error } = await updateProfile(formData);
       if (error) {
-        alert("Erreur lors de la mise à jour: " + error);
+        toast.error("Erreur : " + error);
         return;
       }
       setAvatarFile(null);
       await refreshProfile();
-      alert("Profil mis à jour avec succès.");
+      toast.success("Profil mis à jour avec succès !");
     });
   };
 
@@ -123,18 +124,18 @@ export function ProfileClient({
     startTransition(async () => {
       const { error } = await submitTitleRequest(Number(selectedTitleId));
       if (error) {
-        alert(error);
+        toast.error(error);
         return;
       }
       setSelectedTitleId("");
       await refreshProfile();
-      alert("Demande de titre envoyée.");
+      toast.success("Demande de titre envoyée.");
     });
   };
 
   const handleUploadDocument = () => {
     if (!rectoFile || !profile?.id) {
-      alert("Ajoutez au moins le recto.");
+      toast.error("Ajoutez au moins le recto du document.");
       return;
     }
 
@@ -151,7 +152,7 @@ export function ProfileClient({
         : await createUserDocument(profile.id, payload);
 
       if (result.error) {
-        alert(result.error);
+        toast.error(result.error);
         return;
       }
 
@@ -163,7 +164,7 @@ export function ProfileClient({
       setRectoFile(null);
       setVersoFile(null);
       setDocNumber("");
-      alert("Document soumis avec succès.");
+      toast.success("Document soumis avec succès !");
       await refreshProfile();
     });
   };
@@ -194,7 +195,7 @@ export function ProfileClient({
                   src={previewAvatar}
                   className="object-cover"
                 />
-                <AvatarFallback className="bg-yessal-green text-white text-3xl font-semibold">
+                <AvatarFallback className="bg-yessal-violet text-white text-3xl font-semibold">
                   {profile?.first_name?.[0]}
                   {profile?.last_name?.[0]}
                 </AvatarFallback>
@@ -221,7 +222,7 @@ export function ProfileClient({
             <div className="w-full space-y-2 text-sm">
                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground font-medium">Daara</span>
-                  <span className="font-semibold text-yessal-green">{profile?.daara_name || "Non renseigné"}</span>
+                  <span className="font-semibold text-yessal-violet">{profile?.daara_name || "Non renseigné"}</span>
                </div>
             </div>
           </div>
@@ -234,18 +235,18 @@ export function ProfileClient({
         >
           <div className="flex justify-between items-end">
             <h4 className="font-semibold text-[11px] uppercase tracking-widest text-muted-foreground">Complétion du profil</h4>
-            <span className="text-xl font-semibold text-yessal-green">{completionPercentage}%</span>
+            <span className="text-xl font-semibold text-yessal-violet">{completionPercentage}%</span>
           </div>
           <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
             <div 
-              className="h-full bg-yessal-green transition-all duration-1000 ease-out" 
+              className="h-full bg-yessal-violet transition-all duration-1000 ease-out" 
               style={{ width: `${completionPercentage}%` }}
             />
           </div>
           <div className="space-y-2.5 pt-2">
             {completionItems.map((item, idx) => (
               <div key={idx} className="flex items-center gap-3 text-[13px]">
-                <div className={`size-4 rounded-full flex items-center justify-center ${item.done ? 'bg-yessal-green text-white' : 'bg-muted/50 text-muted-foreground'}`}>
+                <div className={`size-4 rounded-full flex items-center justify-center ${item.done ? 'bg-yessal-violet text-white' : 'bg-muted/50 text-muted-foreground'}`}>
                   {item.done ? <span className="text-[10px]">✓</span> : <span className="text-[10px]">×</span>}
                 </div>
                 <span className={item.done ? 'text-foreground font-medium' : 'text-muted-foreground font-normal'}>{item.label}</span>
@@ -263,7 +264,7 @@ export function ProfileClient({
           <select
             value={selectedTitleId}
             onChange={(e) => setSelectedTitleId(e.target.value)}
-            className="flex h-11 w-full rounded-lg border bg-background px-4 py-2 text-sm font-medium focus:ring-1 focus:ring-yessal-green outline-none transition-all"
+            className="flex h-11 w-full rounded-lg border bg-background px-4 py-2 text-sm font-medium focus:ring-1 focus:ring-yessal-violet outline-none transition-all"
             style={{ borderColor: "var(--border)" }}
           >
             <option value="">Sélectionner un titre</option>
@@ -279,7 +280,7 @@ export function ProfileClient({
             type="button"
             disabled={isPending || !selectedTitleId}
             onClick={handleRequestTitle}
-            className="w-full h-11 rounded-lg bg-yessal-green text-white font-semibold uppercase tracking-widest text-[11px] hover:opacity-90 transition-all"
+            className="w-full h-11 rounded-lg bg-yessal-violet text-white font-semibold uppercase tracking-widest text-[11px] hover:opacity-90 transition-all"
           >
             Soumettre la demande
           </Button>
@@ -314,7 +315,7 @@ export function ProfileClient({
                   <Input
                     name="first_name"
                     defaultValue={profile?.first_name || ""}
-                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-green focus:bg-background transition-all font-medium"
+                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-2">
@@ -322,7 +323,7 @@ export function ProfileClient({
                   <Input
                     name="last_name"
                     defaultValue={profile?.last_name || ""}
-                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-green focus:bg-background transition-all font-medium"
+                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-2">
@@ -331,7 +332,7 @@ export function ProfileClient({
                     name="birth_date"
                     type="date"
                     defaultValue={profile?.birth_date || ""}
-                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-green focus:bg-background transition-all font-medium"
+                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-2">
@@ -339,7 +340,7 @@ export function ProfileClient({
                   <select
                     name="gender"
                     defaultValue={profile?.gender || ""}
-                    className="flex h-11 w-full rounded-lg border-transparent bg-muted/10 px-4 py-2 text-sm font-medium focus:border-yessal-green focus:bg-background transition-all outline-none"
+                    className="flex h-11 w-full rounded-lg border-transparent bg-muted/10 px-4 py-2 text-sm font-medium focus:border-yessal-violet focus:bg-background transition-all outline-none"
                   >
                     <option value="">Sélectionner</option>
                     <option value="male">Homme</option>
@@ -384,7 +385,7 @@ export function ProfileClient({
                     name="residence_country"
                     defaultValue={profile?.residence_country || ""}
                     placeholder="Ex: Sénégal"
-                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-green focus:bg-background transition-all font-medium"
+                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-2">
@@ -393,7 +394,7 @@ export function ProfileClient({
                     name="city"
                     defaultValue={profile?.city || ""}
                     placeholder="Ex: Dakar"
-                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-green focus:bg-background transition-all font-medium"
+                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
                   />
                 </div>
                 <div className="md:col-span-2 space-y-2">
@@ -402,7 +403,7 @@ export function ProfileClient({
                     name="address"
                     defaultValue={profile?.address || ""}
                     placeholder="Ex: Rue 10, Médina"
-                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-green focus:bg-background transition-all font-medium"
+                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-2">
@@ -410,7 +411,7 @@ export function ProfileClient({
                   <Input
                     name="state"
                     defaultValue={profile?.state || ""}
-                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-green focus:bg-background transition-all font-medium"
+                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
                   />
                 </div>
                 <div className="space-y-2">
@@ -418,7 +419,7 @@ export function ProfileClient({
                   <Input
                     name="zip_code"
                     defaultValue={profile?.zip_code || ""}
-                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-green focus:bg-background transition-all font-medium"
+                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
                   />
                 </div>
               </div>
@@ -435,7 +436,7 @@ export function ProfileClient({
                   <select
                     name="marital_status"
                     defaultValue={profile?.marital_status || ""}
-                    className="flex h-11 w-full rounded-lg border-transparent bg-muted/10 px-4 py-2 text-sm font-medium focus:border-yessal-green focus:bg-background transition-all outline-none"
+                    className="flex h-11 w-full rounded-lg border-transparent bg-muted/10 px-4 py-2 text-sm font-medium focus:border-yessal-violet focus:bg-background transition-all outline-none"
                   >
                     <option value="">Sélectionner</option>
                     <option value="single">Célibataire</option>
@@ -449,7 +450,7 @@ export function ProfileClient({
                   <select
                     name="blood_type"
                     defaultValue={profile?.blood_type || ""}
-                    className="flex h-11 w-full rounded-lg border-transparent bg-muted/10 px-4 py-2 text-sm font-medium focus:border-yessal-green focus:bg-background transition-all outline-none"
+                    className="flex h-11 w-full rounded-lg border-transparent bg-muted/10 px-4 py-2 text-sm font-medium focus:border-yessal-violet focus:bg-background transition-all outline-none"
                   >
                     <option value="">Sélectionner</option>
                     <option value="A+">A+</option>
@@ -468,7 +469,7 @@ export function ProfileClient({
             <div className="pt-6 flex justify-end">
               <Button
                 disabled={isPending}
-                className="h-11 px-10 rounded-lg bg-yessal-green text-white font-semibold uppercase tracking-widest text-[11px] hover:opacity-90 transition-all active:scale-[0.98]"
+                className="h-11 px-10 rounded-lg bg-yessal-violet text-white font-semibold uppercase tracking-widest text-[11px] hover:opacity-90 transition-all active:scale-[0.98]"
               >
                 {isPending ? "Enregistrement..." : "Mettre à jour le profil"}
               </Button>
@@ -493,7 +494,7 @@ export function ProfileClient({
                 <select
                   value={docType}
                   onChange={(e) => setDocType(e.target.value)}
-                  className="flex h-11 w-full rounded-lg border-transparent bg-muted/10 px-4 py-2 text-sm font-medium focus:border-yessal-green focus:bg-background transition-all outline-none"
+                  className="flex h-11 w-full rounded-lg border-transparent bg-muted/10 px-4 py-2 text-sm font-medium focus:border-yessal-violet focus:bg-background transition-all outline-none"
                 >
                   {DOC_TYPES.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -508,7 +509,7 @@ export function ProfileClient({
                   value={docNumber}
                   onChange={(e) => setDocNumber(e.target.value)}
                   placeholder="Ex: 123456789"
-                  className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-green focus:bg-background transition-all font-medium"
+                  className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
                 />
               </div>
               
@@ -579,7 +580,7 @@ export function ProfileClient({
               <Button
                 onClick={handleUploadDocument}
                 disabled={isPending || !rectoFile}
-                className="w-full h-11 rounded-lg bg-yessal-green text-white font-semibold uppercase tracking-widest text-[11px] hover:opacity-90 transition-all mt-4"
+                className="w-full h-11 rounded-lg bg-yessal-violet text-white font-semibold uppercase tracking-widest text-[11px] hover:opacity-90 transition-all mt-4"
               >
                 Soumettre les fichiers
               </Button>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { Bell, CheckCircle } from "lucide-react";
@@ -87,7 +87,7 @@ export function NotificationsClient({
       <div className="flex flex-wrap items-center gap-3">
         <div className="ml-auto flex items-center gap-2">
           {unreadCount > 0 ? (
-            <Badge className="bg-yessal-green/10 text-yessal-green border-none font-bold text-[11px]">
+            <Badge className="bg-yessal-violet/10 text-yessal-violet border-none font-bold text-[11px]">
               {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
             </Badge>
           ) : null}
@@ -141,10 +141,10 @@ export function NotificationsClient({
               >
                 <div
                   className="absolute left-0 top-0 w-1 h-full"
-                  style={{ background: "var(--yessal-green)" }}
+                  style={{ background: "var(--primary)" }}
                 />
 
-                <div className="p-3 rounded-full h-fit mt-0.5 flex-shrink-0 bg-yessal-green/10 text-yessal-green">
+                <div className="p-3 rounded-full h-fit mt-0.5 flex-shrink-0 bg-yessal-violet/10 text-yessal-violet">
                   <Bell size={18} />
                 </div>
 
@@ -164,7 +164,7 @@ export function NotificationsClient({
                   <p className="text-xs text-muted-foreground">{notification.message}</p>
                   {!notification.is_read ? (
                     <div className="pt-1">
-                      <Badge className="text-[9px] uppercase font-black tracking-widest bg-yessal-green/10 text-yessal-green border-none px-2 h-5">
+                      <Badge className="text-[9px] uppercase font-black tracking-widest bg-yessal-violet/10 text-yessal-violet border-none px-2 h-5">
                         Nouveau
                       </Badge>
                     </div>
@@ -174,7 +174,7 @@ export function NotificationsClient({
                 {!notification.is_read ? (
                   <div
                     className="w-2.5 h-2.5 rounded-full self-center flex-shrink-0 animate-pulse"
-                    style={{ background: "var(--yessal-green)" }}
+                    style={{ background: "var(--primary)" }}
                   />
                 ) : null}
               </div>

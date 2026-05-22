@@ -55,7 +55,7 @@ export default function PhoneNumberValidation({
           Téléphone
         </Label>
       )}
-      <div className="w-full relative rounded-xl focus-within:ring-2 focus-within:ring-yessal-green/50 transition-all">
+      <div className="w-full relative rounded-xl focus-within:ring-2 focus-within:ring-yessal-violet/50 transition-all">
         {name && <input type="hidden" name={name} value={internalValue ? `+${internalValue}` : ""} />}
         <PhoneInput
           value={internalValue}

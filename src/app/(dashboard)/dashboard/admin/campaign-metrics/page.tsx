@@ -1,6 +1,7 @@
-import { getCampaignMetrics } from "@/app/actions/analytics";
+﻿import { getCampaignMetrics } from "@/app/actions/analytics";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { Briefcase, CheckCircle2, TrendingUp, Presentation } from "lucide-react";
 import { SmartLink } from "@/components/SmartLink";
 
@@ -26,10 +27,8 @@ export default async function CampaignMetricsPage() {
 
   if (error) {
     return (
-      <div className="p-8 max-w-6xl mx-auto flex flex-col gap-8">
-        <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 font-medium">
-          {error} — Impossible de charger les métriques.
-        </div>
+      <div className="p-8 max-w-6xl mx-auto">
+        <ErrorAlert message={`${error} — Impossible de charger les métriques.`} />
       </div>
     );
   }
@@ -138,7 +137,7 @@ export default async function CampaignMetricsPage() {
                 return (
                   <TableRow key={m.id} className="hover:bg-muted/20 transition-colors">
                     <TableCell className="pl-6 font-semibold">
-                      <SmartLink href="/dashboard/members" className="no-underline text-foreground hover:text-yessal-green">
+                      <SmartLink href="/dashboard/members" className="no-underline text-foreground hover:text-yessal-violet">
                         {m.organizer_name}
                       </SmartLink>
                       <span className="block text-[10px] uppercase text-muted-foreground mt-0.5">

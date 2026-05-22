@@ -277,7 +277,7 @@ export function CampaignsClient({
                     key={s}
                     onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
                     className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                        statusFilter === s ? "bg-card shadow-sm text-yessal-green" : "text-muted-foreground hover:text-foreground"
+                        statusFilter === s ? "bg-card shadow-sm text-yessal-violet" : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                     {s === "all" ? "Tous" : s === "active" ? "En cours" : s === "inactive" ? "Inactifs" : "Terminés"}
@@ -286,9 +286,9 @@ export function CampaignsClient({
         </div>
         {isAdmin && (
           <Button
-            className="gap-3 shadow-xl shadow-yessal-green/20 rounded-2xl h-12 px-8 font-black uppercase tracking-widest text-[10px] border-none"
+            className="gap-3 shadow-xl shadow-yessal-violet/20 rounded-2xl h-12 px-8 font-black uppercase tracking-widest text-[10px] border-none"
             style={{
-              background: "var(--yessal-green)",
+              background: "var(--primary)",
               color: "#FAFAF8",
             }}
             asChild
@@ -348,7 +348,7 @@ export function CampaignsClient({
                             ? "rgba(37, 99, 235, 0.8)"
                             : statusLabel === "inactive"
                               ? "rgba(107, 114, 128, 0.8)"
-                              : "rgba(16, 122, 68, 0.8)", // yessal-green with alpha
+                              : "rgba(145,110,231,0.85)",
                       }}
                     >
                       {statusLabel}
@@ -392,7 +392,7 @@ export function CampaignsClient({
                       </div>
                       <div className="h-2 w-full bg-muted rounded-full overflow-hidden border">
                         <div
-                          className="h-full bg-yessal-green transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                          className="h-full bg-yessal-violet transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(145,110,231,0.4)]"
                           style={{ width: `${progressPct}%` }}
                         />
                       </div>
@@ -678,7 +678,8 @@ export function CampaignsClient({
                 </div>
 
                 <Button
-                  className="w-full gap-2 font-bold bg-blue-600 hover:bg-blue-700 text-white"
+                  className="w-full gap-2 font-bold text-white"
+                  style={{ background: "var(--primary)" }}
                   type="button"
                   disabled={isPending || !chatName.trim()}
                   onClick={handleCreateCampaignChat}
@@ -706,11 +707,7 @@ export function CampaignsClient({
             <div className="mb-6 flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <Wallet
-                    className="text-yessal-green"
-                    size={20}
-                    style={{ color: "var(--yessal-green)" }}
-                  />
+                  <Wallet size={20} style={{ color: "var(--primary)" }} />
                   Faire un Jëfs
                 </h2>
                 <p className="text-sm text-muted-foreground">
@@ -755,7 +752,7 @@ export function CampaignsClient({
                 <Label>Moyen de paiement</Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "orange_money" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "orange_money" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                     onClick={() => setSelectedMethod("orange_money")}
                   >
                     <input
@@ -769,7 +766,7 @@ export function CampaignsClient({
                     <span className="text-[10px] font-bold">Orange</span>
                   </label>
                   <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "wave" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "wave" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                     onClick={() => setSelectedMethod("wave")}
                   >
                     <input
@@ -783,7 +780,7 @@ export function CampaignsClient({
                     <span className="text-[10px] font-bold">Wave</span>
                   </label>
                   <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "visa" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "visa" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                     onClick={() => setSelectedMethod("visa")}
                   >
                     <input
@@ -797,7 +794,7 @@ export function CampaignsClient({
                     <span className="text-[10px] font-bold">Visa</span>
                   </label>
                   <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "mastercard" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "mastercard" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                     onClick={() => setSelectedMethod("mastercard")}
                   >
                     <input
@@ -811,7 +808,7 @@ export function CampaignsClient({
                     <span className="text-[10px] font-bold">Mastercard</span>
                   </label>
                   <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "paypal" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "paypal" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                     onClick={() => setSelectedMethod("paypal")}
                   >
                     <input
@@ -825,7 +822,7 @@ export function CampaignsClient({
                     <span className="text-[10px] font-bold">PayPal</span>
                   </label>
                   <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "collector" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "collector" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                     onClick={() => setSelectedMethod("collector")}
                   >
                     <input
@@ -850,7 +847,7 @@ export function CampaignsClient({
                   type="submit"
                   disabled={isPending}
                   className="w-full gap-2 py-6 text-lg"
-                  style={{ background: "var(--yessal-green)", color: "white" }}
+                  style={{ background: "var(--primary)", color: "white" }}
                 >
                   <CreditCard size={18} />
                   {isPending ? "Traitement..." : "Confirmer le paiement"}

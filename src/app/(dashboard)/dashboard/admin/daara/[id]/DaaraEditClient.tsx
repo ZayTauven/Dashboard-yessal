@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
@@ -66,7 +66,7 @@ export function DaaraEditClient({ daara }: { daara: DaaraData }) {
           className="text-3xl font-semibold tracking-tight flex items-center gap-2"
           style={{ color: "var(--foreground)" }}
         >
-          <Building2 size={28} style={{ color: "var(--yessal-green)" }} />
+          <Building2 size={28} style={{ color: "var(--primary)" }} />
           Modifier le Daara
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -80,7 +80,7 @@ export function DaaraEditClient({ daara }: { daara: DaaraData }) {
           className="flex items-center gap-3 p-4 rounded-xl border bg-muted/20"
           style={{ borderColor: "var(--border)" }}
         >
-          <div className="p-2 rounded-lg bg-yessal-green/10 text-yessal-green">
+          <div className="p-2 rounded-lg bg-yessal-violet/10 text-yessal-violet">
             <Layers size={16} />
           </div>
           <div className="flex flex-col">
@@ -145,7 +145,7 @@ export function DaaraEditClient({ daara }: { daara: DaaraData }) {
           type="submit"
           disabled={isPending}
           className="w-full"
-          style={{ background: "var(--yessal-green)", color: "white" }}
+          style={{ background: "var(--primary)", color: "white" }}
         >
           {isPending ? "Enregistrement…" : "Enregistrer les modifications"}
         </Button>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -218,7 +218,7 @@ const AppSidebar = ({ user }: AppSidebarProps) => {
               style={
                 active
                   ? {
-                      color: "var(--yessal-green)",
+                      color: "var(--primary)",
                       background: "var(--sidebar-accent)",
                     }
                   : undefined
@@ -227,7 +227,7 @@ const AppSidebar = ({ user }: AppSidebarProps) => {
               <item.icon
                 size={16}
                 strokeWidth={active ? 2 : 1.5}
-                style={active ? { color: "var(--yessal-green)" } : undefined}
+                style={active ? { color: "var(--primary)" } : undefined}
               />
               <span>{item.title}</span>
             </Link>
@@ -295,7 +295,7 @@ const AppSidebar = ({ user }: AppSidebarProps) => {
                     />
                     <AvatarFallback
                       className="text-[10px] font-black text-white"
-                      style={{ background: "var(--yessal-green)" }}
+                      style={{ background: "var(--primary)" }}
                     >
                       {user?.first_name?.[0] ? (
                         `${user.first_name[0]}${user.last_name?.[0] ?? ""}`
@@ -315,7 +315,7 @@ const AppSidebar = ({ user }: AppSidebarProps) => {
                     </span>
                     <span
                       className="text-[10px] uppercase font-bold"
-                      style={{ color: "var(--yessal-green)" }}
+                      style={{ color: "var(--primary)" }}
                     >
                       {user?.role === "member" ? "Talibé" : user?.role || "Talibé"}
                     </span>

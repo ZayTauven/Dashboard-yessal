@@ -74,7 +74,7 @@ export function CollectorList({ collectors }: { collectors: Collector[] }) {
         <DialogContent className="max-w-xs rounded-2xl p-0 overflow-hidden border-none shadow-2xl">
           {selectedCollector && (
             <div className="flex flex-col">
-              <div className="bg-yessal-green p-6 text-white flex flex-col items-center gap-3">
+              <div className="bg-yessal-violet p-6 text-white flex flex-col items-center gap-3">
                 <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border border-white/30 overflow-hidden">
                   {selectedCollector.avatar_url ? (
                     <img
@@ -128,7 +128,7 @@ export function CollectorList({ collectors }: { collectors: Collector[] }) {
                 <div className="grid grid-cols-1 gap-2 mt-4">
                     {selectedCollector.phone && (
                       <Button
-                        className="w-full bg-yessal-green hover:bg-yessal-green/90 text-white font-bold uppercase tracking-widest text-[10px] h-12 gap-2 shadow-sm border-none"
+                        className="w-full bg-yessal-violet hover:bg-yessal-violet/90 text-white font-bold uppercase tracking-widest text-[10px] h-12 gap-2 shadow-sm border-none"
                         asChild
                       >
                         <a href={`tel:${selectedCollector.phone}`}>

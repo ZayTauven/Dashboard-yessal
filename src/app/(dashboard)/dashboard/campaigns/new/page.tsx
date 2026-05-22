@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getProfile, getAllUsers } from "@/app/actions/users";
 import { getEvents } from "@/app/actions/events";
 import { NewCampaignClient } from "./NewCampaignClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function NewCampaignPage() {
   const { data: profile, error: profileError } = await getProfile();
@@ -31,7 +32,7 @@ export default async function NewCampaignPage() {
       </div>
 
       {fetesError ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md">{fetesError}</div>
+        <ErrorAlert message={fetesError} />
       ) : (
         <NewCampaignClient fetes={fetes || []} members={members || []} />
       )}

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, User, CreditCard, Banknote, AlertCircle, CheckCircle2, Loader2, Plus, UserPlus } from "lucide-react";
+import { Search, User, CreditCard, Banknote, CheckCircle2, Loader2, Plus, UserPlus } from "lucide-react";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import {
   Dialog,
   DialogContent,
@@ -97,7 +98,7 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
       <div className="space-y-6">
         <div className="bg-card p-6 rounded-2xl border flex flex-col gap-4 shadow-sm" style={{ borderColor: "var(--border)" }}>
             <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-full bg-yessal-green/10 flex items-center justify-center text-yessal-green" style={{ background: "var(--yessal-green/10)", color: "var(--yessal-green)" }}>
+                <div className="w-8 h-8 rounded-full bg-yessal-violet/10 flex items-center justify-center" style={{ color: "var(--primary)" }}>
                     <Search size={16} />
                 </div>
                 <h3 className="font-bold">Recherche Membre</h3>
@@ -120,7 +121,7 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
                         <p className="text-[10px] text-center italic text-muted-foreground">Aucun résultat trouvé.</p>
                         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                             <DialogTrigger asChild>
-                                <Button size="sm" variant="outline" className="gap-2 text-[10px] font-bold uppercase tracking-widest border-yessal-green text-yessal-green hover:bg-yessal-green hover:text-white transition-all">
+                                <Button size="sm" variant="outline" className="gap-2 text-[10px] font-bold uppercase tracking-widest border-yessal-violet text-yessal-violet hover:bg-yessal-violet hover:text-white transition-all">
                                     <UserPlus size={14} /> Inscrire ce membre
                                 </Button>
                             </DialogTrigger>
@@ -150,7 +151,7 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
                                     </div>
                                     <p className="text-[9px] text-muted-foreground italic mt-2">Le mot de passe par défaut sera : YessalUser2024!</p>
                                     <DialogFooter>
-                                        <Button type="submit" disabled={isPending} className="w-full bg-yessal-green text-white font-bold uppercase tracking-widest text-[10px] h-11">Valider l&apos;inscription</Button>
+                                        <Button type="submit" disabled={isPending} className="w-full bg-yessal-violet text-white font-bold uppercase tracking-widest text-[10px] h-11">Valider l&apos;inscription</Button>
                                     </DialogFooter>
                                 </form>
                             </DialogContent>
@@ -162,9 +163,9 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
                         key={member.id} 
                         onClick={() => setSelectedMember(member)}
                         className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                            selectedMember?.id === member.id ? 'border-yessal-green bg-green-50/50' : 'hover:bg-muted border-transparent bg-muted/20'
+                            selectedMember?.id === member.id ? 'border-yessal-violet bg-yessal-violet/5' : 'hover:bg-muted border-transparent bg-muted/20'
                         }`}
-                        style={{ borderLeftColor: selectedMember?.id === member.id ? "var(--yessal-green)" : "transparent" }}
+                        style={{ borderLeftColor: selectedMember?.id === member.id ? "var(--primary)" : "transparent" }}
                     >
                         <Avatar className="h-8 w-8">
                             <AvatarFallback>{member.first_name?.[0]}{member.last_name?.[0]}</AvatarFallback>
@@ -193,7 +194,7 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
                     <div className="flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--border)" }}>
                         <div className="flex items-center gap-3">
                              <Avatar className="h-10 w-10">
-                                <AvatarFallback className="bg-yessal-green text-white" style={{ background: "var(--yessal-green)" }}>
+                                <AvatarFallback className="bg-yessal-violet text-white" style={{ background: "var(--primary)" }}>
                                     {selectedMember.first_name[0]}
                                 </AvatarFallback>
                              </Avatar>
@@ -214,7 +215,7 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
                             <select 
                                 id="paymentMethod" 
                                 name="paymentMethod" 
-                                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"
+                                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-yessal-violet/50"
                                 required
                                 value={paymentMethod}
                                 onChange={(e) => setPaymentMethod(e.target.value)}
@@ -246,7 +247,7 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
                             <select 
                                 id="campaignId" 
                                 name="campaignId" 
-                                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"
+                                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-yessal-violet/50"
                                 required
                             >
                                 <option value="">Choisir une campagne active...</option>
@@ -266,13 +267,9 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
                             </div>
                         </div>
 
-                        {errorMsg && (
-                            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 text-red-600 text-xs font-medium">
-                                <AlertCircle size={14} /> {errorMsg}
-                            </div>
-                        )}
+                        {errorMsg && <ErrorAlert message={errorMsg} />}
 
-                        <Button type="submit" disabled={isPending} className="w-full h-12 gap-2 mt-4" style={{ background: "var(--yessal-green)", color: "white" }}>
+                        <Button type="submit" disabled={isPending} className="w-full h-12 gap-2 mt-4" style={{ background: "var(--primary)", color: "white" }}>
                             <CheckCircle2 size={18} /> {isPending ? "Validation..." : "Enregistrer et Valider"}
                         </Button>
                     </form>

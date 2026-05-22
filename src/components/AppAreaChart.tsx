@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import {
   ChartContainer,
   ChartLegend,
@@ -19,7 +19,7 @@ import { TrendingUp } from "lucide-react";
 const chartConfig = {
   total: {
     label: "Montant",
-    color: "var(--yessal-green)",
+    color: "var(--primary)",
   },
   active: {
     label: "Actifs",
@@ -79,8 +79,8 @@ const AppAreaChart = ({
               <ChartLegend content={<ChartLegendContent />} />
               <defs>
                 <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--yessal-green)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="var(--yessal-green)" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="fillActive" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--color-active)" stopOpacity={0.8} />
@@ -117,7 +117,7 @@ const AppAreaChart = ({
                   type="monotone"
                   fill="url(#fillTotal)"
                   fillOpacity={1}
-                  stroke="var(--yessal-green)"
+                  stroke="var(--primary)"
                   strokeWidth={2}
                 />
               )}

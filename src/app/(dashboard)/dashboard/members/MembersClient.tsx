@@ -189,24 +189,24 @@ export function MembersClient({
               key={m.id}
               type="button"
               onClick={() => setDetail(m)}
-              className="text-left bg-card border rounded-2xl p-5 flex items-center gap-4 shadow-sm hover:shadow-md hover:border-yessal-green/20 transition-all group"
+              className="text-left bg-card border rounded-2xl p-5 flex items-center gap-4 shadow-sm hover:shadow-md hover:border-yessal-violet/20 transition-all group"
               style={{ borderColor: "var(--border)" }}
             >
-              <Avatar className="h-14 w-14 flex-shrink-0 ring-2 ring-transparent group-hover:ring-yessal-green/20 transition-all">
+              <Avatar className="h-14 w-14 flex-shrink-0 ring-2 ring-transparent group-hover:ring-yessal-violet/20 transition-all">
                 <AvatarImage
                   src={m.avatar || m.avatar_url || undefined}
                   className="object-cover"
                 />
                 <AvatarFallback
                   className="text-white font-black text-sm"
-                  style={{ background: "var(--yessal-green)" }}
+                  style={{ background: "var(--primary)" }}
                 >
                   {initials || "?"}
                 </AvatarFallback>
               </Avatar>
 
               <div className="flex-1 min-w-0">
-                <div className="font-bold truncate text-base group-hover:text-yessal-green transition-colors">
+                <div className="font-bold truncate text-base group-hover:text-yessal-violet transition-colors">
                   {m.first_name} {m.last_name}
                 </div>
                 <div className="text-xs text-muted-foreground truncate mb-2">
@@ -237,7 +237,7 @@ export function MembersClient({
           {detail && (
             <div className="flex flex-col">
               {/* Header Visual */}
-              <div className="bg-yessal-green p-8 flex flex-col items-center gap-4 relative overflow-hidden">
+              <div className="bg-yessal-violet p-8 flex flex-col items-center gap-4 relative overflow-hidden">
                 <div className="absolute inset-0 opacity-10 pointer-events-none">
                   <Users
                     size={200}
@@ -249,7 +249,7 @@ export function MembersClient({
                     src={detail.avatar || detail.avatar_url || undefined}
                     className="object-cover"
                   />
-                  <AvatarFallback className="bg-white text-yessal-green text-3xl font-black">
+                  <AvatarFallback className="bg-white text-yessal-violet text-3xl font-black">
                     {detail.first_name?.[0]}
                     {detail.last_name?.[0]}
                   </AvatarFallback>
@@ -294,7 +294,7 @@ export function MembersClient({
                       Titre
                     </span>
                     <div className="flex items-center gap-2 font-bold text-sm">
-                      <Shield size={16} className="text-yessal-green" />{" "}
+                      <Shield size={16} className="text-yessal-violet" />{" "}
                       {detail.title || "Talibé"}
                     </div>
                   </div>
@@ -306,14 +306,14 @@ export function MembersClient({
                     Coordonnées
                   </h4>
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-yessal-green/10 flex items-center justify-center text-yessal-green">
+                    <div className="w-8 h-8 rounded-lg bg-yessal-violet/10 flex items-center justify-center text-yessal-violet">
                       <Mail size={16} />
                     </div>
                     <span className="font-medium">{detail.email}</span>
                   </div>
                   {detail.phone && (
                     <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-lg bg-yessal-green/10 flex items-center justify-center text-yessal-green">
+                      <div className="w-8 h-8 rounded-lg bg-yessal-violet/10 flex items-center justify-center text-yessal-violet">
                         <Phone size={16} />
                       </div>
                       <span className="font-medium">{detail.phone}</span>
@@ -328,7 +328,7 @@ export function MembersClient({
                   </h4>
                   <div className="grid grid-cols-1 gap-2">
                     <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-lg bg-yessal-green/10 flex items-center justify-center text-yessal-green">
+                      <div className="w-8 h-8 rounded-lg bg-yessal-violet/10 flex items-center justify-center text-yessal-violet">
                         <Building2 size={16} />
                       </div>
                       <div className="flex flex-col">
@@ -341,7 +341,7 @@ export function MembersClient({
                       </div>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-lg bg-yessal-green/10 flex items-center justify-center text-yessal-green">
+                      <div className="w-8 h-8 rounded-lg bg-yessal-violet/10 flex items-center justify-center text-yessal-violet">
                         <MapPin size={16} />
                       </div>
                       <div className="flex flex-col">
@@ -372,7 +372,7 @@ export function MembersClient({
                   </div>
                   <Button
                     variant="link"
-                    className="text-yessal-green text-xs font-bold p-0"
+                    className="text-yessal-violet text-xs font-bold p-0"
                   >
                     Consulter
                   </Button>
@@ -391,7 +391,7 @@ export function MembersClient({
               <Button
                 type="button"
                 variant="outline"
-                className="border-yessal-green text-yessal-green hover:bg-yessal-green/5 font-bold"
+                className="border-yessal-violet text-yessal-violet hover:bg-yessal-violet/5 font-bold"
                 onClick={() => router.push(`/dashboard/users/${detail.id}`)}
               >
                 Voir plus de détails
@@ -403,7 +403,7 @@ export function MembersClient({
                 <Button
                   type="button"
                   disabled={isPending}
-                  style={{ background: "var(--yessal-green)", color: "white" }}
+                  style={{ background: "var(--primary)", color: "white" }}
                   onClick={() => handlePromote(detail.id)}
                 >
                   {isPending ? "…" : "Nommer collecteur"}
@@ -440,8 +440,8 @@ export function MembersClient({
                 onClick={() => setCurrentPage(p)}
                 className={`h-9 w-9 rounded-lg font-bold border-none ${
                   currentPage === p
-                    ? "bg-yessal-green text-white shadow-lg shadow-yessal-green/20"
-                    : "text-muted-foreground hover:text-yessal-green hover:bg-yessal-green/5"
+                    ? "bg-yessal-violet text-white shadow-lg shadow-yessal-violet/20"
+                    : "text-muted-foreground hover:text-yessal-violet hover:bg-yessal-violet/5"
                 }`}
               >
                 {p}

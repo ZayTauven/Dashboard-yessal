@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -98,7 +98,7 @@ export function NewDonationClient({
             className="text-xl font-semibold flex items-center gap-2"
             style={{ color: "var(--foreground)" }}
           >
-            <Wallet size={20} style={{ color: "var(--yessal-green)" }} />
+            <Wallet size={20} style={{ color: "var(--primary)" }} />
             Faire un Jëfs
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -112,7 +112,7 @@ export function NewDonationClient({
             <Link
               href="/dashboard/campaigns"
               className="underline font-medium"
-              style={{ color: "var(--yessal-green)" }}
+              style={{ color: "var(--primary)" }}
             >
               Voir les Ndiguels
             </Link>
@@ -181,7 +181,7 @@ export function NewDonationClient({
               <Label>Moyen de paiement</Label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "orange_money" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "orange_money" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                   onClick={() => setSelectedMethod("orange_money")}
                 >
                   <input
@@ -195,7 +195,7 @@ export function NewDonationClient({
                   <span className="text-[10px] font-bold">Orange</span>
                 </label>
                 <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "wave" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "wave" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                   onClick={() => setSelectedMethod("wave")}
                 >
                   <input
@@ -209,7 +209,7 @@ export function NewDonationClient({
                   <span className="text-[10px] font-bold">Wave</span>
                 </label>
                 <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "visa" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "visa" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                   onClick={() => setSelectedMethod("visa")}
                 >
                   <input
@@ -223,7 +223,7 @@ export function NewDonationClient({
                   <span className="text-[10px] font-bold">Visa</span>
                 </label>
                 <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "mastercard" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "mastercard" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                   onClick={() => setSelectedMethod("mastercard")}
                 >
                   <input
@@ -237,7 +237,7 @@ export function NewDonationClient({
                   <span className="text-[10px] font-bold">Mastercard</span>
                 </label>
                 <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "paypal" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "paypal" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                   onClick={() => setSelectedMethod("paypal")}
                 >
                   <input
@@ -251,7 +251,7 @@ export function NewDonationClient({
                   <span className="text-[10px] font-bold">PayPal</span>
                 </label>
                 <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "collector" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "collector" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                   onClick={() => setSelectedMethod("collector")}
                 >
                   <input
@@ -265,7 +265,7 @@ export function NewDonationClient({
                   <span className="text-[10px] font-bold">Collecteur</span>
                 </label>
                 <label
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "virement" ? "border-yessal-green bg-yessal-green/10" : "border-border"}`}
+                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "virement" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
                   onClick={() => setSelectedMethod("virement")}
                 >
                   <input
@@ -308,7 +308,7 @@ export function NewDonationClient({
               type="submit"
               disabled={isPending}
               className="w-full gap-2 py-6 text-base"
-              style={{ background: "var(--yessal-green)", color: "white" }}
+              style={{ background: "var(--primary)", color: "white" }}
             >
               <CreditCard size={18} />
               {isPending ? "Traitement…" : "Confirmer le don"}

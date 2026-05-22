@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { updateUserStatus } from "@/app/actions/users";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -74,7 +74,8 @@ export function MembersValidationClient({ initialUsers }: { initialUsers: any[] 
                     <TableCell>
                         <div className="flex items-center gap-3">
                             <Avatar className="h-9 w-9">
-                                <AvatarFallback className="bg-yessal-green text-white" style={{ background: "var(--yessal-green)" }}>
+                                <AvatarImage src={user.avatar || user.avatar_url || undefined} className="object-cover" />
+                                <AvatarFallback className="bg-yessal-violet text-white" style={{ background: "var(--primary)" }}>
                                     {user.first_name?.[0]}{user.last_name?.[0]}
                                 </AvatarFallback>
                             </Avatar>
@@ -92,10 +93,10 @@ export function MembersValidationClient({ initialUsers }: { initialUsers: any[] 
                     </TableCell>
                     <TableCell>
                         <Badge variant={
-                            user.status === 'pending' ? 'secondary' : 
-                            user.status === 'active' ? 'default' : 'destructive'
+                            user.status === 'pending' ? 'pending' :
+                            user.status === 'active' ? 'active' : 'failed'
                         } className="capitalize text-[10px]">
-                            {user.status === 'pending' ? 'En attente' : 
+                            {user.status === 'pending' ? 'En attente' :
                              user.status === 'active' ? 'Activé' : 'Bloqué'}
                         </Badge>
                     </TableCell>

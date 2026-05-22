@@ -3,6 +3,7 @@ import { getProfile } from "@/app/actions/users";
 import { getDirectoryUsers } from "@/app/actions/directory";
 import { getDaaras } from "@/app/actions/daara";
 import { ChatInterface } from "./ChatInterface";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
 
@@ -77,8 +78,8 @@ export default async function ChatPage({
         style={{ borderColor: "var(--border)" }}
       >
         {error ? (
-          <div className="flex-1 flex items-center justify-center text-red-500 bg-red-50/50 p-8 text-center font-medium">
-            {error}
+          <div className="flex-1 flex items-center justify-center p-8">
+            <ErrorAlert message={error} className="max-w-md" />
           </div>
         ) : (
           <ChatInterface

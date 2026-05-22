@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,7 +113,7 @@ export default function ContactPage() {
           <Button
             type="submit"
             style={{
-              background: "var(--yessal-green)",
+              background: "var(--primary)",
               color: "#FAFAF8",
               borderRadius: "8px",
               height: "48px",
@@ -128,7 +128,7 @@ export default function ContactPage() {
           className="text-center text-xs mt-6"
           style={{ color: "var(--muted-foreground)" }}
         >
-          <Link href="/" style={{ color: "var(--yessal-green)" }}>
+          <Link href="/" style={{ color: "var(--primary)" }}>
             ← Retour à l'accueil
           </Link>
         </p>

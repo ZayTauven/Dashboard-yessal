@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,6 +53,8 @@ import {
 } from "lucide-react";
 import AppAreaChart from "@/components/AppAreaChart";
 import { DonationListClient } from "../../donations/DonationListClient";
+import { updateUserStatus, deleteUserAction } from "@/app/actions/users";
+import { toast } from "sonner";
 
 interface UserDetailClientProps {
   user: any;
@@ -72,7 +75,7 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-center gap-4 group/item">
-      <div className="p-3 rounded-2xl bg-muted group-hover/item:bg-yessal-green/10 group-hover/item:text-yessal-green transition-colors shrink-0">
+      <div className="p-3 rounded-2xl bg-muted group-hover/item:bg-yessal-violet/10 group-hover/item:text-yessal-violet transition-colors shrink-0">
         <Icon size={16} />
       </div>
       <div className="flex flex-col overflow-hidden min-w-0">
@@ -92,9 +95,32 @@ export default function UserDetailClient({
   documents,
   tutelle,
 }: UserDetailClientProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [selectedCampaign, setSelectedCampaign] = useState<any>(null);
+  const [selectedDoc, setSelectedDoc] = useState<any>(null);
 
   const kpis = stats?.kpis || [];
+
+  const handleBlock = () => {
+    if (!confirm(`Bloquer l'accès de ${user?.first_name} ${user?.last_name} ?`)) return;
+    startTransition(async () => {
+      const res = await updateUserStatus(user.id, "block");
+      if (res.error) { toast.error(res.error); return; }
+      toast.success("Accès bloqué.");
+      router.refresh();
+    });
+  };
+
+  const handleDelete = () => {
+    if (!confirm(`Supprimer définitivement le compte de ${user?.first_name} ${user?.last_name} ? Cette action est irréversible.`)) return;
+    startTransition(async () => {
+      const res = await deleteUserAction(user.id);
+      if (res.error) { toast.error(res.error); return; }
+      toast.success("Compte supprimé.");
+      router.push("/dashboard/members");
+    });
+  };
   const campaignDonations = stats?.campaign_donations || [];
   const chartData = stats?.chartData || [];
 
@@ -130,7 +156,7 @@ export default function UserDetailClient({
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            className="gap-2 font-bold h-9 border-yessal-green text-yessal-green hover:bg-yessal-green/5"
+            className="gap-2 font-bold h-9 border-yessal-violet text-yessal-violet hover:bg-yessal-violet/5"
           >
             <Edit size={14} /> Modifier
           </Button>
@@ -145,10 +171,10 @@ export default function UserDetailClient({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 rounded-xl p-2">
-              <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer text-orange-600 focus:text-orange-600 focus:bg-orange-50">
+              <DropdownMenuItem disabled={isPending} className="rounded-lg gap-2 cursor-pointer text-orange-600 focus:text-orange-600 focus:bg-orange-50" onClick={handleBlock}>
                 <ShieldAlert size={16} /> Bloquer l&apos;accès
               </DropdownMenuItem>
-              <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50">
+              <DropdownMenuItem disabled={isPending} className="rounded-lg gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50" onClick={handleDelete}>
                 <ShieldAlert size={16} /> Supprimer le compte
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -162,7 +188,7 @@ export default function UserDetailClient({
         style={{ borderColor: "var(--border)" }}
       >
         {/* Banner */}
-        <div className="h-44 rounded-t-3xl bg-gradient-to-r from-yessal-green to-green-500 relative overflow-hidden">
+        <div className="h-44 rounded-t-3xl bg-gradient-to-r from-yessal-violet to-violet-600 relative overflow-hidden">
           <div
             className="absolute inset-0 opacity-10"
             style={{
@@ -196,7 +222,7 @@ export default function UserDetailClient({
               <h1 className="text-3xl md:text-4xl font-black tracking-tighter leading-none">
                 {user?.first_name} {user?.last_name}
               </h1>
-              <Badge className="bg-yessal-green/10 text-yessal-green border-none font-black uppercase text-[10px] px-2 py-1 tracking-widest">
+              <Badge className="bg-yessal-violet/10 text-yessal-violet border-none font-black uppercase text-[10px] px-2 py-1 tracking-widest">
                 {user?.role_display || user?.role}
               </Badge>
               {user?.is_active ? (
@@ -213,19 +239,19 @@ export default function UserDetailClient({
             <div className="flex flex-wrap items-center gap-3 text-muted-foreground text-sm font-bold">
               {user?.daara_name && (
                 <span className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-lg">
-                  <Building2 size={13} className="text-yessal-green" />{" "}
+                  <Building2 size={13} className="text-yessal-violet" />{" "}
                   {user.daara_name}
                 </span>
               )}
               {user?.title_name && (
                 <span className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-lg">
-                  <BookOpen size={13} className="text-yessal-green" />{" "}
+                  <BookOpen size={13} className="text-yessal-violet" />{" "}
                   {user.title_name}
                 </span>
               )}
               {user?.ldd_name && (
                 <span className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-lg">
-                  <MapPin size={13} className="text-yessal-green" />{" "}
+                  <MapPin size={13} className="text-yessal-violet" />{" "}
                   {user.ldd_name}
                 </span>
               )}
@@ -255,7 +281,7 @@ export default function UserDetailClient({
           >
             <CardHeader>
               <CardTitle className="text-base font-black flex items-center gap-2">
-                <User size={16} className="text-yessal-green" /> Contact &
+                <User size={16} className="text-yessal-violet" /> Contact &
                 Identité
               </CardTitle>
             </CardHeader>
@@ -298,7 +324,7 @@ export default function UserDetailClient({
           >
             <CardHeader className="bg-muted/30">
               <CardTitle className="text-base font-black flex items-center gap-2">
-                <Users size={16} className="text-yessal-green" /> Tutelle
+                <Users size={16} className="text-yessal-violet" /> Tutelle
                 <Badge variant="outline" className="ml-auto text-xs">
                   {tutelle.length}
                 </Badge>
@@ -318,7 +344,7 @@ export default function UserDetailClient({
                     >
                       <Avatar className="size-9 shrink-0">
                         <AvatarImage src={t.avatar_url} />
-                        <AvatarFallback className="text-xs font-black bg-yessal-green/10 text-yessal-green uppercase">
+                        <AvatarFallback className="text-xs font-black bg-yessal-violet/10 text-yessal-violet uppercase">
                           {t.first_name?.[0]}
                           {t.last_name?.[0]}
                         </AvatarFallback>
@@ -357,7 +383,7 @@ export default function UserDetailClient({
             className="rounded-3xl border shadow-sm overflow-hidden"
             style={{ borderColor: "var(--border)" }}
           >
-            <CardHeader className="bg-yessal-green text-white">
+            <CardHeader className="bg-yessal-violet text-white">
               <CardTitle className="text-base font-black flex items-center gap-2">
                 <Wallet size={16} /> Ndiguels Participés
                 <Badge className="ml-auto bg-white/20 border-white/30 text-white text-xs">
@@ -382,7 +408,7 @@ export default function UserDetailClient({
                       onClick={() => setSelectedCampaign(cd)}
                     >
                       <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-sm truncate max-w-[160px] group-hover:text-yessal-green transition-colors">
+                        <span className="font-bold text-sm truncate max-w-[160px] group-hover:text-yessal-violet transition-colors">
                           {cd.name}
                         </span>
                         <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
@@ -390,11 +416,10 @@ export default function UserDetailClient({
                         </span>
                       </div>
                       <div className="flex flex-col items-end shrink-0 gap-1">
-                        <span className="text-yessal-green font-black text-sm">
-                          {Number(cd.total).toLocaleString()} F
+                        <span className="text-yessal-green font-black text-sm">{Number(cd.total).toLocaleString()} F
                         </span>
                         <button
-                          className="text-[9px] font-black uppercase text-muted-foreground border border-dashed rounded px-1.5 py-0.5 hover:border-yessal-green hover:text-yessal-green transition-colors"
+                          className="text-[9px] font-black uppercase text-muted-foreground border border-dashed rounded px-1.5 py-0.5 hover:border-yessal-violet hover:text-yessal-violet transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedCampaign(cd);
@@ -410,7 +435,7 @@ export default function UserDetailClient({
               {campaignDonations.length > 5 && (
                 <Button
                   variant="ghost"
-                  className="w-full rounded-none h-11 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-yessal-green"
+                  className="w-full rounded-none h-11 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-yessal-violet"
                 >
                   Voir tout ({campaignDonations.length})
                 </Button>
@@ -429,17 +454,17 @@ export default function UserDetailClient({
                 return (
                   <div
                     key={idx}
-                    className="bg-white dark:bg-card p-5 rounded-3xl border shadow-sm flex flex-col gap-3 hover:border-yessal-green/40 transition-all group"
+                    className="bg-white dark:bg-card p-5 rounded-3xl border shadow-sm flex flex-col gap-3 hover:border-yessal-violet/40 transition-all group"
                     style={{ borderColor: "var(--border)" }}
                   >
-                    <div className="p-3 rounded-2xl bg-yessal-green/10 text-yessal-green w-fit group-hover:scale-110 transition-transform duration-300">
+                    <div className="p-3 rounded-2xl bg-yessal-violet/10 text-yessal-violet w-fit group-hover:scale-110 transition-transform duration-300">
                       <Icon size={20} />
                     </div>
                     <div>
                       <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">
                         {kpi.title}
                       </p>
-                      <h3 className="text-xl font-black mt-0.5 tracking-tighter text-yessal-green leading-none">
+                      <h3 className="text-xl font-black mt-0.5 tracking-tighter text-yessal-violet leading-none">
                         {kpi.value}
                       </h3>
                     </div>
@@ -466,19 +491,19 @@ export default function UserDetailClient({
                   <TabsList className="flex w-fit bg-transparent p-0 h-12 gap-8">
                     <TabsTrigger
                       value="activity"
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-yessal-green data-[state=active]:bg-transparent px-0 font-bold h-full"
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-yessal-violet data-[state=active]:bg-transparent px-0 font-bold h-full"
                     >
                       Statistiques
                     </TabsTrigger>
                     <TabsTrigger
                       value="history"
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-yessal-green data-[state=active]:bg-transparent px-0 font-bold h-full"
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-yessal-violet data-[state=active]:bg-transparent px-0 font-bold h-full"
                     >
                       Historique
                     </TabsTrigger>
                     <TabsTrigger
                       value="docs"
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-yessal-green data-[state=active]:bg-transparent px-0 font-bold h-full relative"
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-yessal-violet data-[state=active]:bg-transparent px-0 font-bold h-full relative"
                     >
                       Documents
                       {documents.length > 0 && (
@@ -538,11 +563,11 @@ export default function UserDetailClient({
                         documents.map((doc: any) => (
                           <div
                             key={doc.id}
-                            className="p-4 rounded-2xl border bg-muted/5 flex items-center justify-between group hover:border-yessal-green/30 transition-colors"
+                            className="p-4 rounded-2xl border bg-muted/5 flex items-center justify-between group hover:border-yessal-violet/30 transition-colors"
                             style={{ borderColor: "var(--border)" }}
                           >
                             <div className="flex items-center gap-4">
-                              <div className="p-3 rounded-xl bg-white shadow-sm text-yessal-green border">
+                              <div className="p-3 rounded-xl bg-white shadow-sm text-yessal-violet border">
                                 <FileText size={22} />
                               </div>
                               <div className="flex flex-col">
@@ -577,6 +602,7 @@ export default function UserDetailClient({
                               size="sm"
                               variant="ghost"
                               className="opacity-0 group-hover:opacity-100 transition-opacity font-bold"
+                              onClick={() => setSelectedDoc(doc)}
                             >
                               Voir
                             </Button>
@@ -600,7 +626,7 @@ export default function UserDetailClient({
         <DialogContent className="max-w-sm rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
           {selectedCampaign && (
             <div className="flex flex-col">
-              <div className="bg-gradient-to-br from-yessal-green to-green-600 p-6 text-white">
+              <div className="bg-gradient-to-br from-yessal-violet to-violet-700 p-6 text-white">
                 <DialogHeader>
                   <DialogTitle className="text-white text-xl font-black leading-tight">
                     {selectedCampaign.name}
@@ -627,7 +653,7 @@ export default function UserDetailClient({
                       <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
                         Nbre de dons
                       </span>
-                      <span className="text-2xl font-black mt-1 text-yessal-green">
+                      <span className="text-2xl font-black mt-1 text-yessal-violet">
                         {selectedCampaign.count}
                       </span>
                     </div>
@@ -654,7 +680,7 @@ export default function UserDetailClient({
 
                 <div className="flex gap-2 pt-2">
                   <Button
-                    className="flex-1 bg-yessal-green hover:bg-yessal-green/90 font-black h-11 rounded-xl gap-2"
+                    className="flex-1 bg-yessal-violet hover:bg-yessal-violet/90 font-black h-11 rounded-xl gap-2"
                     asChild
                   >
                     <a href={`/dashboard/campaigns/${selectedCampaign.id}`}>
@@ -670,6 +696,41 @@ export default function UserDetailClient({
                   </Button>
                 </div>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── DOCUMENT VIEWER ─────────────────────────────────────── */}
+      <Dialog open={!!selectedDoc} onOpenChange={(open) => !open && setSelectedDoc(null)}>
+        <DialogContent className="max-w-2xl rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-black uppercase text-sm tracking-widest">
+              {selectedDoc?.type_display || "Document d'identité"}
+            </DialogTitle>
+            <DialogDescription className="text-[10px]">
+              {selectedDoc?.status === "validated" ? "Validé" : "En attente de validation"}
+              {selectedDoc?.doc_number ? ` · N° ${selectedDoc.doc_number}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedDoc && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+              {selectedDoc.image && (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Recto</p>
+                  <a href={selectedDoc.image} target="_blank" rel="noopener noreferrer">
+                    <img src={selectedDoc.image} alt="Recto" className="rounded-xl border w-full object-cover max-h-60 hover:opacity-90 transition-opacity" />
+                  </a>
+                </div>
+              )}
+              {selectedDoc.image_verso && (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Verso</p>
+                  <a href={selectedDoc.image_verso} target="_blank" rel="noopener noreferrer">
+                    <img src={selectedDoc.image_verso} alt="Verso" className="rounded-xl border w-full object-cover max-h-60 hover:opacity-90 transition-opacity" />
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

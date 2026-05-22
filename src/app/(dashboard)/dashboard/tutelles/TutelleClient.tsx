@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { addTutelle } from "@/app/actions/tutelles";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export function TutelleClient({ initialTutelles }: { initialTutelles: any[] }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +31,7 @@ export function TutelleClient({ initialTutelles }: { initialTutelles: any[] }) {
         <Button
           className="gap-2"
           style={{
-            background: "var(--yessal-green)",
+            background: "var(--primary)",
             color: "#FAFAF8",
           }}
           onClick={() => setIsOpen(true)}
@@ -79,7 +80,7 @@ export function TutelleClient({ initialTutelles }: { initialTutelles: any[] }) {
                 </div>
                 {errorMsg && <p className="text-sm text-red-500 font-medium">{errorMsg}</p>}
                 <div className="flex justify-end mt-4">
-                  <Button type="submit" disabled={isPending} style={{ background: "var(--yessal-green)", color: "#FAFAF8" }}>
+                  <Button type="submit" disabled={isPending} style={{ background: "var(--primary)", color: "#FAFAF8" }}>
                     {isPending ? "Enregistrement..." : "Enregistrer"}
                   </Button>
                 </div>
@@ -115,9 +116,9 @@ export function TutelleClient({ initialTutelles }: { initialTutelles: any[] }) {
                     {tutelle.linked_user || "Non lié"}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                    <Badge variant="active" className="text-xs">
                       Actif
-                    </span>
+                    </Badge>
                   </td>
                 </tr>
               ))}

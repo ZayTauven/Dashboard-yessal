@@ -1,6 +1,7 @@
 import { getCampaigns } from "@/app/actions/campaigns";
 import { CampaignsClient } from "./CampaignsClient";
 import { getProfile } from "@/app/actions/users";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function CampaignsPage() {
   const { data: campaigns, error: campaignError } = await getCampaigns();
@@ -23,7 +24,7 @@ export default async function CampaignsPage() {
       </div>
 
       {campaignError ? (
-        <div className="bg-red-50 text-red-600 p-4 rounded-md">{campaignError}</div>
+        <ErrorAlert message={campaignError} />
       ) : (
         <CampaignsClient
           initialCampaigns={campaigns || []}

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { 
@@ -108,7 +108,7 @@ function DaaraSelector({ daaras, value, onChange }: { daaras: any[], value: stri
                         
                         {groupedDaaras.map((group) => (
                             <div key={group.name} className="mt-2">
-                                <div className="px-2 py-1 text-[10px] font-black uppercase text-yessal-green bg-yessal-green/5 rounded mb-1">
+                                <div className="px-2 py-1 text-[10px] font-black uppercase text-yessal-violet bg-yessal-violet/5 rounded mb-1">
                                     Zone : {group.name}
                                 </div>
                                 {group.items.map((daara) => (
@@ -161,7 +161,7 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
       <div className="flex justify-between items-center bg-card p-6 rounded-2xl border shadow-sm">
         <div className="flex flex-col gap-1">
             <h2 className="text-2xl font-black flex gap-2 items-center tracking-tight">
-                <Megaphone size={24} className="text-yessal-green" /> 
+                <Megaphone size={24} className="text-yessal-violet" /> 
                 Centre des Annonces
             </h2>
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Gérez la communication officielle du réseau</p>
@@ -169,7 +169,7 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
         
         <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
             <DialogTrigger asChild>
-                <Button className="bg-yessal-green hover:bg-green-700 text-white gap-2 px-6 h-12 rounded-xl shadow-lg shadow-yessal-green/20 border-none transition-all hover:scale-105 active:scale-95">
+                <Button className="bg-yessal-violet hover:bg-violet-700 text-white gap-2 px-6 h-12 rounded-xl shadow-lg shadow-yessal-violet/20 border-none transition-all hover:scale-105 active:scale-95">
                     <Plus size={18} /> Nouvelle Diffusion
                 </Button>
             </DialogTrigger>
@@ -192,12 +192,12 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
                 }}>
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Sujet de l'annonce</label>
-                        <Input name="title" placeholder="Titre accrocheur..." required className="bg-muted/10 h-11 border-none focus-visible:ring-1 focus-visible:ring-yessal-green" />
+                        <Input name="title" placeholder="Titre accrocheur..." required className="bg-muted/10 h-11 border-none focus-visible:ring-1 focus-visible:ring-yessal-violet" />
                     </div>
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Message complet</label>
-                        <Textarea name="content" placeholder="Que voulez-vous dire à la communauté ?" className="min-h-[120px] bg-muted/10 border-none focus-visible:ring-1 focus-visible:ring-yessal-green" required />
+                        <Textarea name="content" placeholder="Que voulez-vous dire à la communauté ?" className="min-h-[120px] bg-muted/10 border-none focus-visible:ring-1 focus-visible:ring-yessal-violet" required />
                     </div>
 
                     <input type="hidden" name="daara" value={selectedDaaraId} />
@@ -253,7 +253,7 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
                     </div>
                     
                     <DialogFooter className="mt-8">
-                        <Button type="submit" className="w-full bg-yessal-green text-white border-none py-6 font-black uppercase tracking-widest">Lancer la diffusion</Button>
+                        <Button type="submit" className="w-full bg-yessal-violet text-white border-none py-6 font-black uppercase tracking-widest">Lancer la diffusion</Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
@@ -283,7 +283,7 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
 
                         {/* Badges / Stats */}
                         <div className="flex flex-wrap items-center gap-2">
-                             <Badge className={`uppercase text-[9px] font-black tracking-widest border-none px-2 py-1 ${ann.target === 'global' ? 'bg-blue-50 text-blue-600' : 'bg-yessal-green/10 text-yessal-green'}`}>
+                             <Badge className={`uppercase text-[9px] font-black tracking-widest border-none px-2 py-1 ${ann.target === 'global' ? 'bg-blue-50 text-blue-600' : 'bg-yessal-violet/10 text-yessal-violet'}`}>
                                 {ann.target === 'global' ? <Globe size={10} className="mr-1" /> : <Building2 size={10} className="mr-1" />}
                                 {ann.target === 'global' ? "Global" : ann.daara_name}
                             </Badge>

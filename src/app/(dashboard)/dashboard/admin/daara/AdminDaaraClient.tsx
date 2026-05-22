@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useTransition, useEffect } from "react";
 import Link from "next/link";
@@ -355,7 +355,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
                       <TableRow key={daara.id}>
                         <TableCell className="pl-6">
                           <div className="flex flex-col">
-                            <span className="font-bold text-yessal-green text-xs">
+                            <span className="font-bold text-yessal-violet text-xs">
                               {daara.ldd?.code ?? "—"}
                             </span>
                             <span className="text-[10px] text-muted-foreground">
@@ -471,7 +471,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
 
               <div className="flex items-center gap-2 mb-6 justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-yessal-green/10 text-yessal-green">
+                  <div className="p-2 rounded-lg bg-yessal-violet/10 text-yessal-violet">
                     <Building2 size={20} />
                   </div>
                   <h3 className="text-lg font-bold">Nouveau Daara</h3>
@@ -482,7 +482,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
                   title="Importer fichier Excel"
                 >
                   {isImporting ? (
-                    <div className="h-4 w-4 rounded-full border-2 border-yessal-green border-t-transparent animate-spin" />
+                    <div className="h-4 w-4 rounded-full border-2 border-yessal-violet border-t-transparent animate-spin" />
                   ) : (
                     <Upload size={16} />
                   )}
@@ -517,7 +517,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
                     <select
                       name="ldd_id"
                       required
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yessal-green/50"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yessal-violet/50"
                     >
                       <option value="">Choisir une Zone...</option>
                       {ldds.map((ldd: any) => (
@@ -561,7 +561,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
                   type="submit"
                   className="w-full h-11 gap-2 mt-4"
                   disabled={isPending || ldds.length === 0}
-                  style={{ background: "var(--yessal-green)", color: "white" }}
+                  style={{ background: "var(--primary)", color: "white" }}
                 >
                   <Plus size={18} />{" "}
                   {isPending ? "Création..." : "Ajouter le Daara"}
@@ -580,7 +580,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
               className="bg-card border rounded-2xl p-5 shadow-sm group"
             >
               <div className="flex justify-between items-start mb-4">
-                <div className="p-3 rounded-xl bg-yessal-green/10 text-yessal-green">
+                <div className="p-3 rounded-xl bg-yessal-violet/10 text-yessal-violet">
                   <Layers size={24} />
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -607,7 +607,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
               </div>
               <h4 className="font-black text-lg mb-1">{ldd.name}</h4>
               <div className="flex items-center gap-2">
-                <Badge className="bg-yessal-green text-white border-none uppercase text-[10px] font-black">
+                <Badge className="bg-yessal-violet text-white border-none uppercase text-[10px] font-black">
                   {ldd.code}
                 </Badge>
                 <span className="text-xs text-muted-foreground font-medium">
@@ -654,7 +654,7 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
               <Button
                 type="submit"
                 disabled={isPending}
-                className="w-full bg-yessal-green text-white h-11 font-bold"
+                className="w-full bg-yessal-violet text-white h-11 font-bold"
               >
                 {editingZone ? "Mettre à jour" : "Créer la Zone"}
               </Button>

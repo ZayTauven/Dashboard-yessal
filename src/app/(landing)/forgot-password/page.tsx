@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition } from "react"
 import { forgotPasswordAction } from "@/app/actions/auth"
@@ -33,14 +33,14 @@ export default function ForgotPasswordPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-background">
         <div className="w-full max-w-sm text-center space-y-6">
-          <div className="h-20 w-20 bg-green-50 text-yessal-green rounded-full flex items-center justify-center mx-auto shadow-sm border border-green-100">
+          <div className="h-20 w-20 bg-yessal-violet/10 text-yessal-violet rounded-full flex items-center justify-center mx-auto shadow-sm border border-green-100">
             <CheckCircle2 size={32} />
           </div>
           <h1 className="text-2xl font-black tracking-tight">Email Envoyé !</h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Consultez votre boîte mail. Si un compte existe avec cet email, un lien de réinitialisation vous a été envoyé.
           </p>
-          <Button asChild className="w-full bg-yessal-green hover:bg-green-700 text-white rounded-xl h-12 shadow-xl shadow-yessal-green/10">
+          <Button asChild className="w-full bg-yessal-violet hover:bg-violet-700 text-white rounded-xl h-12 shadow-xl shadow-yessal-violet/10">
             <Link href="/login">Retour à la connexion</Link>
           </Button>
         </div>
@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-sm">
-        <Link href="/login" className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-yessal-green transition-colors mb-8 uppercase tracking-widest">
+        <Link href="/login" className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-yessal-violet transition-colors mb-8 uppercase tracking-widest">
             <ChevronLeft size={14} /> Retour
         </Link>
         <div className="text-center mb-8">
@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
                 type="email"
                 placeholder="nom@exemple.com"
                 required
-                className="h-11 rounded-xl bg-muted/20 border-none px-4 pl-12 focus-visible:ring-1 focus-visible:ring-yessal-green"
+                className="h-11 rounded-xl bg-muted/20 border-none px-4 pl-12 focus-visible:ring-1 focus-visible:ring-yessal-violet"
               />
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60 h-4 w-4" />
             </div>
@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
           <Button
             type="submit"
             disabled={isPending}
-            className="w-full bg-yessal-green hover:bg-green-700 text-white rounded-xl h-12 font-black uppercase tracking-widest text-xs shadow-xl shadow-yessal-green/10 border-none transition-all hover:scale-[1.02] active:scale-95"
+            className="w-full bg-yessal-violet hover:bg-violet-700 text-white rounded-xl h-12 font-black uppercase tracking-widest text-xs shadow-xl shadow-yessal-violet/10 border-none transition-all hover:scale-[1.02] active:scale-95"
           >
             {isPending ? "Traitement..." : "Envoyer le lien"}
           </Button>
@@ -89,7 +89,7 @@ export default function ForgotPasswordPage() {
 
         <p className="text-center text-xs text-muted-foreground mt-8 font-medium">
           Besoin d'aide supplémentaire ?{" "}
-          <Link href="/contact" className="text-yessal-green font-bold">Maintenance Centrale</Link>
+          <Link href="/contact" className="text-yessal-violet font-bold">Maintenance Centrale</Link>
         </p>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +16,7 @@ export function SmartLink({ href, children, className }: SmartLinkProps) {
         "underline underline-offset-4 hover:decoration-solid transition-all",
         className,
       )}
-      style={{ color: "var(--yessal-green)" }}
+      style={{ color: "var(--primary)" }}
     >
       {children}
     </Link>

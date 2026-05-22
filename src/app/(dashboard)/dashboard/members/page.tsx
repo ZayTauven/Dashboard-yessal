@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getDirectoryUsers } from "@/app/actions/directory";
 import { getProfile } from "@/app/actions/users";
 import { MembersClient } from "./MembersClient";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 export default async function MembersPage() {
   const { data: profile } = await getProfile();
@@ -33,9 +34,7 @@ export default async function MembersPage() {
       </div>
 
       {error ? (
-        <div className="bg-red-50 text-red-600 p-6 rounded-2xl border border-red-100 font-medium">
-          {error}
-        </div>
+        <ErrorAlert message={error} />
       ) : (
         <MembersClient
           initialMembers={members || []}

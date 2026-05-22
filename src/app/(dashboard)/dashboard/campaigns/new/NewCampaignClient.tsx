@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -84,7 +84,7 @@ export function NewCampaignClient({
             className="text-xl font-semibold flex items-center gap-2"
             style={{ color: "var(--foreground)" }}
           >
-            <Target size={20} style={{ color: "var(--yessal-green)" }} />
+            <Target size={20} style={{ color: "var(--primary)" }} />
             {isEditMode ? "Modifier le Ndiguel" : "Lancer un nouveau Ndiguel"}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -205,7 +205,7 @@ export function NewCampaignClient({
             type="submit"
             disabled={isPending}
             className="w-full mt-2"
-            style={{ background: "var(--yessal-green)", color: "white" }}
+            style={{ background: "var(--primary)", color: "white" }}
           >
             {isPending
               ? isEditMode

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useMemo, useRef } from "react";
 import { 
@@ -132,7 +132,7 @@ function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: stri
                     <div className="flex items-center gap-2 overflow-hidden">
                         {selectedDaara ? (
                             <>
-                                <Badge variant="outline" className="text-[10px] px-1 h-4 border-yessal-green/30 text-yessal-green">
+                                <Badge variant="outline" className="text-[10px] px-1 h-4 border-yessal-violet/30 text-yessal-violet">
                                     {selectedDaara.ldd?.code || "??"}
                                 </Badge>
                                 <span className="truncate">{selectedDaara.name}</span>
@@ -142,7 +142,7 @@ function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: stri
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[350px] p-0" align="start">
+            <PopoverContent className="w-87.5 p-0" align="start">
                 <div className="flex items-center border-b px-3">
                     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                     <input
@@ -152,7 +152,7 @@ function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: stri
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <ScrollArea className="h-[300px]">
+                <ScrollArea className="h-75">
                     <div className="p-1">
                         <div 
                             className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
@@ -169,7 +169,7 @@ function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: stri
                             <div key={group.code} className="mt-2">
                                 <div className="px-2 py-1 text-[10px] font-black uppercase text-muted-foreground bg-muted/30 rounded flex justify-between items-center">
                                     <span>Zone : {group.name}</span>
-                                    <span className="text-yessal-green">{group.code}</span>
+                                    <span className="text-yessal-violet">{group.code}</span>
                                 </div>
                                 {group.items.map((daara) => (
                                     <div
@@ -409,7 +409,7 @@ export function UserManagementClient({
                 <TabsTrigger value="requests" className="rounded-lg px-6 font-bold flex gap-2">
                     Demandes & Docs
                     {(pendingDocs.length + titleRequests.length) > 0 && (
-                        <Badge className="h-4 w-4 p-0 flex items-center justify-center bg-yessal-green text-white text-[10px]">
+                        <Badge className="h-4 w-4 p-0 flex items-center justify-center bg-yessal-violet text-white text-[10px]">
                             {pendingDocs.length + titleRequests.length}
                         </Badge>
                     )}
@@ -418,16 +418,16 @@ export function UserManagementClient({
             
             <div className="flex gap-2 text-xs text-muted-foreground font-medium">
                 <div className="flex items-center gap-1"><CheckCircle2 size={12} className="text-green-500" /> {users.length} Inscrits</div>
-                <div className="flex items-center gap-1 border-l pl-2"><FileText size={12} className="text-yessal-green" /> {pendingDocs.length} Docs à valider</div>
+                <div className="flex items-center gap-1 border-l pl-2"><FileText size={12} className="text-yessal-violet" /> {pendingDocs.length} Docs à valider</div>
             </div>
         </div>
 
         <TabsContent value="list" className="space-y-6 m-0">
       {pendingUsers.length > 0 && (
-        <div className="bg-yessal-green/5 border border-yessal-green/20 p-4 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="bg-yessal-violet/5 border border-yessal-violet/20 p-4 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-500">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <Badge className="bg-yessal-green text-white">{pendingUsers.length}</Badge>
+                    <Badge className="bg-yessal-violet text-white">{pendingUsers.length}</Badge>
                     <h3 className="font-bold text-sm">Demandes d'inscription en attente</h3>
                 </div>
             </div>
@@ -435,18 +435,18 @@ export function UserManagementClient({
                 {pendingUsers.map(u => (
                     <div key={u.id} className="bg-white p-3 rounded-xl border flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-yessal-green/10 flex items-center justify-center text-yessal-green font-bold text-[10px]">
+                            <div className="w-8 h-8 rounded-full bg-yessal-violet/10 flex items-center justify-center text-yessal-violet font-bold text-[10px]">
                                 {u.first_name[0]}{u.last_name[0]}
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-xs font-bold truncate max-w-[120px]">{u.first_name} {u.last_name}</span>
+                                <span className="text-xs font-bold truncate max-w-30">{u.first_name} {u.last_name}</span>
                                 <span className="text-[9px] text-muted-foreground">{u.phone || u.email}</span>
                             </div>
                         </div>
                         <div className="flex gap-1">
                             <Button 
                                 size="icon" 
-                                className="h-7 w-7 rounded-full bg-yessal-green hover:bg-green-700 text-white"
+                                className="h-7 w-7 rounded-full bg-yessal-violet hover:bg-violet-700 text-white"
                                 onClick={() => handleStatusUpdate(u.id, 'validate')}
                                 disabled={loading === u.id}
                             >
@@ -471,10 +471,10 @@ export function UserManagementClient({
       {/* TOOLBAR */}
       <div className="flex flex-col xl:flex-row gap-4 bg-card p-5 rounded-2xl border shadow-sm items-center">
         <div className="relative flex-1 group w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-yessal-green transition-colors" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-yessal-violet transition-colors" size={18} />
           <Input 
             placeholder="Rechercher par nom, email..." 
-            className="pl-10 h-11 bg-muted/20 border-none focus-visible:ring-1 focus-visible:ring-yessal-green"
+            className="pl-10 h-11 bg-muted/20 border-none focus-visible:ring-1 focus-visible:ring-yessal-violet"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -482,7 +482,7 @@ export function UserManagementClient({
         
         <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-[160px] h-11 border-none bg-muted/20">
+                <SelectTrigger className="w-40 h-11 border-none bg-muted/20">
                     <SelectValue placeholder="Rôle" />
                 </SelectTrigger>
                 <SelectContent>
@@ -496,7 +496,7 @@ export function UserManagementClient({
 
             <Button 
                 variant="outline" 
-                className="h-11 border-dashed gap-2 px-4 bg-muted/10 hover:bg-yessal-green/10 hover:text-yessal-green transition-all"
+                className="h-11 border-dashed gap-2 px-4 bg-muted/10 hover:bg-yessal-violet/10 hover:text-yessal-violet transition-all"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isImporting}
             >
@@ -512,7 +512,7 @@ export function UserManagementClient({
                 if (!val) setSelectedDaaraId("");
             }}>
                 <DialogTrigger asChild>
-                    <Button className="h-11 bg-yessal-green hover:bg-green-700 text-white gap-2 px-6 border-none shadow-lg shadow-yessal-green/20">
+                    <Button className="h-11 bg-yessal-violet hover:bg-violet-700 text-white gap-2 px-6 border-none shadow-lg shadow-yessal-violet/20">
                         <UserPlus size={18} />
                         Inscrire un membre
                     </Button>
@@ -562,7 +562,7 @@ export function UserManagementClient({
                             </div>
                         </div>
                         <DialogFooter className="mt-6">
-                            <Button type="submit" className="w-full bg-yessal-green text-white border-none py-6 font-bold uppercase tracking-widest text-xs">Créer l'utilisateur</Button>
+                            <Button type="submit" className="w-full bg-yessal-violet text-white border-none py-6 font-bold uppercase tracking-widest text-xs">Créer l'utilisateur</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
@@ -607,7 +607,7 @@ export function UserManagementClient({
                     </div>
                     
                     <DialogFooter className="mt-6">
-                        <Button type="submit" className="w-full bg-yessal-green text-white border-none py-6">Sauvegarder les modifications</Button>
+                        <Button type="submit" className="w-full bg-yessal-violet text-white border-none py-6">Sauvegarder les modifications</Button>
                     </DialogFooter>
                 </form>
             )}
@@ -617,7 +617,7 @@ export function UserManagementClient({
       {/* USERS LIST */}
       <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
         <ScrollArea className="w-full">
-            <table className="w-full text-left border-collapse min-w-[800px]">
+            <table className="w-full text-left border-collapse min-w-200">
                 <thead className="bg-muted/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b">
                     <tr>
                         <th className="px-6 py-4">Utilisateur</th>
@@ -632,14 +632,14 @@ export function UserManagementClient({
                         <tr key={user.id} className="hover:bg-muted/10 transition-colors group">
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-yessal-green/10 text-yessal-green flex items-center justify-center font-bold text-xs border border-yessal-green/20">
+                                    <div className="h-10 w-10 rounded-full bg-yessal-violet/10 text-yessal-violet flex items-center justify-center font-bold text-xs border border-yessal-violet/20">
                                         {user.first_name?.[0]}{user.last_name?.[0]}
                                     </div>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-bold">{user.first_name} {user.last_name}</span>
                                         <div className="flex items-center gap-3 mt-0.5">
                                             <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Mail size={10} /> {user.email}</span>
-                                            <span className="text-[10px] text-yessal-green font-bold flex items-center gap-1"><Phone size={10} /> {user.phone || "N/A"}</span>
+                                            <span className="text-[10px] text-yessal-violet font-bold flex items-center gap-1"><Phone size={10} /> {user.phone || "N/A"}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -647,7 +647,7 @@ export function UserManagementClient({
                             <td className="px-6 py-4">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 px-2 gap-1 text-xs hover:bg-yessal-green/10 hover:text-yessal-green transition-all border-none">
+                                        <Button variant="ghost" className="h-8 px-2 gap-1 text-xs hover:bg-yessal-violet/10 hover:text-yessal-violet transition-all border-none">
                                             <Badge variant="outline" className="capitalize border-none bg-accent/30 font-bold px-2">{user.role.replace('_', ' ')}</Badge>
                                         </Button>
                                     </DropdownMenuTrigger>
@@ -662,10 +662,10 @@ export function UserManagementClient({
                                 </DropdownMenu>
                             </td>
                             <td className="px-6 py-4">
-                                <Badge className={`text-[10px] gap-1 px-2 py-0.5 border-none font-bold ${
-                                    user.status === 'active' ? 'bg-green-100 text-green-700' : 
-                                    user.status === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'
-                                }`}>
+                                <Badge variant={
+                                    user.status === 'active' ? 'active' :
+                                    user.status === 'pending' ? 'pending' : 'failed'
+                                } className="text-[10px] gap-1 px-2 py-0.5 font-bold">
                                     {user.status === 'active' ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
                                     {user.status.toUpperCase()}
                                 </Badge>
@@ -673,7 +673,7 @@ export function UserManagementClient({
                             <td className="px-6 py-4">
                                 <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                        <Building2 size={14} className="text-yessal-green/50" />
+                                        <Building2 size={14} className="text-yessal-violet/50" />
                                         {user.daara?.name || "Global"}
                                     </div>
                                     {user.daara?.ldd && (
@@ -764,7 +764,7 @@ export function UserManagementClient({
               {/* DOCUMENTS SECTION */}
               <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-2">
-                      <ShieldCheck size={20} className="text-yessal-green" />
+                      <ShieldCheck size={20} className="text-yessal-violet" />
                       <h3 className="text-lg font-black tracking-tight">Vérification d&apos;Identité</h3>
                   </div>
                   
@@ -789,10 +789,10 @@ export function UserManagementClient({
                                                   <div className="text-sm font-black">{doc.user_name || "Membres"}</div>
                                                   <div className="text-[10px] uppercase font-bold text-muted-foreground">{doc.doc_type}</div>
                                               </div>
-                                              <Badge variant="outline" className="text-[9px] border-yessal-green/30 text-yessal-green">EN ATTENTE</Badge>
+                                              <Badge variant="outline" className="text-[9px] border-yessal-violet/30 text-yessal-violet">EN ATTENTE</Badge>
                                           </div>
                                           <div className="flex gap-2">
-                                              <Button size="sm" className="h-8 bg-yessal-green text-white gap-1 text-[10px] font-bold" onClick={() => setSelectedDoc(doc)}>
+                                              <Button size="sm" className="h-8 bg-yessal-violet text-white gap-1 text-[10px] font-bold" onClick={() => setSelectedDoc(doc)}>
                                                   <Eye size={12} /> Inspecter
                                               </Button>
                                               <Button size="sm" variant="ghost" className="h-8 text-red-600 hover:bg-red-50 text-[10px] font-bold" onClick={() => handleDocumentReview(doc.id, false)}>
@@ -810,7 +810,7 @@ export function UserManagementClient({
               {/* TITLES SECTION */}
               <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-2">
-                      <Shield size={20} className="text-yessal-green" />
+                      <Shield size={20} className="text-yessal-violet" />
                       <h3 className="text-lg font-black tracking-tight">Demandes de Titres Officiels</h3>
                   </div>
 
@@ -829,12 +829,12 @@ export function UserManagementClient({
                                       <div>
                                           <div className="text-sm font-black">{req.member_name}</div>
                                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                              Demande le titre : <span className="font-bold text-yessal-green underline">{req.title_name}</span>
+                                              Demande le titre : <span className="font-bold text-yessal-violet underline">{req.title_name}</span>
                                           </div>
                                       </div>
                                   </div>
                                   <div className="flex gap-2">
-                                      <Button size="icon" className="h-9 w-9 rounded-xl bg-yessal-green text-white" onClick={() => handleTitleReview(req.id, "approve")}>
+                                      <Button size="icon" className="h-9 w-9 rounded-xl bg-yessal-violet text-white" onClick={() => handleTitleReview(req.id, "approve")}>
                                           <ThumbsUp size={16} />
                                       </Button>
                                       <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl text-red-600 hover:bg-red-50" onClick={() => handleTitleReview(req.id, "refuse")}>
@@ -869,13 +869,13 @@ export function UserManagementClient({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                   <div className="space-y-2">
                       <p className="text-[10px] font-black uppercase text-muted-foreground ml-1">Recto du document</p>
-                      <div className="aspect-[4/3] bg-muted rounded-2xl overflow-hidden border shadow-inner">
+                      <div className="aspect-4/3 bg-muted rounded-2xl overflow-hidden border shadow-inner">
                           <img src={selectedDoc?.image} className="w-full h-full object-contain" alt="Recto" />
                       </div>
                   </div>
                   <div className="space-y-2">
                       <p className="text-[10px] font-black uppercase text-muted-foreground ml-1">Verso du document</p>
-                      <div className="aspect-[4/3] bg-muted rounded-2xl overflow-hidden border shadow-inner flex items-center justify-center">
+                      <div className="aspect-4/3 bg-muted rounded-2xl overflow-hidden border shadow-inner flex items-center justify-center">
                           {selectedDoc?.image_verso ? (
                               <img src={selectedDoc.image_verso} className="w-full h-full object-contain" alt="Verso" />
                           ) : (
@@ -889,7 +889,7 @@ export function UserManagementClient({
                   <Button variant="outline" className="h-12 px-8 font-bold border-red-100 text-red-600 hover:bg-red-50" onClick={() => selectedDoc && handleDocumentReview(selectedDoc.id, false)}>
                       Rejeter le document
                   </Button>
-                  <Button className="h-12 px-8 bg-yessal-green text-white font-bold" onClick={() => selectedDoc && handleDocumentReview(selectedDoc.id, true)}>
+                  <Button className="h-12 px-8 bg-yessal-violet text-white font-bold" onClick={() => selectedDoc && handleDocumentReview(selectedDoc.id, true)}>
                       Valider l&apos;identité
                   </Button>
               </DialogFooter>

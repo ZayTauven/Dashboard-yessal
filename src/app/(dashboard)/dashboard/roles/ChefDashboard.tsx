@@ -30,7 +30,7 @@ export default function ChefDashboard({ stats }: { stats: any }) {
         <div>
           <div
             className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest mb-2"
-            style={{ color: "var(--yessal-green)" }}
+            style={{ color: "var(--primary)" }}
           >
             <Building2 size={16} /> District de {daaraName}
           </div>
@@ -44,7 +44,7 @@ export default function ChefDashboard({ stats }: { stats: any }) {
             asChild
             variant="outline"
             className="h-12 px-6 gap-2 font-bold"
-            style={{ borderColor: "var(--yessal-green)", color: "var(--yessal-green)" }}
+            style={{ borderColor: "var(--primary)", color: "var(--primary)" }}
           >
             <Link href="/dashboard/members">
               <UserPlus size={18} /> Gérer les Membres
@@ -53,7 +53,7 @@ export default function ChefDashboard({ stats }: { stats: any }) {
           <Button
             asChild
             className="h-12 px-6 gap-2 font-bold text-white border-none"
-            style={{ background: "var(--yessal-green)" }}
+            style={{ background: "var(--primary)" }}
           >
             <Link href="/dashboard/collect">
               <FileEdit size={18} /> Journal de Bord
@@ -73,7 +73,7 @@ export default function ChefDashboard({ stats }: { stats: any }) {
               style={{ borderColor: "var(--border)" }}
             >
               <div className="flex justify-between items-start">
-                <div className="p-2 rounded-lg" style={{ background: "rgba(26,92,58,0.1)", color: "var(--yessal-green)" }}>
+                <div className="p-2 rounded-lg" style={{ background: "rgba(145,110,231,0.1)", color: "var(--primary)" }}>
                   <Icon size={20} />
                 </div>
                 <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
@@ -112,7 +112,7 @@ export default function ChefDashboard({ stats }: { stats: any }) {
           style={{ borderColor: "var(--border)" }}
         >
           <div className="mb-4 font-bold text-sm uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            <Medal size={14} style={{ color: "var(--yessal-green)" }} /> Performances Collecteurs
+            <Medal size={14} style={{ color: "var(--primary)" }} /> Performances Collecteurs
           </div>
           {collectors.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center">
@@ -126,20 +126,20 @@ export default function ChefDashboard({ stats }: { stats: any }) {
                 return (
                   <div
                     key={col.id || i}
-                    className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-dashed hover:border-yessal-green/50 transition-colors cursor-pointer group"
+                    className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-dashed hover:border-yessal-violet/50 transition-colors cursor-pointer group"
                     style={{ borderColor: "var(--border)" }}
                   >
                     <div className="flex gap-3 items-center">
                       <div
                         className="h-2 w-2 rounded-full shadow-[0_0_8px_rgba(33,121,81,0.5)]"
-                        style={{ background: "var(--yessal-green)" }}
+                        style={{ background: "var(--primary)" }}
                       />
                       <span className="text-sm font-medium">
                         {col.first_name} {col.last_name}
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="font-bold text-xs group-hover:text-yessal-green transition-colors" style={{ color: "var(--foreground)" }}>
+                      <span className="font-bold text-xs group-hover:text-yessal-violet transition-colors" style={{ color: "var(--foreground)" }}>
                         {col.donations_count ?? col.dons ?? 0} dons
                       </span>
                     </div>
@@ -150,18 +150,16 @@ export default function ChefDashboard({ stats }: { stats: any }) {
           )}
         </div>
 
-        {/* Revenue distribution — placeholder si pas de données */}
+        {/* 7-day area chart */}
         <div
           className="bg-card p-6 rounded-2xl border shadow-sm lg:col-span-2"
           style={{ borderColor: "var(--border)" }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold">Répartition des revenus (Daara)</h3>
-            <span className="text-xs text-muted-foreground">Vue hebdo</span>
-          </div>
-          <div className="h-[250px] w-full bg-muted/10 rounded-xl border border-dashed flex items-center justify-center text-muted-foreground text-xs italic" style={{ borderColor: "var(--border)" }}>
-            Aperçu analytique détaillé — fonctionnalité à venir
-          </div>
+          <AppAreaChart
+            data={stats?.area_chart || stats?.chartData || []}
+            title="Dons du Daara — 7 derniers jours"
+            subtitle="Montants journaliers en FCFA"
+          />
         </div>
       </div>
     </div>
