@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createAnnouncement, deleteAnnouncement } from "@/app/actions/announcements";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMemo } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -139,12 +140,25 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const router = useRouter();
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Voulez-vous vraiment supprimer cette annonce ?")) return;
-    const { error } = await deleteAnnouncement(id);
-    if (!error) {
-        setAnnouncements(prev => prev.filter(a => a.id !== id));
-    }
+  const handleDelete = (id: number) => {
+    toast("Supprimer cette annonce ?", {
+      action: {
+        label: "Supprimer",
+        onClick: async () => {
+          const { error } = await deleteAnnouncement(id);
+          if (!error) {
+            setAnnouncements(prev => prev.filter(a => a.id !== id));
+            toast.success("Annonce supprimée.");
+          } else {
+            toast.error("Impossible de supprimer l'annonce.");
+          }
+        },
+      },
+      cancel: {
+        label: "Annuler",
+        onClick: () => {},
+      },
+    });
   };
 
   const getUrgencyIcon = (urgency: string) => {
@@ -186,8 +200,9 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
                     if (!error) {
                         setAnnouncements(prev => [newAnn, ...prev]);
                         setIsAddModalOpen(false);
+                        toast.success("Annonce diffusée avec succès.");
                     } else {
-                        alert(error);
+                        toast.error(error);
                     }
                 }}>
                     <div className="space-y-1.5">
@@ -294,7 +309,7 @@ export function AnnouncementManagementClient({ initialAnnouncements, daaras }: {
                             </Badge>
 
                             <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-bold px-3 py-1 bg-muted/10 rounded-full">
-                                <Calendar size={10} /> {new Date(ann.created_at).toLocaleDateString()}
+                                <Calendar size={10} /> {new Date(ann.created_at).toLocaleDateString("fr-FR")}
                             </div>
                         </div>
 

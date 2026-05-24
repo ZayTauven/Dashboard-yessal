@@ -106,11 +106,6 @@ export default function PilotagePage() {
   );
   const [selectedDocForLightbox, setSelectedDocForLightbox] = useState<UserDocument | null>(null);
 
-  const pendingTitleCount = useMemo(
-    () => titleRequests.filter((r) => r.status === "pending").length,
-    [titleRequests],
-  );
-  const pendingDocCount = pendingDocs.length;
 
   const loadAll = async () => {
     setIsLoading(true);
@@ -337,7 +332,7 @@ export default function PilotagePage() {
                 >
                   <div className="text-sm font-medium">{a.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {new Date(a.created_at).toLocaleDateString()} -{" "}
+                    {new Date(a.created_at).toLocaleDateString("fr-FR")} -{" "}
                     {a.total_count} dons -{" "}
                     {Number(a.total_amount).toLocaleString()} FCFA
                   </div>

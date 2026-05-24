@@ -51,13 +51,18 @@ export async function getAnnouncementsPreview(limit = 3) {
 
 export async function createAnnouncement(payload: any) {
   try {
+    const sanitized = { ...payload };
+    // "NONE" is a UI sentinel meaning "no specific daara" — Django FK requires null or a valid integer
+    if (!sanitized.daara || sanitized.daara === "NONE") {
+      sanitized.daara = null;
+    }
     const res = await fetch(`${BACKEND_URL}/api/comms/announcements/`, {
       method: "POST",
       headers: {
         ...(await getAuthHeader()),
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(sanitized),
     });
     if (!res.ok) return { error: "Échec de création de l'annonce." };
     revalidatePath("/dashboard");

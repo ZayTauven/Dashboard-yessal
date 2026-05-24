@@ -68,7 +68,7 @@ export function DonationListClient({
   const exportData = useMemo(() => {
     return filteredDonations.map((don) => {
       const base: Record<string, string | number> = {
-        Date: new Date(don.created_at).toLocaleDateString(),
+        Date: new Date(don.created_at).toLocaleDateString("fr-FR"),
         Référence: `REF-${don.id}`,
         Campagne: String(don.campaign_name ?? ""),
         Bénéficiaire: don.beneficiary_name || "Moi-même",
@@ -189,7 +189,7 @@ export function DonationListClient({
                   >
                     <td className="px-6 py-4">
                       <div className="font-medium">
-                        {new Date(don.created_at).toLocaleDateString()}
+                        {new Date(don.created_at).toLocaleDateString("fr-FR")}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         REF-{don.id}

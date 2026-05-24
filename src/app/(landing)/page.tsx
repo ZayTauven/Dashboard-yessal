@@ -3,7 +3,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { Moon, Sun, LogIn, HelpCircle, Users, Heart, Globe } from "lucide-react";
+import {
+  Moon,
+  Sun,
+  LogIn,
+  HelpCircle,
+  Users,
+  Heart,
+  Globe,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/BrandMark";
 
@@ -50,7 +58,6 @@ export default function LandingPage() {
       <main className="flex-1 flex overflow-hidden">
         {/* ── Gauche : Texte ── */}
         <section className="w-1/2 h-full flex flex-col justify-center pl-16 pr-8 max-w-2xl">
-
           {/* Pill badge */}
           <div className="flex items-center mb-8">
             <span
@@ -59,7 +66,8 @@ export default function LandingPage() {
                 background: "var(--accent)",
                 color: "var(--yessal-violet)",
                 border: "1px solid",
-                borderColor: "color-mix(in srgb, var(--yessal-violet) 20%, transparent)",
+                borderColor:
+                  "color-mix(in srgb, var(--yessal-violet) 20%, transparent)",
               }}
             >
               <span
@@ -80,8 +88,7 @@ export default function LandingPage() {
               color: "var(--foreground)",
             }}
           >
-            Gérez les dons{" "}
-            <br />
+            Gérez les dons <br />
             <span style={{ color: "var(--yessal-violet)", fontWeight: 400 }}>
               de votre Daara
             </span>
@@ -91,16 +98,28 @@ export default function LandingPage() {
             className="text-base mb-10 leading-relaxed"
             style={{ color: "var(--muted-foreground)", maxWidth: "400px" }}
           >
-            Centralisez les Ndiguels, tracez chaque Jëfs et renforcez
-            les liens de votre communauté — depuis n&apos;importe où dans le monde.
+            Centralisez les Ndiguels, tracez chaque Jëfs et renforcez les liens
+            de votre communauté — depuis n&apos;importe où dans le monde.
           </p>
 
           {/* Stats rapides */}
           <div className="flex items-center gap-6 mb-10">
             <Stat icon={Users} label="Membres" />
-            <div style={{ width: "1px", height: "28px", background: "var(--border)" }} />
+            <div
+              style={{
+                width: "1px",
+                height: "28px",
+                background: "var(--border)",
+              }}
+            />
             <Stat icon={Heart} label="Daaras" />
-            <div style={{ width: "1px", height: "28px", background: "var(--border)" }} />
+            <div
+              style={{
+                width: "1px",
+                height: "28px",
+                background: "var(--border)",
+              }}
+            />
             <Stat icon={Globe} label="Pays" />
           </div>
 
@@ -170,7 +189,7 @@ export default function LandingPage() {
               {gallerySlots.concat(gallerySlots).map((slot, i) => (
                 <div
                   key={`col1-${i}`}
-                  className="relative flex-shrink-0 overflow-hidden"
+                  className="relative shrink-0 overflow-hidden"
                   style={{
                     aspectRatio: i % 2 === 0 ? "4 / 5" : "1 / 1",
                     borderRadius: "14px",
@@ -206,25 +225,28 @@ export default function LandingPage() {
               className="gallery-scroll flex flex-col gap-4"
               style={{ width: "48%", marginTop: "8vh" }}
             >
-              {[...gallerySlots].reverse().concat([...gallerySlots].reverse()).map((slot, i) => (
-                <div
-                  key={`col2-${i}`}
-                  className="relative flex-shrink-0 overflow-hidden"
-                  style={{
-                    aspectRatio: i % 2 === 0 ? "1 / 1" : "4 / 5",
-                    borderRadius: "14px",
-                  }}
-                >
-                  <Image
-                    src={slot.src}
-                    alt={slot.label}
-                    fill
-                    className="object-cover"
-                    sizes="22vw"
-                  />
-                  <div className="absolute inset-0 bg-black/15" />
-                </div>
-              ))}
+              {[...gallerySlots]
+                .reverse()
+                .concat([...gallerySlots].reverse())
+                .map((slot, i) => (
+                  <div
+                    key={`col2-${i}`}
+                    className="relative shrink-0 overflow-hidden"
+                    style={{
+                      aspectRatio: i % 2 === 0 ? "1 / 1" : "4 / 5",
+                      borderRadius: "14px",
+                    }}
+                  >
+                    <Image
+                      src={slot.src}
+                      alt={slot.label}
+                      fill
+                      className="object-cover"
+                      sizes="22vw"
+                    />
+                    <div className="absolute inset-0 bg-black/15" />
+                  </div>
+                ))}
             </div>
           </div>
         </section>
@@ -234,7 +256,13 @@ export default function LandingPage() {
 }
 
 /* ── Composant stat ── */
-function Stat({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+function Stat({
+  icon: Icon,
+  label,
+}: {
+  icon: React.ElementType;
+  label: string;
+}) {
   return (
     <div className="flex items-center gap-2">
       <Icon
@@ -242,7 +270,10 @@ function Stat({ icon: Icon, label }: { icon: React.ElementType; label: string })
         strokeWidth={1.5}
         style={{ color: "var(--yessal-violet)", opacity: 0.7 }}
       />
-      <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+      <span
+        className="text-xs font-medium"
+        style={{ color: "var(--muted-foreground)" }}
+      >
         {label}
       </span>
     </div>
@@ -268,7 +299,11 @@ function ThemeToggle() {
       size="icon"
       aria-label="Basculer le thème"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      style={{ width: "36px", height: "36px", color: "var(--muted-foreground)" }}
+      style={{
+        width: "36px",
+        height: "36px",
+        color: "var(--muted-foreground)",
+      }}
     >
       <Sun
         size={15}
