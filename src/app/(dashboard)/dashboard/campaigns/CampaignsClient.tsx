@@ -33,9 +33,9 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { SmartLink } from "@/components/SmartLink";
+import { toast } from "sonner";
 
 type Todo = {
   id: number;
@@ -148,9 +148,7 @@ export function CampaignsClient({
         // If collector payment, show specific message
         if (paymentMethod === "collector") {
           setIsDonationOpen(false);
-          alert(
-            "Demande de collecte enregistrée. Les responsables ont été notifiés.",
-          );
+          toast.success("Demande de collecte enregistrée. Les responsables ont été notifiés.");
           return;
         }
 
@@ -168,20 +166,17 @@ export function CampaignsClient({
               return;
             }
           } else {
-            // Mobile money
-            alert(
-              `Une demande de paiement ${paymentMethod.replace("_", " ")} a été envoyée. Veuillez valider sur votre téléphone.`,
-            );
+            toast.success(`Demande de paiement ${paymentMethod.replace("_", " ")} envoyée. Validez sur votre téléphone.`);
           }
         }
 
         setIsDonationOpen(false);
-        alert("Demande de don effectuée avec succès.");
+        toast.success("Demande de don effectuée avec succès.");
       }
     });
   };
 
-  const handleAddTodo = async (e: React.FormEvent) => {
+  const handleAddTodo = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newTodoTitle.trim() || !selectedCampaign) return;
 
@@ -194,7 +189,7 @@ export function CampaignsClient({
         setNewTodoTitle("");
         router.refresh();
       } else {
-        alert(res.error);
+        toast.error(res.error);
       }
     });
   };
@@ -203,7 +198,7 @@ export function CampaignsClient({
     startTransition(async () => {
       const res = await toggleCampaignTodo(todoId, !isCompleted);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
         return;
       }
       router.refresh();
@@ -230,7 +225,7 @@ export function CampaignsClient({
       });
 
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
         return;
       }
 
@@ -244,18 +239,22 @@ export function CampaignsClient({
   };
 
   const handleDeleteCampaign = (campaignId: number, campaignName: string) => {
-    const confirmed = window.confirm(
-      `Supprimer la campagne "${campaignName}" ? Cette action est irréversible.`,
-    );
-    if (!confirmed) return;
-
-    startTransition(async () => {
-      const res = await deleteCampaign(campaignId);
-      if (res.error) {
-        alert(res.error);
-        return;
-      }
-      router.refresh();
+    toast(`Supprimer "${campaignName}" ? Cette action est irréversible.`, {
+      action: {
+        label: "Supprimer",
+        onClick: () => {
+          startTransition(async () => {
+            const res = await deleteCampaign(campaignId);
+            if (res.error) {
+              toast.error(res.error);
+              return;
+            }
+            toast.success("Campagne supprimée.");
+            router.refresh();
+          });
+        },
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { makeDonation, payDonation } from "@/app/actions/donations";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,7 +52,7 @@ export function NewDonationClient({
 
         // If collector payment, show specific message
         if (paymentMethod === "collector") {
-          alert("Demande de collecte enregistrée. Les responsables ont été notifiés.");
+          toast.success("Demande de collecte enregistrée. Les responsables ont été notifiés.");
           router.push("/dashboard/donations");
           return;
         }
@@ -70,8 +71,7 @@ export function NewDonationClient({
               return;
             }
           } else {
-            // Mobile money
-            alert(`Une demande de paiement ${paymentMethod.replace('_', ' ')} a été envoyée. Veuillez valider sur votre téléphone.`);
+            toast.success(`Demande de paiement ${paymentMethod.replace("_", " ")} envoyée. Validez sur votre téléphone.`);
           }
         }
 

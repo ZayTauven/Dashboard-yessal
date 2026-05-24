@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   createTitle,
   deleteTitle,
@@ -153,12 +153,17 @@ export default function PilotagePage() {
   };
 
   const handleDeleteTitle = (id: number) => {
-    if (!confirm("Supprimer ce titre ?")) return;
-    startTransition(async () => {
-      const res = await deleteTitle(id);
-      if (res.error) { toast.error(res.error); return; }
-      await loadAll();
-      toast.success("Titre supprimé.");
+    toast("Supprimer ce titre ?", {
+      action: {
+        label: "Supprimer",
+        onClick: () => startTransition(async () => {
+          const res = await deleteTitle(id);
+          if (res.error) { toast.error(res.error); return; }
+          await loadAll();
+          toast.success("Titre supprimé.");
+        }),
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 

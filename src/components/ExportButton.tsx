@@ -2,6 +2,7 @@
 
 import { FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import * as XLSX from "xlsx";
 
 interface ExportButtonProps {
@@ -23,7 +24,7 @@ export function ExportButton({
 }: ExportButtonProps) {
   const handleExport = () => {
     if (!data || data.length === 0) {
-      alert("Aucune donnée à exporter.");
+      toast.error("Aucune donnée à exporter.");
       return;
     }
 

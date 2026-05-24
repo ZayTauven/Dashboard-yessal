@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, MoreHorizontal, Newspaper, Calendar, User, Edit, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Plus, Trash2, MoreHorizontal, Newspaper, Edit, Image as ImageIcon, Loader2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -65,16 +65,13 @@ export function NewsClient({
   const [isOpen, setIsOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<NewsPost | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [errorMsg, setErrorMsg] = useState("");
   const [galleryLoading, setGalleryLoading] = useState(false);
 
   async function handleAdd(formData: FormData) {
-    setErrorMsg("");
     startTransition(async () => {
       const res = await addNewsPost(formData);
       if (res.error) {
         toast.error(res.error);
-        setErrorMsg(res.error);
       } else {
         toast.success("Article publié avec succès !");
         setIsOpen(false);
@@ -85,12 +82,10 @@ export function NewsClient({
 
   async function handleUpdate(formData: FormData) {
     if (!editingPost) return;
-    setErrorMsg("");
     startTransition(async () => {
       const res = await updateNewsPost(editingPost.id, formData);
       if (res.error) {
         toast.error(res.error);
-        setErrorMsg(res.error);
       } else {
         toast.success("Article mis à jour !");
         setEditingPost(null);
@@ -99,15 +94,22 @@ export function NewsClient({
     });
   }
 
-  async function handleDelete(slug: string) {
-    if (!confirm("Supprimer cet article ?")) return;
-    const { error } = await deleteNewsPost(slug as any); // Assuming deleteNewsPost handles slug now
-    if (!error) {
-        toast.success("Article supprimé.");
-        router.refresh();
-    } else {
-        toast.error(error);
-    }
+  function handleDelete(slug: string) {
+    toast("Supprimer cet article ?", {
+      action: {
+        label: "Supprimer",
+        onClick: async () => {
+          const { error } = await deleteNewsPost(slug as any);
+          if (!error) {
+            toast.success("Article supprimé.");
+            router.refresh();
+          } else {
+            toast.error(error);
+          }
+        },
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
+    });
   }
 
   async function handleAddGallery(slug: string, e: React.ChangeEvent<HTMLInputElement>) {
@@ -131,21 +133,28 @@ export function NewsClient({
     setGalleryLoading(false);
   }
 
-  async function handleDeleteGallery(imageId: number) {
-    if (!confirm("Supprimer cette image ?")) return;
-    const { error } = await deleteGalleryImage(imageId);
-    if (!error) {
-      toast.success("Image supprimée");
-      router.refresh();
-      if (editingPost) {
-        setEditingPost({
-            ...editingPost,
-            gallery: editingPost.gallery?.filter(img => img.id !== imageId)
-        });
-      }
-    } else {
-      toast.error(error);
-    }
+  function handleDeleteGallery(imageId: number) {
+    toast("Supprimer cette image ?", {
+      action: {
+        label: "Supprimer",
+        onClick: async () => {
+          const { error } = await deleteGalleryImage(imageId);
+          if (!error) {
+            toast.success("Image supprimée.");
+            router.refresh();
+            if (editingPost) {
+              setEditingPost({
+                ...editingPost,
+                gallery: editingPost.gallery?.filter((img) => img.id !== imageId),
+              });
+            }
+          } else {
+            toast.error(error);
+          }
+        },
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
+    });
   }
 
   return (

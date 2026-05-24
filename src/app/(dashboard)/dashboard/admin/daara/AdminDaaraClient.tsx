@@ -179,16 +179,21 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
     });
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Voulez-vous vraiment supprimer ce Daara ?")) return;
-    startTransition(async () => {
-      const res = await deleteDaara(id);
-      if (!res.error) {
-        setDaaras((prev) => prev.filter((d) => d.id !== id));
-        toast.success("Daara supprimé");
-      } else {
-        toast.error(res.error);
-      }
+  const handleDelete = (id: number) => {
+    toast("Supprimer ce Daara ?", {
+      action: {
+        label: "Supprimer",
+        onClick: () => startTransition(async () => {
+          const res = await deleteDaara(id);
+          if (!res.error) {
+            setDaaras((prev) => prev.filter((d) => d.id !== id));
+            toast.success("Daara supprimé.");
+          } else {
+            toast.error(res.error);
+          }
+        }),
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -224,21 +229,21 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
     });
   };
 
-  const handleZoneDelete = async (id: number) => {
-    if (
-      !confirm(
-        "Supprimer cette Zone ? (Échouera si des Daaras y sont rattachés)",
-      )
-    )
-      return;
-    startTransition(async () => {
-      const res = await deleteLDD(id);
-      if (res.error) {
-        toast.error(res.error);
-      } else {
-        toast.success("Zone supprimée");
-        setLdds((prev) => prev.filter((l) => l.id !== id));
-      }
+  const handleZoneDelete = (id: number) => {
+    toast("Supprimer cette Zone ? (Échouera si des Daaras y sont rattachés)", {
+      action: {
+        label: "Supprimer",
+        onClick: () => startTransition(async () => {
+          const res = await deleteLDD(id);
+          if (res.error) {
+            toast.error(res.error);
+          } else {
+            toast.success("Zone supprimée.");
+            setLdds((prev) => prev.filter((l) => l.id !== id));
+          }
+        }),
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
