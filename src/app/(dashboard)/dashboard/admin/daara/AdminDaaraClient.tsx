@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { SmartLink } from "@/components/SmartLink";
 import {
   Table,
   TableBody,
@@ -364,12 +363,12 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">
-                          <SmartLink
-                            href={`/dashboard/daara`}
-                            className="font-medium"
+                          <Link
+                            href={`/dashboard/admin/daara/${daara.id}`}
+                            className="font-medium hover:underline hover:text-yessal-violet transition-colors"
                           >
                             {daara.name}
-                          </SmartLink>
+                          </Link>
                         </TableCell>
                         <TableCell>
                           <span className="text-xs">

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { getDaaraById } from "@/app/actions/daara";
-import { DaaraEditClient } from "./DaaraEditClient";
+import { getDaaraById, getDaaraEtat } from "@/app/actions/daara";
+import { AdminDaaraDetailView } from "./AdminDaaraDetailView";
 
 export default async function AdminDaaraDetailPage({
   params,
@@ -9,14 +9,14 @@ export default async function AdminDaaraDetailPage({
 }) {
   const { id } = await params;
   const pk = parseInt(id, 10);
-  if (Number.isNaN(pk)) {
-    redirect("/dashboard/admin/daara");
-  }
+  if (Number.isNaN(pk)) redirect("/dashboard/admin/daara");
 
-  const { data, error } = await getDaaraById(pk);
-  if (error || !data) {
-    redirect("/dashboard/admin/daara");
-  }
+  const [{ data: daara, error }, { data: etat }] = await Promise.all([
+    getDaaraById(pk),
+    getDaaraEtat(pk),
+  ]);
 
-  return <DaaraEditClient daara={data} />;
+  if (error || !daara) redirect("/dashboard/admin/daara");
+
+  return <AdminDaaraDetailView daara={daara} etat={etat ?? null} />;
 }

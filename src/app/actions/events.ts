@@ -132,3 +132,31 @@ export async function notifyMembersAboutEvent(id: number) {
 export async function addEventMedia() {
   return { error: "La galerie d'actualités est gérée via /api/news." };
 }
+
+export async function getFeteById(id: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/events/fetes/${id}/`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) return { error: "Fête introuvable.", data: null };
+    return { data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion.", data: null };
+  }
+}
+
+export async function getFeteEtat(id: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/events/fetes/${id}/etat/`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) return { error: "Données introuvables.", data: null };
+    return { data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion.", data: null };
+  }
+}

@@ -58,6 +58,7 @@ import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 interface User {
@@ -70,6 +71,8 @@ interface User {
   status: string;
   daara: any;
   documents_count?: number;
+  avatar?: string | null;
+  avatar_url?: string | null;
 }
 
 interface UserDocument {
@@ -297,16 +300,24 @@ export function UserManagementClient({
     }
   };
 
-  const handleDeleteUser = async (id: number) => {
-      if (!confirm("Supprimer cet utilisateur ?")) return;
-      setLoading(id);
-      const { error } = await deleteUserAction(id);
-      if (!error) {
-          setUsers(prev => prev.filter(u => u.id !== id));
-      } else {
-          alert(error);
-      }
-      setLoading(null);
+  const handleDeleteUser = (id: number) => {
+      toast("Supprimer cet utilisateur ?", {
+          action: {
+              label: "Confirmer",
+              onClick: async () => {
+                  setLoading(id);
+                  const { error } = await deleteUserAction(id);
+                  if (!error) {
+                      setUsers(prev => prev.filter(u => u.id !== id));
+                      toast.success("Utilisateur supprimé");
+                  } else {
+                      toast.error(error);
+                  }
+                  setLoading(null);
+              },
+          },
+          cancel: { label: "Annuler", onClick: () => {} },
+      });
   };
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -338,10 +349,10 @@ export function UserManagementClient({
                 const { error } = await createUserByAdmin(userData);
                 if (!error) successCount++;
             }
-            alert(`${successCount} utilisateurs importés avec succès.`);
-            router.refresh(); // Full refresh to get all new users
+            toast.success(`${successCount} utilisateurs importés avec succès.`);
+            router.refresh();
         } catch (err) {
-            alert("Erreur lors de l'import : " + err);
+            toast.error("Erreur lors de l'import : " + err);
         } finally {
             setIsImporting(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
@@ -377,7 +388,7 @@ export function UserManagementClient({
           setUsers(prev => [newUser, ...prev]);
           setSelectedDaaraId("");
       } else {
-          alert(error);
+          toast.error(error);
       }
   };
 
@@ -395,7 +406,7 @@ export function UserManagementClient({
           setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
           setEditingUser(null);
       } else {
-          alert(error);
+          toast.error(error);
       }
   };
 
@@ -632,9 +643,12 @@ export function UserManagementClient({
                         <tr key={user.id} className="hover:bg-muted/10 transition-colors group">
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-full bg-yessal-violet/10 text-yessal-violet flex items-center justify-center font-bold text-xs border border-yessal-violet/20">
-                                        {user.first_name?.[0]}{user.last_name?.[0]}
-                                    </div>
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src={user.avatar || user.avatar_url || undefined} className="object-cover" />
+                                        <AvatarFallback className="bg-yessal-violet/10 text-yessal-violet font-bold text-xs">
+                                            {user.first_name?.[0]}{user.last_name?.[0]}
+                                        </AvatarFallback>
+                                    </Avatar>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-bold">{user.first_name} {user.last_name}</span>
                                         <div className="flex items-center gap-3 mt-0.5">

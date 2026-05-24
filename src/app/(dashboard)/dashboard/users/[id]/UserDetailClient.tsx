@@ -103,22 +103,33 @@ export default function UserDetailClient({
   const kpis = stats?.kpis || [];
 
   const handleBlock = () => {
-    if (!confirm(`Bloquer l'accès de ${user?.first_name} ${user?.last_name} ?`)) return;
-    startTransition(async () => {
-      const res = await updateUserStatus(user.id, "block");
-      if (res.error) { toast.error(res.error); return; }
-      toast.success("Accès bloqué.");
-      router.refresh();
+    toast(`Bloquer l'accès de ${user?.first_name} ${user?.last_name} ?`, {
+      action: {
+        label: "Confirmer",
+        onClick: () => startTransition(async () => {
+          const res = await updateUserStatus(user.id, "block");
+          if (res.error) { toast.error(res.error); return; }
+          toast.success("Accès bloqué.");
+          router.refresh();
+        }),
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
   const handleDelete = () => {
-    if (!confirm(`Supprimer définitivement le compte de ${user?.first_name} ${user?.last_name} ? Cette action est irréversible.`)) return;
-    startTransition(async () => {
-      const res = await deleteUserAction(user.id);
-      if (res.error) { toast.error(res.error); return; }
-      toast.success("Compte supprimé.");
-      router.push("/dashboard/members");
+    toast(`Supprimer définitivement le compte de ${user?.first_name} ${user?.last_name} ?`, {
+      description: "Cette action est irréversible.",
+      action: {
+        label: "Supprimer",
+        onClick: () => startTransition(async () => {
+          const res = await deleteUserAction(user.id);
+          if (res.error) { toast.error(res.error); return; }
+          toast.success("Compte supprimé.");
+          router.push("/dashboard/members");
+        }),
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
   const campaignDonations = stats?.campaign_donations || [];
@@ -207,7 +218,7 @@ export default function UserDetailClient({
         {/* Avatar – positioned so it is NOT clipped by overflow-hidden */}
         <div className="absolute top-[100px] left-8 p-1.5 bg-white dark:bg-card rounded-full shadow-2xl z-20 border-4 border-white dark:border-card">
           <Avatar className="size-28 md:size-32">
-            <AvatarImage src={user?.avatar_url} />
+            <AvatarImage src={user?.avatar || user?.avatar_url || undefined} className="object-cover" />
             <AvatarFallback className="text-3xl font-black bg-muted uppercase">
               {user?.first_name?.[0]}
               {user?.last_name?.[0]}

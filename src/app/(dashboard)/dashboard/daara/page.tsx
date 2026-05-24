@@ -2,7 +2,6 @@
 import { getProfile, getDirectoryUsers, getPilotageSettings } from "@/app/actions/users";
 import {
   Activity,
-  Calendar,
   Building2,
   MapPin,
   Hash,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CollectorList } from "./CollectorList";
 
 type DaaraPayload = {
@@ -213,7 +213,7 @@ export default async function DaaraPage() {
               Aucun collecteur désigné pour ce Daara.
             </p>
           ) : (
-            <CollectorList collectors={collectors} />
+            <CollectorList collectors={collectors} role={profile?.role} />
           )}
         </div>
       </div>
@@ -246,9 +246,17 @@ export default async function DaaraPage() {
                         directory.filter((u: any) => u.id !== profile.id).map((member: any) => (
                             <tr key={member.id} className="hover:bg-muted/10 transition-colors">
                                 <td className="px-6 py-4">
-                                    <div className="flex flex-col">
-                                        <span className="font-bold">{member.first_name} {member.last_name}</span>
-                                        <span className="text-xs text-muted-foreground">{member.email}</span>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage src={member.avatar || member.avatar_url || undefined} className="object-cover" />
+                                            <AvatarFallback className="bg-yessal-violet/10 text-yessal-violet font-bold text-xs">
+                                                {member.first_name?.[0]}{member.last_name?.[0]}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold">{member.first_name} {member.last_name}</span>
+                                            <span className="text-xs text-muted-foreground">{member.email}</span>
+                                        </div>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4">

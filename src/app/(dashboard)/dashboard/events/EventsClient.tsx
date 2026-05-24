@@ -7,14 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { SmartLink } from "@/components/SmartLink";
-import { Plus, Calendar, Trash2, MoreHorizontal, Edit, Bell, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { Plus, Calendar, Trash2, MoreHorizontal, Edit, Bell, ExternalLink } from "lucide-react";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -85,13 +84,22 @@ export function EventsClient({
     });
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm("Supprimer cette fête ?")) return;
-    const { error } = await deleteEvent(id);
-    if (!error) {
-      router.refresh();
-      toast.success("Fête supprimée");
-    }
+  function handleDelete(id: number) {
+    toast("Supprimer cette fête ?", {
+      action: {
+        label: "Confirmer",
+        onClick: async () => {
+          const { error } = await deleteEvent(id);
+          if (error) {
+            toast.error(error);
+          } else {
+            router.refresh();
+            toast.success("Fête supprimée");
+          }
+        },
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
+    });
   }
 
   async function handleNotify(id: number) {
@@ -363,14 +371,23 @@ export function EventsClient({
                             : "Date non renseignée"}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
                         <Badge variant="secondary" className="bg-muted/30 text-[10px] uppercase font-bold tracking-wider">{event.recurrence || "annual"}</Badge>
                         {!event.is_active && (
-                        <Badge variant="destructive" className="text-[10px] uppercase font-bold">Inactive</Badge>
+                          <Badge variant="destructive" className="text-[10px] uppercase font-bold">Inactive</Badge>
                         )}
                         {event.is_active && (
-                        <Badge className="bg-green-100 text-green-700 text-[10px] uppercase font-bold border-none">Active</Badge>
+                          <Badge className="bg-green-100 text-green-700 text-[10px] uppercase font-bold border-none">Active</Badge>
                         )}
+                      </div>
+                      <Link
+                        href={`/dashboard/events/${event.id}`}
+                        className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider hover:underline"
+                        style={{ color: "var(--primary)" }}
+                      >
+                        <ExternalLink size={10} /> Détail
+                      </Link>
                     </div>
                   </CardContent>
                 </Card>

@@ -207,6 +207,20 @@ export async function getDaaraById(id: number) {
   }
 }
 
+export async function getDaaraEtat(id: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/daara/${id}/etat/`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) return { error: "Impossible de charger les détails du Daara." };
+    return { data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion." };
+  }
+}
+
 export async function importDaaraExcel(formData: FormData) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/daara/import-excel/`, {

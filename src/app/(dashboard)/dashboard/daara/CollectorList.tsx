@@ -5,10 +5,7 @@ import { Phone, Mail, User, ExternalLink } from "lucide-react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
-import { SmartLink } from "@/components/SmartLink";
 import { Button } from "@/components/ui/button";
 
 type Collector = {
@@ -17,13 +14,21 @@ type Collector = {
   last_name: string;
   email: string;
   phone?: string;
+  avatar?: string | null;
   avatar_url?: string | null;
 };
 
-export function CollectorList({ collectors }: { collectors: Collector[] }) {
+export function CollectorList({
+  collectors,
+  role,
+}: {
+  collectors: Collector[];
+  role?: string;
+}) {
   const [selectedCollector, setSelectedCollector] = useState<Collector | null>(
     null,
   );
+  const isMember = role === "member";
 
   return (
     <>
@@ -37,9 +42,9 @@ export function CollectorList({ collectors }: { collectors: Collector[] }) {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-3 truncate">
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-muted shrink-0 border">
-                  {c.avatar_url ? (
+                  {c.avatar || c.avatar_url ? (
                     <img
-                      src={c.avatar_url}
+                      src={c.avatar || c.avatar_url || undefined}
                       alt={c.first_name}
                       className="w-full h-full object-cover"
                     />
@@ -53,9 +58,11 @@ export function CollectorList({ collectors }: { collectors: Collector[] }) {
                   <div className="font-semibold truncate block">
                     {c.first_name} {c.last_name}
                   </div>
-                  <span className="text-muted-foreground text-[10px] block truncate">
-                    {c.email}
-                  </span>
+                  {!isMember && (
+                    <span className="text-muted-foreground text-[10px] block truncate">
+                      {c.email}
+                    </span>
+                  )}
                 </div>
               </div>
               <ExternalLink
@@ -76,9 +83,9 @@ export function CollectorList({ collectors }: { collectors: Collector[] }) {
             <div className="flex flex-col">
               <div className="bg-yessal-violet p-6 text-white flex flex-col items-center gap-3">
                 <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md border border-white/30 overflow-hidden">
-                  {selectedCollector.avatar_url ? (
+                  {selectedCollector.avatar || selectedCollector.avatar_url ? (
                     <img
-                      src={selectedCollector.avatar_url}
+                      src={selectedCollector.avatar || selectedCollector.avatar_url || undefined}
                       alt={selectedCollector.first_name}
                       className="w-full h-full object-cover"
                     />
@@ -97,19 +104,21 @@ export function CollectorList({ collectors }: { collectors: Collector[] }) {
               </div>
 
               <div className="p-6 space-y-4 bg-card text-center">
-                <div className="flex items-center gap-3 text-left">
-                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                    <Mail size={16} />
+                {!isMember && (
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                      <Mail size={16} />
+                    </div>
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-[10px] font-black uppercase text-muted-foreground">
+                        Email
+                      </span>
+                      <span className="text-sm font-medium truncate">
+                        {selectedCollector.email}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">
-                      Email
-                    </span>
-                    <span className="text-sm font-medium truncate">
-                      {selectedCollector.email}
-                    </span>
-                  </div>
-                </div>
+                )}
 
                 <div className="flex items-center gap-3 text-left">
                   <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
@@ -126,28 +135,30 @@ export function CollectorList({ collectors }: { collectors: Collector[] }) {
                 </div>
 
                 <div className="grid grid-cols-1 gap-2 mt-4">
-                    {selectedCollector.phone && (
-                      <Button
-                        className="w-full bg-yessal-violet hover:bg-yessal-violet/90 text-white font-bold uppercase tracking-widest text-[10px] h-12 gap-2 shadow-sm border-none"
-                        asChild
-                      >
-                        <a href={`tel:${selectedCollector.phone}`}>
-                          <Phone size={14} />
-                          Appeler
-                        </a>
-                      </Button>
-                    )}
+                  {selectedCollector.phone && (
                     <Button
-                        variant="outline"
-                        className="w-full font-bold uppercase tracking-widest text-[10px] h-12"
-                        onClick={() => {
-                            setSelectedCollector(null);
-                            window.location.href = `/dashboard/users/${selectedCollector.id}`;
-                        }}
+                      className="w-full bg-yessal-violet hover:bg-yessal-violet/90 text-white font-bold uppercase tracking-widest text-[10px] h-12 gap-2 shadow-sm border-none"
+                      asChild
                     >
-                        <ExternalLink size={14} className="mr-2" />
-                        Détails complets
+                      <a href={`tel:${selectedCollector.phone}`}>
+                        <Phone size={14} />
+                        Appeler
+                      </a>
                     </Button>
+                  )}
+                  {role === "admin" && (
+                    <Button
+                      variant="outline"
+                      className="w-full font-bold uppercase tracking-widest text-[10px] h-12"
+                      onClick={() => {
+                        setSelectedCollector(null);
+                        window.location.href = `/dashboard/users/${selectedCollector.id}`;
+                      }}
+                    >
+                      <ExternalLink size={14} className="mr-2" />
+                      Détails complets
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

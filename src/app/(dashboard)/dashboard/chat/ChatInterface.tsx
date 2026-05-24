@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef } from "react";
+import { useState, useTransition, useEffect, useRef, useMemo } from "react";
 import Pusher from "pusher-js";
+import { toast } from "sonner";
 import {
   getChats,
   sendChatMessage,
@@ -113,9 +114,9 @@ const CHEF_MODES: { value: ChatInviteMode; label: string }[] = [
 const ADMIN_MODES: { value: ChatInviteMode; label: string }[] = [
   { value: "manual", label: "Choisir des personnes manuellement" },
   { value: "daara_all", label: "Un Daara entier (tous rôles communautaires)" },
-  { value: "daara_members", label: "Membres d’un Daara" },
-  { value: "daara_collectors", label: "Collecteurs d’un Daara" },
-  { value: "daara_chefs", label: "Chefs d’un Daara" },
+  { value: "daara_members", label: "Membres d'un Daara" },
+  { value: "daara_collectors", label: "Collecteurs d'un Daara" },
+  { value: "daara_chefs", label: "Chefs d'un Daara" },
   { value: "global_chefs", label: "Tous les chefs de Daara (plateforme)" },
   { value: "global_collectors", label: "Tous les collecteurs (plateforme)" },
 ];
@@ -129,6 +130,32 @@ function needsPresetDaara(mode: ChatInviteMode) {
     mode === "daara_collectors" ||
     mode === "daara_chefs"
   );
+}
+
+function groupMessagesByDate(msgs: MessageRow[]) {
+  const groups: { label: string; messages: MessageRow[] }[] = [];
+  const today = new Date().toDateString();
+  const yesterday = new Date(Date.now() - 86_400_000).toDateString();
+  msgs.forEach((msg) => {
+    const key = new Date(msg.sent_at).toDateString();
+    const label =
+      key === today
+        ? "Aujourd'hui"
+        : key === yesterday
+          ? "Hier"
+          : new Date(msg.sent_at).toLocaleDateString("fr-FR", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            });
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) {
+      last.messages.push(msg);
+    } else {
+      groups.push({ label, messages: [msg] });
+    }
+  });
+  return groups;
 }
 
 export function ChatInterface({
@@ -151,20 +178,12 @@ export function ChatInterface({
   const canCreateSalon = viewerRole === "admin" || viewerRole === "chef_daara";
   const isAdmin = viewerRole === "admin";
 
-  // State de navigation & UI
-  const [activeTab, setActiveTab] = useState<
-    "chats" | "search" | "invites" | "pilotage" | "settings"
-  >("chats");
+  const [activeTab, setActiveTab] = useState<"chats" | "search" | "invites" | "pilotage" | "settings">("chats");
   const [showRightPanel, setShowRightPanel] = useState(false);
 
-  // Discussions & Messages
-  const [chatList, setChatList] = useState<ChatRow[]>(
-    initialChats as ChatRow[],
-  );
+  const [chatList, setChatList] = useState<ChatRow[]>(initialChats as ChatRow[]);
   const [selectedChat, setSelectedChat] = useState<ChatRow | null>(
-    (initialChats as ChatRow[]).find(
-      (c) => Number(c.id) === Number(initialSelectedChatId),
-    ) ||
+    (initialChats as ChatRow[]).find((c) => Number(c.id) === Number(initialSelectedChatId)) ||
       (initialChats as ChatRow[])[0] ||
       null,
   );
@@ -172,22 +191,19 @@ export function ChatInterface({
   const [msgContent, setMsgContent] = useState("");
   const [replyingTo, setReplyingTo] = useState<MessageRow | null>(null);
 
-  // Fichiers joints
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Recherche & Invitations
+  const [chatSearch, setChatSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResult, setSearchResult] = useState<any[]>([]);
   const [invitations, setInvitations] = useState<ChatInvitationRow[]>([]);
 
-  // Préférences & Pilotage
   const [preferences, setPreferences] = useState<any>(null);
   const [pilotage, setPilotage] = useState<any>(null);
 
-  // Temps réel (Pusher)
   const [onlineMembers, setOnlineMembers] = useState<Record<string, any>>({});
-  const [typingUsers, setTypingUsers] = useState<Record<string, string>>({}); // user_id -> name
+  const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const markReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -195,7 +211,6 @@ export function ChatInterface({
   const pusherRef = useRef<Pusher | null>(null);
   const presenceChannelRef = useRef<any>(null);
 
-  // Formulaire Création Salon
   const [isPending, startTransition] = useTransition();
   const [newOpen, setNewOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -208,19 +223,31 @@ export function ChatInterface({
   const scrollRef = useRef<HTMLDivElement>(null);
   const modeOptions = isAdmin ? ADMIN_MODES : CHEF_MODES;
 
-  // Initialisation Pusher & Écouteurs globaux
+  const messageGroups = useMemo(() => groupMessagesByDate(messages), [messages]);
+
+  // ─── Pusher initialization ────────────────────────────────────────────
   useEffect(() => {
-    // Connexion Pusher
-    const pusher = pusherRef.current;
-    if (!pusher) return;
+    const pusher = new Pusher(PUSHER_KEY, {
+      cluster: PUSHER_CLUSTER,
+      channelAuthorization: {
+        customHandler: async ({ channelName, socketId }, callback) => {
+          try {
+            const res = await getPusherAuthSignature(channelName, socketId);
+            if ((res as any).auth) {
+              callback(null, res as any);
+            } else {
+              callback(new Error("Pusher auth failed"), null);
+            }
+          } catch (e) {
+            callback(e as Error, null);
+          }
+        },
+      },
+    });
     pusherRef.current = pusher;
 
-    // Écoute sur le canal privé de l'utilisateur
     const userChannel = pusher.subscribe(`private-user.${currentUserId}`);
-    userChannel.bind("new-invitation", (data: any) => {
-      // Recharger les invitations
-      loadInvitations();
-    });
+    userChannel.bind("new-invitation", () => loadInvitations());
 
     return () => {
       pusher.unsubscribe(`private-user.${currentUserId}`);
@@ -229,19 +256,15 @@ export function ChatInterface({
     };
   }, [currentUserId]);
 
-  // Écouteurs pour le chat sélectionné (messages & présence)
+  // ─── Chat channel listeners ───────────────────────────────────────────
   useEffect(() => {
     if (!selectedChat) return;
-
-    // Charger les messages initiaux
     reloadMessages(selectedChat.id);
     markChatAsRead(String(selectedChat.id));
 
-    // Connexion Pusher pour le chat spécifique
     const pusher = pusherRef.current;
     if (!pusher) return;
 
-    // 1. Canal de messages privé
     const msgChannel = pusher.subscribe(`private-chat.${selectedChat.id}`);
 
     msgChannel.bind("new-message", (data: MessageRow) => {
@@ -250,123 +273,68 @@ export function ChatInterface({
         return [...prev, data];
       });
       if (Number(data.sender?.id) !== Number(currentUserId)) {
-        if (markReadTimeoutRef.current)
-          clearTimeout(markReadTimeoutRef.current);
-        markReadTimeoutRef.current = setTimeout(() => {
-          markChatAsRead(String(selectedChat.id));
-        }, 700);
+        if (markReadTimeoutRef.current) clearTimeout(markReadTimeoutRef.current);
+        markReadTimeoutRef.current = setTimeout(() => markChatAsRead(String(selectedChat.id)), 700);
       }
     });
 
-    msgChannel.bind(
-      "message-reaction",
-      (data: {
-        message_id: number;
-        emoji: string;
-        user_id: number;
-        action: "add" | "remove";
-      }) => {
-        setMessages((prev) =>
-          prev.map((msg) => {
-            if (msg.id !== data.message_id) return msg;
-            const currentReactions = msg.reactions || [];
-            let updatedReactions = [...currentReactions];
-            const isMe = data.user_id === currentUserId;
-
-            const existingEmojiIdx = updatedReactions.findIndex(
-              (r) => r.emoji === data.emoji,
-            );
-
-            if (data.action === "add") {
-              if (existingEmojiIdx >= 0) {
-                updatedReactions[existingEmojiIdx].count += 1;
-                if (isMe)
-                  updatedReactions[existingEmojiIdx].reacted_by_me = true;
-              } else {
-                updatedReactions.push({
-                  emoji: data.emoji,
-                  count: 1,
-                  reacted_by_me: isMe,
-                });
-              }
+    msgChannel.bind("message-reaction", (data: { message_id: number; emoji: string; user_id: number; action: "add" | "remove" }) => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== data.message_id) return msg;
+          const currentReactions = msg.reactions || [];
+          let updatedReactions = [...currentReactions];
+          const isMe = data.user_id === currentUserId;
+          const existingEmojiIdx = updatedReactions.findIndex((r) => r.emoji === data.emoji);
+          if (data.action === "add") {
+            if (existingEmojiIdx >= 0) {
+              updatedReactions[existingEmojiIdx].count += 1;
+              if (isMe) updatedReactions[existingEmojiIdx].reacted_by_me = true;
             } else {
-              if (existingEmojiIdx >= 0) {
-                updatedReactions[existingEmojiIdx].count -= 1;
-                if (isMe)
-                  updatedReactions[existingEmojiIdx].reacted_by_me = false;
-                if (updatedReactions[existingEmojiIdx].count <= 0) {
-                  updatedReactions.splice(existingEmojiIdx, 1);
-                }
-              }
+              updatedReactions.push({ emoji: data.emoji, count: 1, reacted_by_me: isMe });
             }
-            return { ...msg, reactions: updatedReactions };
-          }),
-        );
-      },
-    );
+          } else {
+            if (existingEmojiIdx >= 0) {
+              updatedReactions[existingEmojiIdx].count -= 1;
+              if (isMe) updatedReactions[existingEmojiIdx].reacted_by_me = false;
+              if (updatedReactions[existingEmojiIdx].count <= 0) updatedReactions.splice(existingEmojiIdx, 1);
+            }
+          }
+          return { ...msg, reactions: updatedReactions };
+        }),
+      );
+    });
 
     msgChannel.bind("message-deleted", (data: { message_id: number }) => {
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.id === data.message_id
-            ? {
-                ...msg,
-                is_deleted: true,
-                content: "Message supprimé",
-                file_url: null,
-              }
-            : msg,
+          msg.id === data.message_id ? { ...msg, is_deleted: true, content: "Message supprimé", file_url: null } : msg,
         ),
       );
     });
 
-    // 2. Canal de présence
-    const presenceChannel = pusher.subscribe(
-      `presence-chat.${selectedChat.id}`,
-    );
+    const presenceChannel = pusher.subscribe(`presence-chat.${selectedChat.id}`);
     presenceChannelRef.current = presenceChannel;
 
     presenceChannel.bind("pusher:subscription_succeeded", (members: any) => {
       const active: Record<string, any> = {};
-      members.each((member: any) => {
-        active[member.id] = member.info;
-      });
+      members.each((member: any) => { active[member.id] = member.info; });
       setOnlineMembers(active);
     });
-
-    presenceChannel.bind("pusher:member_added", (member: any) => {
-      setOnlineMembers((prev) => ({ ...prev, [member.id]: member.info }));
-    });
-
+    presenceChannel.bind("pusher:member_added", (member: any) => setOnlineMembers((prev) => ({ ...prev, [member.id]: member.info })));
     presenceChannel.bind("pusher:member_removed", (member: any) => {
-      setOnlineMembers((prev) => {
-        const next = { ...prev };
-        delete next[member.id];
-        return next;
-      });
+      setOnlineMembers((prev) => { const next = { ...prev }; delete next[member.id]; return next; });
+      setTypingUsers((prev) => { const next = { ...prev }; delete next[member.id]; return next; });
+    });
+    presenceChannel.bind("client-typing", (data: { user_id: number; name: string; typing: boolean }) => {
+      if (data.user_id === currentUserId) return;
       setTypingUsers((prev) => {
         const next = { ...prev };
-        delete next[member.id];
+        if (data.typing) next[data.user_id] = data.name;
+        else delete next[data.user_id];
         return next;
       });
     });
-
-    // Typing indicators
-    presenceChannel.bind(
-      "client-typing",
-      (data: { user_id: number; name: string; typing: boolean }) => {
-        if (data.user_id === currentUserId) return;
-        setTypingUsers((prev) => {
-          const next = { ...prev };
-          if (data.typing) {
-            next[data.user_id] = data.name;
-          } else {
-            delete next[data.user_id];
-          }
-          return next;
-        });
-      },
-    );
 
     return () => {
       pusher.unsubscribe(`private-chat.${selectedChat.id}`);
@@ -374,86 +342,46 @@ export function ChatInterface({
       presenceChannelRef.current = null;
       setTypingUsers({});
       setOnlineMembers({});
-      if (markReadTimeoutRef.current) {
-        clearTimeout(markReadTimeoutRef.current);
-        markReadTimeoutRef.current = null;
-      }
+      if (markReadTimeoutRef.current) { clearTimeout(markReadTimeoutRef.current); markReadTimeoutRef.current = null; }
     };
   }, [selectedChat, currentUserId]);
 
-  // Load preferences, invitations, pilotage au montage
   useEffect(() => {
     loadPreferences();
     loadInvitations();
     loadPilotage();
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
+    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
   }, []);
 
-  // Sync scroll on messages
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, typingUsers]);
 
-  const loadPreferences = async () => {
-    const res = await getMessagingPreferences();
-    if (res.data) setPreferences(res.data);
-  };
+  const loadPreferences = async () => { const res = await getMessagingPreferences(); if (res.data) setPreferences(res.data); };
+  const loadInvitations = async () => { const res = await getInvitations(); if (res.data) setInvitations(res.data); };
+  const loadPilotage = async () => { const res = await getPilotageConfig(daaraId || undefined); if (res.data) setPilotage(res.data); };
+  const reloadMessages = async (chatId: string | number) => { const { data } = await getMessagesForChat(String(chatId)); setMessages((data as MessageRow[]) || []); };
 
-  const loadInvitations = async () => {
-    const res = await getInvitations();
-    if (res.data) setInvitations(res.data);
-  };
-
-  const loadPilotage = async () => {
-    const res = await getPilotageConfig(daaraId || undefined);
-    if (res.data) setPilotage(res.data);
-  };
-
-  const reloadMessages = async (chatId: string | number) => {
-    const { data } = await getMessagesForChat(String(chatId));
-    setMessages((data as MessageRow[]) || []);
-  };
-
-  // Envoi de message (Text, Fichier, Citation)
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!msgContent.trim() && !selectedFile) return;
     if (!selectedChat) return;
-
     const content = msgContent;
     const file = selectedFile;
     const replyTo = replyingTo;
-
-    // Reset input states
     setMsgContent("");
     setSelectedFile(null);
     setReplyingTo(null);
-
     startTransition(async () => {
       const formData = new FormData();
       formData.append("chat", String(selectedChat.id));
       formData.append("content", content);
-
-      if (file) {
-        formData.append("message_type", "file");
-        formData.append("file", file);
-      } else {
-        formData.append("message_type", "text");
-      }
-
-      if (replyTo) {
-        formData.append("reply_to", String(replyTo.id));
-      }
-
+      formData.append("message_type", file ? "file" : "text");
+      if (file) formData.append("file", file);
+      if (replyTo) formData.append("reply_to", String(replyTo.id));
       const res = await sendChatMessage(formData);
       if (res.error) {
-        alert(res.error);
+        toast.error(res.error);
         setMsgContent(content);
         setSelectedFile(file);
         setReplyingTo(replyTo);
@@ -461,62 +389,52 @@ export function ChatInterface({
     });
   };
 
-  // Typing event trigger
   const handleMessageChange = (val: string) => {
     setMsgContent(val);
     if (!selectedChat) return;
-
     if (!isTyping) {
       setIsTyping(true);
-      const channel = presenceChannelRef.current;
-      if (channel) {
-        channel.trigger("client-typing", {
-          user_id: currentUserId,
-          name:
-            preferences?.visibility !== "nobody" ? "Quelqu'un" : "Un membre",
-          typing: true,
-        });
-      }
+      presenceChannelRef.current?.trigger("client-typing", { user_id: currentUserId, name: preferences?.visibility !== "nobody" ? "Quelqu'un" : "Un membre", typing: true });
     }
-
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      const channel = presenceChannelRef.current;
-      if (channel) {
-        channel.trigger("client-typing", {
-          user_id: currentUserId,
-          name: "",
-          typing: false,
-        });
-      }
+      presenceChannelRef.current?.trigger("client-typing", { user_id: currentUserId, name: "", typing: false });
     }, 2000);
   };
 
-  // Actions Messages
   const handleReact = async (msgId: number, emoji: string) => {
     const res = await toggleMessageReaction(msgId, emoji);
-    if (res.error) alert(res.error);
+    if (res.error) toast.error(res.error);
   };
 
-  const handleDeleteMsg = async (msgId: number) => {
-    if (!confirm("Voulez-vous supprimer ce message ?")) return;
-    const res = await deleteMessage(msgId);
-    if (res.error) alert(res.error);
+  const handleDeleteMsg = (msgId: number) => {
+    toast("Supprimer ce message ?", {
+      action: {
+        label: "Confirmer",
+        onClick: async () => {
+          const res = await deleteMessage(msgId);
+          if (res.error) {
+            toast.error(res.error);
+          } else {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === msgId
+                  ? { ...m, is_deleted: true, content: "Message supprimé", file_url: null }
+                  : m,
+              ),
+            );
+          }
+        },
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
+    });
   };
 
-  // Actions Recherche / Invitations
   const handleSearchMembers = async (q: string) => {
     setSearchTerm(q);
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-      searchTimeoutRef.current = null;
-    }
-    if (q.trim().length < 2) {
-      setSearchResult([]);
-      return;
-    }
+    if (searchTimeoutRef.current) { clearTimeout(searchTimeoutRef.current); searchTimeoutRef.current = null; }
+    if (q.trim().length < 2) { setSearchResult([]); return; }
     searchTimeoutRef.current = setTimeout(async () => {
       const res = await searchMembers(q);
       if (res.data) setSearchResult(res.data);
@@ -525,93 +443,47 @@ export function ChatInterface({
 
   const handleSendInvite = async (userId: number) => {
     const res = await createInvitation(userId);
-    if (res.error) {
-      alert(res.error);
-    } else {
-      alert("Invitation envoyée avec succès.");
-      setSearchTerm("");
-      setSearchResult([]);
-    }
+    if (res.error) { toast.error(res.error); }
+    else { toast.success("Invitation envoyée."); setSearchTerm(""); setSearchResult([]); }
   };
 
   const handleRespondInvite = async (inviteId: number, accept: boolean) => {
     const res = await respondToInvitation(inviteId, accept);
-    if (res.error) {
-      alert(res.error);
-    } else {
+    if (res.error) { toast.error(res.error); }
+    else {
       loadInvitations();
-      // Recharger la liste des chats
       const chatsRes = await getChats();
       if (chatsRes.data) {
         setChatList(chatsRes.data);
-        if (accept && res.data?.chat) {
-          setSelectedChat(res.data.chat);
-          setActiveTab("chats");
-        }
+        if (accept && (res.data as any)?.chat) { setSelectedChat((res.data as any).chat); setActiveTab("chats"); }
       }
     }
   };
 
-  // Préférences & Pilotage updates
   const handlePrefChange = async (key: string, value: any) => {
     const updated = { ...preferences, [key]: value };
     setPreferences(updated);
     const res = await updateMessagingPreferences({ [key]: value });
-    if (res.error) {
-      alert(res.error);
-      loadPreferences();
-    }
+    if (res.error) { toast.error(res.error); loadPreferences(); }
   };
 
   const handlePilotageChange = async (key: string, value: any) => {
     const updated = { ...pilotage, [key]: value };
     setPilotage(updated);
-    const res = await updatePilotageConfig({
-      ...updated,
-      daara: daaraId || null,
-    });
-    if (res.error) {
-      alert(res.error);
-      loadPilotage();
-    }
+    const res = await updatePilotageConfig({ ...updated, daara: daaraId || null });
+    if (res.error) { toast.error(res.error); loadPilotage(); }
   };
 
-  // Dialog creation salon
-  const resetCreateForm = () => {
-    setNewName("");
-    setInviteMode("manual");
-    setPresetDaaraId("");
-    setManualIds([]);
-    setManualSearch("");
-    setCreateError("");
-  };
+  const resetCreateForm = () => { setNewName(""); setInviteMode("manual"); setPresetDaaraId(""); setManualIds([]); setManualSearch(""); setCreateError(""); };
 
   const handleCreateChat = () => {
     setCreateError("");
     const name = newName.trim();
-    if (!name) {
-      setCreateError("Indiquez un nom pour le salon.");
-      return;
-    }
-    if (isAdmin && needsPresetDaara(inviteMode) && !presetDaaraId) {
-      setCreateError("Sélectionnez le Daara cible pour ce mode d'invitation.");
-      return;
-    }
-
+    if (!name) { setCreateError("Indiquez un nom pour le salon."); return; }
+    if (isAdmin && needsPresetDaara(inviteMode) && !presetDaaraId) { setCreateError("Sélectionnez le Daara cible pour ce mode d'invitation."); return; }
     startTransition(async () => {
-      const res = await createChat({
-        name,
-        invite_mode: inviteMode,
-        daara_id: daaraId || undefined,
-        preset_daara_id: presetDaaraId ? Number(presetDaaraId) : undefined,
-        manual_user_ids:
-          inviteMode === "manual" && manualIds.length ? manualIds : undefined,
-      });
-
-      if (res.error) {
-        setCreateError(res.error);
-        return;
-      }
+      const res = await createChat({ name, invite_mode: inviteMode, daara_id: daaraId || undefined, preset_daara_id: presetDaaraId ? Number(presetDaaraId) : undefined, manual_user_ids: inviteMode === "manual" && manualIds.length ? manualIds : undefined });
+      if (res.error) { setCreateError(res.error); return; }
       setNewOpen(false);
       resetCreateForm();
       const chatsRes = await getChats();
@@ -619,885 +491,553 @@ export function ChatInterface({
     });
   };
 
-  const toggleManualId = (id: number) => {
-    setManualIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
+  const toggleManualId = (id: number) => setManualIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
-  // Helpers UI
-  const isUserOnline = (userId: number) => {
-    return !!onlineMembers[userId];
-  };
+  const isUserOnline = (userId: number) => !!onlineMembers[userId];
 
   const getChatStatus = () => {
     if (!selectedChat) return "";
     if (selectedChat.chat_type === "group") {
       const activeCount = Object.keys(onlineMembers).length;
-      return `${selectedChat.members_count || 0} membres • ${activeCount} en ligne`;
+      return `${selectedChat.members_count || 0} membres · ${activeCount} en ligne`;
     }
-    // Direct chat online status
-    const keys = Object.keys(onlineMembers);
-    const otherMemberId = keys.find((k) => Number(k) !== currentUserId);
+    const otherMemberId = Object.keys(onlineMembers).find((k) => Number(k) !== currentUserId);
     if (otherMemberId) {
-      const user = onlineMembers[otherMemberId];
-      // Check typing
       const typers = Object.values(typingUsers);
-      if (typers.length > 0) {
-        return "écrit...";
-      }
-      return "en ligne";
+      return typers.length > 0 ? "écrit..." : "en ligne";
     }
     return "hors ligne";
   };
 
-  const pickableUsers = directoryUsers.filter(
-    (u) => u.id !== currentUserId && u.role !== "admin",
-  );
-  const pendingIncomingInvitations = invitations.filter(
-    (invite) =>
-      invite.status === "pending" &&
-      Number(invite.recipient.id) === Number(currentUserId),
-  );
+  const pickableUsers = directoryUsers.filter((u) => u.id !== currentUserId && u.role !== "admin");
+  const pendingIncomingInvitations = invitations.filter((invite) => invite.status === "pending" && Number(invite.recipient.id) === Number(currentUserId));
+  const totalUnread = chatList.reduce((acc, c) => acc + (c.unread_count || 0), 0);
 
+  // ═══════════════════════════════════════════════════════════════
+  //  RENDER
+  // ═══════════════════════════════════════════════════════════════
   return (
-    <div
-      className="flex-1 flex overflow-hidden h-full rounded-2xl border shadow-xl bg-slate-900 text-slate-100"
-      style={{ borderColor: "rgba(255,255,255,0.08)" }}
-    >
-      {/* SIDEBAR GAUCHE - Tabs de navigation */}
-      <div
-        className="w-[80px] bg-slate-950/80 backdrop-blur-md border-r flex flex-col items-center py-6 gap-6 justify-between"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
-      >
-        <div className="flex flex-col gap-5 items-center w-full">
-          <Avatar className="h-12 w-12 ring-2 ring-emerald-500 ring-offset-2 ring-offset-slate-900">
-            <AvatarImage src="/assets/branding/logo-yessal.png" />
-            <AvatarFallback className="bg-emerald-600 font-bold">
-              Y
-            </AvatarFallback>
-          </Avatar>
+    <div className="flex-1 flex overflow-hidden h-full">
 
-          <div className="h-[1px] w-12 bg-white/10 my-2" />
+      {/* ── SIDEBAR ICÔNES ─────────────────────────────────────────── */}
+      <div className="w-[68px] bg-card border-r flex flex-col items-center py-5 gap-2 justify-between shrink-0" style={{ borderColor: "var(--border)" }}>
+        <div className="flex flex-col gap-1 items-center w-full px-2">
+          {/* Logo */}
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: "var(--primary)" }}>
+            <MessageSquare size={18} className="text-white" />
+          </div>
 
-          <button
-            onClick={() => setActiveTab("chats")}
-            className={`p-3 rounded-2xl relative transition-all duration-300 ${activeTab === "chats" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}
-            title="Discussions"
-          >
-            <MessageSquare size={22} />
-            {chatList.reduce((acc, c) => acc + (c.unread_count || 0), 0) >
-              0 && (
-              <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full ring-2 ring-slate-950" />
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveTab("search")}
-            className={`p-3 rounded-2xl transition-all duration-300 ${activeTab === "search" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}
-            title="Rechercher des membres"
-          >
-            <Search size={22} />
-          </button>
-
-          <button
-            onClick={() => setActiveTab("invites")}
-            className={`p-3 rounded-2xl relative transition-all duration-300 ${activeTab === "invites" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}
-            title="Invitations de discussion"
-          >
-            <UserCheck size={22} />
-            {pendingIncomingInvitations.length > 0 && (
-              <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[9px] font-bold bg-red-500 rounded-full text-white ring-2 ring-slate-950">
-                {pendingIncomingInvitations.length}
-              </span>
-            )}
-          </button>
-
-          {(viewerRole === "admin" || viewerRole === "chef_daara") && (
+          {[
+            { tab: "chats" as const, icon: <MessageSquare size={20} />, label: "Discussions", badge: totalUnread > 0 ? totalUnread : 0 },
+            { tab: "search" as const, icon: <Search size={20} />, label: "Rechercher" },
+            { tab: "invites" as const, icon: <UserCheck size={20} />, label: "Invitations", badge: pendingIncomingInvitations.length },
+            ...(canCreateSalon ? [{ tab: "pilotage" as const, icon: <Shield size={20} />, label: "Pilotage" }] : []),
+          ].map(({ tab, icon, label, badge }) => (
             <button
-              onClick={() => setActiveTab("pilotage")}
-              className={`p-3 rounded-2xl transition-all duration-300 ${activeTab === "pilotage" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}
-              title="Pilotage Administrateur"
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              title={label}
+              className={`relative w-full flex items-center justify-center p-3 rounded-xl transition-all ${
+                activeTab === tab
+                  ? "text-white"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              }`}
+              style={activeTab === tab ? { background: "var(--primary)" } : {}}
             >
-              <Shield size={22} />
+              {icon}
+              {badge ? (
+                <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 flex items-center justify-center text-[9px] font-black bg-red-500 text-white rounded-full">
+                  {badge > 9 ? "9+" : badge}
+                </span>
+              ) : null}
             </button>
-          )}
+          ))}
         </div>
 
         <button
           onClick={() => setActiveTab("settings")}
-          className={`p-3 rounded-2xl transition-all duration-300 ${activeTab === "settings" ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}
-          title="Paramètres de messagerie"
+          title="Paramètres"
+          className={`relative w-10 flex items-center justify-center p-3 rounded-xl transition-all ${
+            activeTab === "settings" ? "text-white" : "text-muted-foreground hover:bg-muted/60"
+          }`}
+          style={activeTab === "settings" ? { background: "var(--primary)" } : {}}
         >
-          <Settings size={22} />
+          <Settings size={20} />
         </button>
       </div>
 
-      {/* SECONDE COLONNE - Contenu de l'onglet actif */}
-      <div
-        className="w-[340px] bg-slate-950/40 border-r flex flex-col min-w-[300px]"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
-      >
-        {/* TABS CONTENT: CHATS */}
+      {/* ── PANNEAU CENTRAL (liste chats / onglets) ──────────────────── */}
+      <div className="w-[300px] bg-card border-r flex flex-col shrink-0 min-w-0" style={{ borderColor: "var(--border)" }}>
+
+        {/* ─ ONGLET : DISCUSSIONS ─ */}
         {activeTab === "chats" && (
           <>
-            <div
-              className="p-5 border-b space-y-4"
-              style={{ borderColor: "rgba(255,255,255,0.08)" }}
-            >
+            <div className="px-4 pt-5 pb-3 border-b space-y-3" style={{ borderColor: "var(--border)" }}>
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black tracking-tight">Messages</h2>
+                <h2 className="font-bold text-base tracking-tight">Messages</h2>
                 {canCreateSalon && (
                   <Button
-                    variant="outline"
                     size="sm"
-                    className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500 hover:text-white rounded-xl text-xs font-semibold"
-                    onClick={() => {
-                      resetCreateForm();
-                      setNewOpen(true);
-                    }}
+                    variant="outline"
+                    className="h-7 text-xs rounded-lg gap-1"
+                    onClick={() => { resetCreateForm(); setNewOpen(true); }}
                   >
                     + Salon
                   </Button>
                 )}
               </div>
               <div className="relative">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                  size={15}
-                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
                 <Input
-                  placeholder="Rechercher une discussion..."
-                  className="pl-9 bg-slate-900/60 border-white/5 text-slate-200 placeholder:text-slate-500 h-10 rounded-xl"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Rechercher..."
+                  className="pl-8 h-9 text-sm bg-muted/40 border-transparent focus-visible:border-border focus-visible:bg-background rounded-xl"
+                  value={chatSearch}
+                  onChange={(e) => setChatSearch(e.target.value)}
                 />
               </div>
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="p-2 space-y-1">
+              <div className="py-2">
                 {chatList
-                  .filter((chat) =>
-                    chat.display_name
-                      .toLowerCase()
-                      .includes(searchTerm.toLowerCase()),
-                  )
+                  .filter((c) => c.display_name.toLowerCase().includes(chatSearch.toLowerCase()))
                   .map((chat) => {
-                    const isSelected =
-                      Number(selectedChat?.id) === Number(chat.id);
+                    const isSelected = Number(selectedChat?.id) === Number(chat.id);
+                    const initials = chat.display_name.slice(0, 2).toUpperCase();
                     return (
-                      <div
+                      <button
                         key={chat.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => setSelectedChat(chat)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ")
-                            setSelectedChat(chat);
-                        }}
-                        className={`p-3.5 flex items-center gap-3.5 cursor-pointer rounded-xl transition-all duration-300 ${isSelected ? "bg-emerald-500/20 border-l-4 border-emerald-500" : "hover:bg-white/5"}`}
+                        type="button"
+                        onClick={() => { setSelectedChat(chat); }}
+                        className={`w-full px-3 py-2.5 flex items-center gap-3 transition-colors text-left ${
+                          isSelected ? "bg-primary/8 border-l-[3px]" : "hover:bg-muted/40 border-l-[3px] border-l-transparent"
+                        }`}
+                        style={isSelected ? { borderLeftColor: "var(--primary)", backgroundColor: "color-mix(in srgb, var(--primary) 8%, transparent)" } : {}}
                       >
                         <div className="relative shrink-0">
-                          <Avatar className="h-11 w-11 ring-1 ring-white/10">
-                            {chat.avatar ? (
-                              <AvatarImage src={chat.avatar} />
-                            ) : null}
-                            <AvatarFallback className="bg-slate-800 text-emerald-400 font-bold text-sm">
-                              {chat.display_name[0].toUpperCase()}
+                          <Avatar className="h-11 w-11">
+                            {chat.avatar ? <AvatarImage src={chat.avatar} /> : null}
+                            <AvatarFallback className="text-sm font-bold text-white" style={{ background: "var(--primary)" }}>
+                              {initials}
                             </AvatarFallback>
                           </Avatar>
-                          {chat.chat_type === "direct" &&
-                            isUserOnline(Number(chat.id)) && (
-                              <span className="absolute bottom-0 right-0 h-3 w-3 bg-emerald-500 rounded-full border-2 border-slate-900" />
-                            )}
+                          {chat.chat_type === "direct" && isUserOnline(Number(chat.id)) && (
+                            <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-card" />
+                          )}
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1 mb-1">
-                            <span className="font-bold text-sm text-slate-200 truncate">
-                              {chat.display_name}
-                            </span>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="font-semibold text-sm truncate">{chat.display_name}</span>
                             {chat.last_message && (
-                              <span className="text-[10px] text-slate-500 font-medium shrink-0">
-                                {new Date(
-                                  chat.last_message.sent_at,
-                                ).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
+                              <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
+                                {new Date(chat.last_message.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                               </span>
                             )}
                           </div>
-
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs text-slate-400 truncate flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <p className="text-xs text-muted-foreground truncate flex-1">
                               {chat.last_message ? (
-                                <>
-                                  <span className="text-emerald-500 font-semibold mr-1">
-                                    {chat.last_message.sender_name}:
-                                  </span>
-                                  {chat.last_message.content}
-                                </>
+                                <>{chat.last_message.sender_name}: {chat.last_message.content}</>
                               ) : (
-                                <span className="italic text-slate-500">
-                                  Aucun message
-                                </span>
+                                <span className="italic">Aucun message</span>
                               )}
                             </p>
                             {chat.unread_count ? (
-                              <span className="h-5 min-w-[20px] px-1.5 flex items-center justify-center text-[10px] font-bold bg-emerald-500 text-white rounded-full shrink-0">
+                              <span className="h-5 min-w-[20px] px-1 flex items-center justify-center text-[9px] font-black text-white rounded-full shrink-0" style={{ background: "var(--primary)" }}>
                                 {chat.unread_count}
                               </span>
                             ) : null}
                           </div>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
+
                 {chatList.length === 0 && (
-                  <div className="p-8 text-center text-xs text-slate-500 italic">
-                    Aucune discussion.
-                  </div>
+                  <div className="p-8 text-center text-sm text-muted-foreground italic">Aucune discussion.</div>
                 )}
               </div>
             </ScrollArea>
           </>
         )}
 
-        {/* TABS CONTENT: RECHERCHER DES CONTACTS */}
+        {/* ─ ONGLET : RECHERCHE ─ */}
         {activeTab === "search" && (
-          <div className="flex-1 flex flex-col p-5 space-y-4">
-            <h2 className="text-lg font-black">Trouver des membres</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Recherchez des membres enregistrés pour leur envoyer une
-              invitation à démarrer un chat direct.
-            </p>
+          <div className="flex-1 flex flex-col p-4 gap-4">
+            <div>
+              <h2 className="font-bold text-base">Trouver des membres</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Invitez des membres à démarrer un chat direct.</p>
+            </div>
             <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
-                size={15}
-              />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
               <Input
                 placeholder="Nom, email, Daara..."
-                className="pl-9 bg-slate-900/60 border-white/5 text-slate-200"
+                className="pl-8 h-9 text-sm"
                 value={searchTerm}
                 onChange={(e) => handleSearchMembers(e.target.value)}
               />
             </div>
-
             <ScrollArea className="flex-1">
               <div className="space-y-2 pr-1">
                 {searchResult.map((u) => (
-                  <div
-                    key={u.id}
-                    className="p-3.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between gap-3"
-                  >
+                  <div key={u.id} className="p-3 rounded-xl border flex items-center justify-between gap-3" style={{ borderColor: "var(--border)" }}>
                     <div className="flex items-center gap-3 min-w-0">
                       <Avatar className="h-9 w-9 shrink-0">
                         {u.avatar ? <AvatarImage src={u.avatar} /> : null}
-                        <AvatarFallback className="bg-slate-800 text-slate-300 font-bold text-xs">
+                        <AvatarFallback className="text-xs font-bold text-white" style={{ background: "var(--primary)" }}>
                           {u.name[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <div className="font-bold text-sm truncate">
-                          {u.name}
-                        </div>
-                        <div className="text-[10px] text-slate-400 truncate">
-                          {u.role} {u.daara_name ? `• ${u.daara_name}` : ""}
-                        </div>
+                        <div className="font-semibold text-sm truncate">{u.name}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">{u.role}{u.daara_name ? ` · ${u.daara_name}` : ""}</div>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleSendInvite(u.id)}
-                      className="bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg shrink-0 text-xs font-semibold px-2.5 h-8"
-                    >
+                    <Button size="sm" onClick={() => handleSendInvite(u.id)} className="text-xs h-8 shrink-0 text-white" style={{ background: "var(--primary)" }}>
                       Inviter
                     </Button>
                   </div>
                 ))}
                 {searchTerm.trim().length >= 2 && searchResult.length === 0 && (
-                  <p className="text-center text-xs text-slate-500 italic mt-6">
-                    Aucun membre trouvé ou autorisé.
-                  </p>
+                  <p className="text-center text-sm text-muted-foreground italic mt-6">Aucun membre trouvé.</p>
                 )}
               </div>
             </ScrollArea>
           </div>
         )}
 
-        {/* TABS CONTENT: INVITATIONS */}
+        {/* ─ ONGLET : INVITATIONS ─ */}
         {activeTab === "invites" && (
-          <div className="flex-1 flex flex-col p-5 space-y-4">
-            <h2 className="text-lg font-black">Invitations</h2>
-            <p className="text-xs text-slate-400">
-              Gérez les demandes de discussion directe entrantes.
-            </p>
-
+          <div className="flex-1 flex flex-col p-4 gap-4">
+            <div>
+              <h2 className="font-bold text-base">Invitations</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Demandes de discussion directe.</p>
+            </div>
             <ScrollArea className="flex-1">
               <div className="space-y-3">
                 {pendingIncomingInvitations.map((invite) => (
-                  <div
-                    key={invite.id}
-                    className="p-4 rounded-xl bg-slate-900/80 border border-white/5 space-y-3.5"
-                  >
+                  <div key={invite.id} className="p-3.5 rounded-xl border space-y-3" style={{ borderColor: "var(--border)" }}>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
-                        {invite.sender.avatar ? (
-                          <AvatarImage src={invite.sender.avatar} />
-                        ) : null}
-                        <AvatarFallback className="bg-slate-800 font-bold text-xs text-slate-300">
+                        {invite.sender.avatar ? <AvatarImage src={invite.sender.avatar} /> : null}
+                        <AvatarFallback className="text-xs font-bold text-white" style={{ background: "var(--primary)" }}>
                           {invite.sender.name[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="min-w-0">
-                        <div className="font-bold text-sm truncate">
-                          {invite.sender.name}
-                        </div>
-                        <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-sm truncate">{invite.sender.name}</div>
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <Clock size={10} />
-                          {new Date(invite.created_at).toLocaleDateString()}
+                          {new Date(invite.created_at).toLocaleDateString("fr-FR")}
                         </div>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleRespondInvite(invite.id, true)}
-                        className="bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg flex-1 text-xs font-semibold"
-                      >
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => handleRespondInvite(invite.id, true)} className="flex-1 text-xs h-8 text-white" style={{ background: "var(--primary)" }}>
                         Accepter
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRespondInvite(invite.id, false)}
-                        className="border-white/10 hover:bg-white/5 rounded-lg flex-1 text-xs font-semibold text-slate-300"
-                      >
+                      <Button size="sm" variant="outline" onClick={() => handleRespondInvite(invite.id, false)} className="flex-1 text-xs h-8">
                         Décliner
                       </Button>
                     </div>
                   </div>
                 ))}
                 {pendingIncomingInvitations.length === 0 && (
-                  <div className="text-center p-8 text-xs text-slate-500 italic">
-                    Aucune invitation en attente.
-                  </div>
+                  <p className="text-center text-sm text-muted-foreground italic py-8">Aucune invitation en attente.</p>
                 )}
               </div>
             </ScrollArea>
           </div>
         )}
 
-        {/* TABS CONTENT: PILOTAGE ADMIN */}
+        {/* ─ ONGLET : PILOTAGE ─ */}
         {activeTab === "pilotage" && pilotage && (
-          <div className="flex-1 flex flex-col p-5 space-y-4 overflow-y-auto">
-            <h2 className="text-lg font-black flex items-center gap-2">
-              <Shield size={20} className="text-emerald-400" />
-              Pilotage Admin
-            </h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Configurez les droits globaux d&apos;échange et de recherche pour
-              les membres de {pilotage.daara_name || "la Plateforme"}.
-            </p>
-
-            <div className="space-y-4 pt-4">
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold block">
-                    Recherche Inter-Daara
-                  </span>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Autorise la recherche de membres d&apos;autres Daaras.
-                  </p>
+          <div className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto">
+            <div className="flex items-center gap-2">
+              <Shield size={18} style={{ color: "var(--primary)" }} />
+              <h2 className="font-bold text-base">Pilotage</h2>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-2">Configuration des échanges pour {pilotage.daara_name || "la Plateforme"}.</p>
+            <div className="space-y-2">
+              {[
+                { key: "allow_cross_daara_search", label: "Recherche inter-Daara", desc: "Autoriser la recherche de membres d'autres Daaras." },
+                { key: "allow_member_invite", label: "Invitations directes", desc: "Autoriser les membres à s'inviter en privé." },
+                { key: "allow_group_creation", label: "Création de groupes", desc: "Autoriser les membres à créer des salons collectifs." },
+                { key: "allow_file_sharing", label: "Partage de fichiers", desc: "Autoriser l'envoi de documents joints." },
+                { key: "allow_member_visibility_setting", label: "Paramètre de visibilité", desc: "Autoriser les membres à ajuster leur propre visibilité." },
+              ].map(({ key, label, desc }) => (
+                <div key={key} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 hover:bg-muted/60 transition-colors">
+                  <div>
+                    <span className="text-xs font-semibold block">{label}</span>
+                    <p className="text-[10px] text-muted-foreground">{desc}</p>
+                  </div>
+                  <Checkbox checked={pilotage[key]} onCheckedChange={(checked) => handlePilotageChange(key, !!checked)} />
                 </div>
-                <Checkbox
-                  checked={pilotage.allow_cross_daara_search}
-                  onCheckedChange={(checked) =>
-                    handlePilotageChange("allow_cross_daara_search", !!checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold block">
-                    Invitations directes
-                  </span>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Autorise les membres à s&apos;inviter en message privé.
-                  </p>
-                </div>
-                <Checkbox
-                  checked={pilotage.allow_member_invite}
-                  onCheckedChange={(checked) =>
-                    handlePilotageChange("allow_member_invite", !!checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold block">
-                    Création de groupe
-                  </span>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Autorise les membres à créer des salons collectifs.
-                  </p>
-                </div>
-                <Checkbox
-                  checked={pilotage.allow_group_creation}
-                  onCheckedChange={(checked) =>
-                    handlePilotageChange("allow_group_creation", !!checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold block">
-                    Partage de fichiers
-                  </span>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Autorise l&apos;envoi de documents joints dans le chat.
-                  </p>
-                </div>
-                <Checkbox
-                  checked={pilotage.allow_file_sharing}
-                  onCheckedChange={(checked) =>
-                    handlePilotageChange("allow_file_sharing", !!checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold block">
-                    Modif de visibilité
-                  </span>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Autorise les membres à ajuster leur propre visibilité.
-                  </p>
-                </div>
-                <Checkbox
-                  checked={pilotage.allow_member_visibility_setting}
-                  onCheckedChange={(checked) =>
-                    handlePilotageChange(
-                      "allow_member_visibility_setting",
-                      !!checked,
-                    )
-                  }
-                />
-              </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* TABS CONTENT: PARAMETRES PREFERENCES */}
+        {/* ─ ONGLET : PARAMÈTRES ─ */}
         {activeTab === "settings" && preferences && (
-          <div className="flex-1 flex flex-col p-5 space-y-4 overflow-y-auto">
-            <h2 className="text-lg font-black flex items-center gap-2">
-              <Settings size={20} className="text-emerald-400" />
-              Paramètres
-            </h2>
-            <p className="text-xs text-slate-400">
-              Ajustez vos préférences de confidentialité et de notification.
-            </p>
-
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-semibold">
-                  Qui peut vous voir et vous rechercher ?
-                </Label>
+          <div className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto">
+            <div className="flex items-center gap-2">
+              <Settings size={18} style={{ color: "var(--primary)" }} />
+              <h2 className="font-bold text-base">Paramètres</h2>
+            </div>
+            <p className="text-xs text-muted-foreground -mt-2">Confidentialité et notifications.</p>
+            <div className="space-y-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Qui peut vous voir ?</Label>
                 <select
-                  className="flex h-10 w-full rounded-xl border border-white/5 bg-slate-900 px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="flex h-9 w-full rounded-lg border bg-background px-3 text-xs shadow-sm focus:outline-none focus:ring-2"
+                  style={{ borderColor: "var(--border)" }}
                   value={preferences.visibility}
-                  onChange={(e) =>
-                    handlePrefChange("visibility", e.target.value)
-                  }
-                  disabled={
-                    pilotage && !pilotage.allow_member_visibility_setting
-                  }
+                  onChange={(e) => handlePrefChange("visibility", e.target.value)}
+                  disabled={pilotage && !pilotage.allow_member_visibility_setting}
                 >
                   <option value="all">Tout le monde</option>
-                  <option value="daara_only">
-                    Membres de mon Daara uniquement
-                  </option>
+                  <option value="daara_only">Mon Daara uniquement</option>
                   <option value="nobody">Personne</option>
                 </select>
                 {pilotage && !pilotage.allow_member_visibility_setting && (
-                  <p className="text-[9px] text-slate-500 italic">
-                    Verrouillé par l&apos;administrateur.
-                  </p>
+                  <p className="text-[10px] text-muted-foreground italic">Verrouillé par l&apos;administrateur.</p>
                 )}
               </div>
-
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold block">
-                    Invitations directes
-                  </span>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Autoriser les invitations à discuter en direct.
-                  </p>
+              {[
+                { key: "allow_direct_invites", label: "Invitations directes", desc: "Autoriser les invitations en message privé." },
+                { key: "allow_group_invites", label: "Invitations de groupes", desc: "Autoriser les invitations dans des salons." },
+                { key: "show_online_status", label: "Statut en ligne", desc: "Afficher mon statut connecté aux autres." },
+                { key: "notifications_enabled", label: "Notifications", desc: "Recevoir des alertes pour les nouveaux messages." },
+              ].map(({ key, label, desc }) => (
+                <div key={key} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40">
+                  <div>
+                    <span className="text-xs font-semibold block">{label}</span>
+                    <p className="text-[10px] text-muted-foreground">{desc}</p>
+                  </div>
+                  <Checkbox checked={preferences[key]} onCheckedChange={(checked) => handlePrefChange(key, !!checked)} />
                 </div>
-                <Checkbox
-                  checked={preferences.allow_direct_invites}
-                  onCheckedChange={(checked) =>
-                    handlePrefChange("allow_direct_invites", !!checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold block">
-                    Invitations de groupes
-                  </span>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Autoriser les invitations à des salons de groupe.
-                  </p>
-                </div>
-                <Checkbox
-                  checked={preferences.allow_group_invites}
-                  onCheckedChange={(checked) =>
-                    handlePrefChange("allow_group_invites", !!checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold block">
-                    Statut En Ligne
-                  </span>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Afficher mon statut connecté aux autres membres.
-                  </p>
-                </div>
-                <Checkbox
-                  checked={preferences.show_online_status}
-                  onCheckedChange={(checked) =>
-                    handlePrefChange("show_online_status", !!checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5">
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold block">
-                    Activer les notifications
-                  </span>
-                  <p className="text-[10px] text-slate-400 leading-tight">
-                    Recevoir des alertes lors de nouveaux messages.
-                  </p>
-                </div>
-                <Checkbox
-                  checked={preferences.notifications_enabled}
-                  onCheckedChange={(checked) =>
-                    handlePrefChange("notifications_enabled", !!checked)
-                  }
-                />
-              </div>
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* COLONNE CENTRALE - Zone de discussion (WhatsApp premium style) */}
-      <div className="flex-1 flex flex-col bg-slate-900 relative min-w-0">
+      {/* ── ZONE DE CHAT PRINCIPALE ──────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0" style={{ background: "var(--background)" }}>
         {!selectedChat ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-55">
-            <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-5 ring-4 ring-emerald-500/10 animate-bounce">
-              <MessageSquare size={38} className="text-emerald-400" />
+          /* Empty state */
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--primary) 10%, transparent)" }}>
+              <MessageSquare size={32} style={{ color: "var(--primary)" }} />
             </div>
-            <h3 className="text-xl font-black text-slate-100">
-              Messagerie Intelligente Yessal
-            </h3>
-            <p className="max-w-xs text-xs text-slate-400 mt-2 leading-relaxed">
-              Sélectionnez une discussion à gauche, ou utilisez le moteur de
-              recherche pour inviter des contacts.
-            </p>
+            <div>
+              <h3 className="font-bold text-lg">Messagerie Yessal</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-xs">Sélectionnez une discussion ou invitez un membre pour commencer.</p>
+            </div>
           </div>
         ) : (
           <>
-            {/* Header du Chat */}
-            <div
-              className="p-4 border-b flex items-center justify-between bg-slate-950/40 backdrop-blur-md z-10 sticky top-0"
-              style={{ borderColor: "rgba(255,255,255,0.08)" }}
-            >
-              <div className="flex items-center gap-3.5">
-                <Avatar className="h-10 w-10 ring-2 ring-emerald-500/20">
-                  {selectedChat.avatar ? (
-                    <AvatarImage src={selectedChat.avatar} />
-                  ) : null}
-                  <AvatarFallback className="bg-slate-800 text-emerald-400 font-bold">
+            {/* ─ HEADER CHAT ─ */}
+            <div className="h-[65px] px-5 border-b flex items-center justify-between shrink-0 bg-card" style={{ borderColor: "var(--border)" }}>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  {selectedChat.avatar ? <AvatarImage src={selectedChat.avatar} /> : null}
+                  <AvatarFallback className="font-bold text-sm text-white" style={{ background: "var(--primary)" }}>
                     {selectedChat.display_name[0].toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <div className="font-bold text-sm leading-none text-slate-100">
-                    {selectedChat.display_name}
-                  </div>
-                  <div className="text-[10px] text-emerald-400 mt-1 font-bold tracking-tight">
+                  <div className="font-semibold text-sm leading-none">{selectedChat.display_name}</div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5" style={getChatStatus() === "en ligne" || getChatStatus().includes("ligne") ? { color: "#22c55e" } : {}}>
                     {getChatStatus()}
                   </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowRightPanel(!showRightPanel)}
-                  className={`h-9 w-9 rounded-xl transition-all duration-300 ${showRightPanel ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:bg-white/5 hover:text-white"}`}
-                >
-                  <Info size={18} />
-                </Button>
-              </div>
+              <Button variant="ghost" size="icon" onClick={() => setShowRightPanel(!showRightPanel)} className={`h-8 w-8 rounded-lg ${showRightPanel ? "bg-primary/10" : ""}`} style={showRightPanel ? { color: "var(--primary)" } : {}}>
+                <Info size={17} />
+              </Button>
             </div>
 
-            {/* Corps de discussion (Messages) */}
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto p-6 space-y-4 min-h-[200px]"
-              style={{
-                backgroundColor: "#0b141a",
-                backgroundImage:
-                  "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
-                backgroundBlendMode: "soft-light",
-                opacity: 0.98,
-              }}
-            >
-              {messages.map((m) => {
-                const isMe = Number(m.sender.id) === Number(currentUserId);
-                const isSystem = m.message_type === "system";
-
-                if (isSystem) {
-                  return (
-                    <div key={m.id} className="flex justify-center my-2">
-                      <span className="px-3.5 py-1.5 rounded-xl bg-slate-800/80 border border-white/5 text-[10px] font-semibold text-slate-400 shadow-md">
-                        {m.content}
-                      </span>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={m.id}
-                    className={`flex ${isMe ? "justify-end" : "justify-start"} group relative animate-in fade-in duration-300`}
-                  >
-                    <div className="max-w-[70%] relative flex flex-col items-start gap-1">
-                      {/* Bulle de message */}
-                      <div
-                        className={`p-3.5 rounded-2xl shadow-lg relative ${
-                          isMe
-                            ? "bg-emerald-600 text-white rounded-tr-none"
-                            : "bg-slate-800 text-slate-200 rounded-tl-none border border-white/5"
-                        }`}
-                      >
-                        {/* Auteur si groupe */}
-                        {!isMe && selectedChat.chat_type === "group" && (
-                          <div className="text-[10px] font-extrabold text-emerald-400 mb-1 uppercase tracking-tight">
-                            {m.sender.name}
-                          </div>
-                        )}
-
-                        {/* Citation / Reply Render */}
-                        {m.reply_to && (
-                          <div className="mb-2 p-2 rounded-lg bg-black/20 border-l-4 border-emerald-400 text-xs text-slate-400 truncate">
-                            {messages.find((x) => x.id === m.reply_to)
-                              ?.content || "Message référencé"}
-                          </div>
-                        )}
-
-                        {/* Contenu Fichier Joint */}
-                        {m.message_type === "file" && m.file_url && (
-                          <div className="mb-2 p-3.5 rounded-xl bg-black/25 flex items-center gap-3 border border-white/5 shadow-inner">
-                            <FileText
-                              size={28}
-                              className="text-emerald-400 shrink-0"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-bold text-slate-200 truncate">
-                                {m.content || "Fichier partagé"}
-                              </p>
-                              <a
-                                href={m.file_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[10px] text-emerald-400 font-bold hover:underline mt-1 inline-block"
-                              >
-                                Télécharger le document
-                              </a>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Message Texte */}
-                        {m.message_type === "text" && (
-                          <p className="leading-relaxed whitespace-pre-wrap break-words text-[13px] pb-3 pr-10">
-                            {m.content}
-                          </p>
-                        )}
-
-                        {/* Timestamp & Double Check */}
-                        <div className="absolute bottom-1 right-2.5 flex items-center gap-1 select-none">
-                          <span className="text-[9px] text-slate-300 opacity-60 font-medium">
-                            {new Date(m.sent_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
-                          {isMe && (
-                            <CheckCheck
-                              size={11}
-                              className="text-emerald-300"
-                            />
-                          )}
-                        </div>
-
-                        {/* Aggregated reactions render */}
-                        {m.reactions && m.reactions.length > 0 && (
-                          <div className="absolute -bottom-2.5 left-2.5 flex items-center gap-0.5 bg-slate-900 border border-white/10 rounded-full px-1.5 py-0.5 shadow-md scale-95 z-20">
-                            {m.reactions.map((r, idx) => (
-                              <span
-                                key={idx}
-                                className={`text-[10px] flex items-center gap-0.5 cursor-pointer hover:scale-110 transition-transform ${r.reacted_by_me ? "font-bold text-emerald-400" : ""}`}
-                                onClick={() => handleReact(m.id, r.emoji)}
-                              >
-                                {r.emoji}{" "}
-                                <span className="text-[8px] opacity-75">
-                                  {r.count}
-                                </span>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Éléments de contrôle au survol (Reactions, Reply, Delete) */}
-                      {!m.is_deleted && (
-                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 absolute top-1/2 -translate-y-1/2 -right-28 bg-slate-900/90 backdrop-blur-sm border border-white/10 p-1.5 rounded-full shadow-lg z-30 transition-all duration-200">
-                          {/* Emojis shortcuts */}
-                          <div className="flex items-center gap-0.5 pr-1.5 border-r border-white/10">
-                            {EMOJIS.slice(0, 3).map((emoji) => (
-                              <button
-                                key={emoji}
-                                onClick={() => handleReact(m.id, emoji)}
-                                className="text-xs hover:scale-125 transition-transform"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                          <button
-                            onClick={() => setReplyingTo(m)}
-                            className="p-1 hover:text-emerald-400 text-slate-400 rounded-full hover:bg-white/5"
-                            title="Répondre"
-                          >
-                            <Reply size={13} />
-                          </button>
-                          {(isMe || viewerRole === "admin") && (
-                            <button
-                              onClick={() => handleDeleteMsg(m.id)}
-                              className="p-1 hover:text-red-400 text-slate-400 rounded-full hover:bg-white/5"
-                              title="Supprimer"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
+            {/* ─ MESSAGES ─ */}
+            <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-1 min-h-0">
+              {messageGroups.map((group) => (
+                <div key={group.label}>
+                  {/* Date separator */}
+                  <div className="flex items-center gap-3 my-5">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-[10px] font-semibold text-muted-foreground bg-background border px-3 py-1 rounded-full" style={{ borderColor: "var(--border)" }}>
+                      {group.label}
+                    </span>
+                    <div className="flex-1 h-px bg-border" />
                   </div>
-                );
-              })}
+
+                  <div className="space-y-2">
+                    {group.messages.map((m) => {
+                      const isMe = Number(m.sender.id) === Number(currentUserId);
+                      const isSystem = m.message_type === "system";
+                      const isGroup = selectedChat.chat_type === "group";
+
+                      if (isSystem) {
+                        return (
+                          <div key={m.id} className="flex justify-center my-3">
+                            <span className="px-3 py-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">{m.content}</span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={m.id} className={`flex gap-2.5 group ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                          {/* Avatar (only for others) */}
+                          {!isMe && (
+                            <Avatar className="h-8 w-8 shrink-0 mt-1">
+                              {m.sender.avatar ? <AvatarImage src={m.sender.avatar} /> : null}
+                              <AvatarFallback className="text-[10px] font-bold text-white" style={{ background: "var(--primary)" }}>
+                                {m.sender.name[0].toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+
+                          <div className={`max-w-[65%] flex flex-col gap-1 relative ${isMe ? "items-end" : "items-start"}`}>
+                            {/* Sender name in group (others only) */}
+                            {!isMe && isGroup && (
+                              <span className="text-[11px] font-bold ml-1" style={{ color: "var(--primary)" }}>{m.sender.name}</span>
+                            )}
+
+                            {/* Bubble */}
+                            <div
+                              className={`relative px-4 py-2.5 shadow-sm ${
+                                isMe
+                                  ? "rounded-2xl rounded-tr-sm text-white"
+                                  : "rounded-2xl rounded-tl-sm bg-card border text-foreground"
+                              } ${m.is_deleted ? "opacity-50 italic" : ""}`}
+                              style={isMe ? { background: "var(--primary)" } : { borderColor: "var(--border)" }}
+                            >
+                              {/* Reply quote */}
+                              {m.reply_to && (
+                                <div className={`mb-2 pl-3 py-1.5 rounded-lg text-xs border-l-4 ${isMe ? "bg-white/15 border-white/40" : "bg-muted/60 border-muted-foreground/30"}`}>
+                                  <span className="opacity-80 line-clamp-2">{messages.find((x) => x.id === m.reply_to)?.content || "Message référencé"}</span>
+                                </div>
+                              )}
+
+                              {/* File attachment */}
+                              {m.message_type === "file" && m.file_url && (
+                                <div className={`mb-2 p-3 rounded-xl flex items-center gap-3 ${isMe ? "bg-white/15" : "bg-muted/60"}`}>
+                                  <FileText size={22} className={isMe ? "text-white/80 shrink-0" : "shrink-0"} style={!isMe ? { color: "var(--primary)" } : {}} />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-semibold truncate">{m.content || "Fichier partagé"}</p>
+                                    <a href={m.file_url} target="_blank" rel="noreferrer" className={`text-[10px] font-bold hover:underline mt-0.5 inline-block ${isMe ? "text-white/70" : ""}`} style={!isMe ? { color: "var(--primary)" } : {}}>
+                                      Télécharger
+                                    </a>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Text */}
+                              {m.message_type === "text" && (
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words pr-14">{m.content}</p>
+                              )}
+
+                              {/* Time + checkmark */}
+                              <div className="absolute bottom-1.5 right-3 flex items-center gap-1 select-none">
+                                <span className={`text-[9px] font-medium ${isMe ? "text-white/60" : "text-muted-foreground"}`}>
+                                  {new Date(m.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                                {isMe && <CheckCheck size={10} className="text-white/60" />}
+                              </div>
+
+                              {/* Reactions */}
+                              {m.reactions && m.reactions.length > 0 && (
+                                <div className={`absolute -bottom-3 ${isMe ? "right-2" : "left-2"} flex items-center gap-0.5 bg-card border rounded-full px-2 py-0.5 shadow-sm z-10`} style={{ borderColor: "var(--border)" }}>
+                                  {m.reactions.map((r, idx) => (
+                                    <button key={idx} onClick={() => handleReact(m.id, r.emoji)} className={`text-[11px] flex items-center gap-0.5 hover:scale-110 transition-transform ${r.reacted_by_me ? "font-bold" : ""}`}>
+                                      {r.emoji}<span className="text-[9px] text-muted-foreground">{r.count}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Hover actions */}
+                            {!m.is_deleted && (
+                              <div className={`opacity-0 group-hover:opacity-100 flex items-center gap-1 ${isMe ? "flex-row-reverse" : "flex-row"} transition-opacity`}>
+                                {EMOJIS.slice(0, 3).map((emoji) => (
+                                  <button key={emoji} onClick={() => handleReact(m.id, emoji)} className="text-sm hover:scale-125 transition-transform bg-card border rounded-full w-6 h-6 flex items-center justify-center shadow-sm" style={{ borderColor: "var(--border)" }}>
+                                    {emoji}
+                                  </button>
+                                ))}
+                                <button onClick={() => setReplyingTo(m)} className="h-6 w-6 flex items-center justify-center rounded-full bg-card border text-muted-foreground hover:text-foreground shadow-sm transition-colors" style={{ borderColor: "var(--border)" }} title="Répondre">
+                                  <Reply size={12} />
+                                </button>
+                                {(isMe || viewerRole === "admin") && (
+                                  <button onClick={() => handleDeleteMsg(m.id)} className="h-6 w-6 flex items-center justify-center rounded-full bg-card border text-muted-foreground hover:text-red-500 shadow-sm transition-colors" style={{ borderColor: "var(--border)" }} title="Supprimer">
+                                    <Trash2 size={12} />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {/* Typing indicator */}
+              {Object.values(typingUsers).length > 0 && (
+                <div className="flex items-center gap-2.5 px-1">
+                  <div className="flex gap-1 items-center bg-card border px-3 py-2 rounded-2xl rounded-tl-sm shadow-sm" style={{ borderColor: "var(--border)" }}>
+                    <span className="text-xs text-muted-foreground italic">{Object.values(typingUsers).join(", ")} écrit</span>
+                    <span className="flex gap-0.5 ml-1">
+                      {[0, 1, 2].map((i) => (
+                        <span key={i} className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                      ))}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {messages.length === 0 && (
-                <div className="h-full flex items-center justify-center text-xs text-slate-500 italic bg-slate-950/20 backdrop-blur-sm rounded-2xl p-6 border border-white/5">
-                  Aucun message pour l&apos;instant. Ouvrez la discussion avec
-                  un message.
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-sm text-muted-foreground italic">Aucun message. Lancez la conversation !</p>
                 </div>
               )}
             </div>
 
-            {/* Zone d'envoi et inputs additionnels */}
-            <div
-              className="p-4 bg-slate-950/30 border-t space-y-3"
-              style={{ borderColor: "rgba(255,255,255,0.08)" }}
-            >
-              {/* Citation en cours */}
+            {/* ─ INPUT BAR ─ */}
+            <div className="px-4 py-3 border-t bg-card shrink-0 space-y-2" style={{ borderColor: "var(--border)" }}>
+              {/* Reply preview */}
               {replyingTo && (
-                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border-l-4 border-emerald-500 text-xs">
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl border-l-4 bg-muted/40 text-xs" style={{ borderLeftColor: "var(--primary)" }}>
                   <div className="min-w-0">
-                    <span className="font-bold text-emerald-400 block mb-0.5">
-                      En réponse à {replyingTo.sender.name}
-                    </span>
-                    <p className="text-slate-400 truncate">
-                      {replyingTo.content}
-                    </p>
+                    <span className="font-semibold block" style={{ color: "var(--primary)" }}>Réponse à {replyingTo.sender.name}</span>
+                    <p className="text-muted-foreground truncate mt-0.5">{replyingTo.content}</p>
                   </div>
-                  <button
-                    onClick={() => setReplyingTo(null)}
-                    className="text-slate-400 hover:text-white"
-                  >
-                    <X size={15} />
-                  </button>
+                  <button onClick={() => setReplyingTo(null)} className="text-muted-foreground hover:text-foreground ml-3 shrink-0"><X size={14} /></button>
                 </div>
               )}
 
-              {/* Fichier joint sélectionné */}
+              {/* File preview */}
               {selectedFile && (
-                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-white/5 text-xs">
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted/40 border text-xs" style={{ borderColor: "var(--border)" }}>
                   <div className="flex items-center gap-2 min-w-0">
-                    <FileText size={16} className="text-emerald-400" />
-                    <span className="text-slate-200 font-medium truncate">
-                      {selectedFile.name}
-                    </span>
-                    <span className="text-[10px] text-slate-500 shrink-0">
-                      ({(selectedFile.size / 1024).toFixed(0)} KB)
-                    </span>
+                    <FileText size={14} style={{ color: "var(--primary)" }} />
+                    <span className="font-medium truncate">{selectedFile.name}</span>
+                    <span className="text-muted-foreground shrink-0">({(selectedFile.size / 1024).toFixed(0)} KB)</span>
                   </div>
-                  <button
-                    onClick={() => setSelectedFile(null)}
-                    className="text-slate-400 hover:text-white"
-                  >
-                    <X size={15} />
-                  </button>
+                  <button onClick={() => setSelectedFile(null)} className="text-muted-foreground hover:text-foreground ml-3 shrink-0"><X size={14} /></button>
                 </div>
               )}
 
-              <form
-                onSubmit={handleSend}
-                className="flex items-center gap-3 bg-slate-950 p-2 rounded-2xl border"
-                style={{ borderColor: "rgba(255,255,255,0.08)" }}
-              >
-                {/* Attachement fichier (uniquement si autorisé par pilotage) */}
+              <form onSubmit={handleSend} className="flex items-center gap-2 bg-muted/40 rounded-2xl border px-3 py-1.5" style={{ borderColor: "var(--border)" }}>
                 {(!pilotage || pilotage.allow_file_sharing) && (
                   <>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={(e) => {
-                        if (e.target.files?.length)
-                          setSelectedFile(e.target.files[0]);
-                      }}
-                      className="hidden"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="h-10 w-10 text-slate-400 hover:bg-white/5 hover:text-white rounded-full shrink-0"
-                    >
-                      <Paperclip size={18} />
-                    </Button>
+                    <input type="file" ref={fileInputRef} onChange={(e) => { if (e.target.files?.length) setSelectedFile(e.target.files[0]); }} className="hidden" />
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted transition-colors shrink-0">
+                      <Paperclip size={17} />
+                    </button>
                   </>
                 )}
 
@@ -1505,17 +1045,18 @@ export function ChatInterface({
                   value={msgContent}
                   onChange={(e) => handleMessageChange(e.target.value)}
                   placeholder="Tapez un message..."
-                  className="border-none focus-visible:ring-0 bg-transparent flex-1 text-slate-200 placeholder:text-slate-500 h-10 text-sm"
+                  className="border-none focus-visible:ring-0 bg-transparent flex-1 text-sm h-9 px-0"
                   disabled={isPending}
                 />
 
                 <Button
                   type="submit"
                   size="icon"
-                  className="rounded-xl h-10 w-10 shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+                  className="h-9 w-9 rounded-xl shrink-0 text-white shadow-sm"
+                  style={{ background: "var(--primary)" }}
                   disabled={(!msgContent.trim() && !selectedFile) || isPending}
                 >
-                  <Send size={18} />
+                  <Send size={16} />
                 </Button>
               </form>
             </div>
@@ -1523,242 +1064,123 @@ export function ChatInterface({
         )}
       </div>
 
-      {/* DROITE DETAIL CONVERSATION / MEMBRES (Drawer style) */}
+      {/* ── PANNEAU DROIT — INFO CONVERSATION ───────────────────────── */}
       {selectedChat && showRightPanel && (
-        <div
-          className="w-[280px] bg-slate-950/80 backdrop-blur-md border-l flex flex-col p-6 space-y-6 overflow-y-auto"
-          style={{ borderColor: "rgba(255,255,255,0.08)" }}
-        >
-          <div
-            className="flex items-center justify-between border-b pb-4"
-            style={{ borderColor: "rgba(255,255,255,0.08)" }}
-          >
-            <h3 className="font-black text-sm tracking-tight">Infos</h3>
-            <button
-              onClick={() => setShowRightPanel(false)}
-              className="text-slate-400 hover:text-white"
-            >
-              <X size={18} />
-            </button>
+        <div className="w-[260px] bg-card border-l flex flex-col shrink-0 overflow-y-auto" style={{ borderColor: "var(--border)" }}>
+          <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b" style={{ borderColor: "var(--border)" }}>
+            <h3 className="font-bold text-sm">Informations</h3>
+            <button onClick={() => setShowRightPanel(false)} className="text-muted-foreground hover:text-foreground"><X size={17} /></button>
           </div>
 
-          <div className="flex flex-col items-center text-center space-y-3">
-            <Avatar className="h-20 w-20 ring-4 ring-emerald-500/20">
-              {selectedChat.avatar ? (
-                <AvatarImage src={selectedChat.avatar} />
-              ) : null}
-              <AvatarFallback className="bg-slate-800 text-emerald-400 font-bold text-xl">
+          <div className="flex flex-col items-center text-center px-5 py-6 gap-3">
+            <Avatar className="h-16 w-16 ring-4" style={{ '--tw-ring-color': 'color-mix(in srgb, var(--primary) 20%, transparent)' } as any}>
+              {selectedChat.avatar ? <AvatarImage src={selectedChat.avatar} /> : null}
+              <AvatarFallback className="text-xl font-bold text-white" style={{ background: "var(--primary)" }}>
                 {selectedChat.display_name[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h4 className="font-extrabold text-slate-100">
-                {selectedChat.display_name}
-              </h4>
-              <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-semibold">
-                {selectedChat.chat_type === "direct"
-                  ? "Discussion privée"
-                  : "Discussion de groupe"}
+              <h4 className="font-bold">{selectedChat.display_name}</h4>
+              <p className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-semibold">
+                {selectedChat.chat_type === "direct" ? "Discussion privée" : "Salon de groupe"}
               </p>
             </div>
           </div>
 
-          <div className="h-[1px] bg-white/10" />
+          <div className="h-px bg-border mx-5" />
 
-          {selectedChat.chat_type === "group" && (
-            <div className="space-y-3">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                Membres connectés
-              </span>
+          {selectedChat.chat_type === "group" && Object.values(onlineMembers).length > 0 && (
+            <div className="px-5 py-4 space-y-3">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Membres connectés</span>
               <div className="space-y-2">
                 {Object.values(onlineMembers).map((m: any, idx) => (
                   <div key={idx} className="flex items-center gap-2.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                    <span className="text-xs text-slate-300 font-medium truncate">
-                      {m.name}
-                    </span>
+                    <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                    <span className="text-xs font-medium truncate">{m.name}</span>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {selectedChat.chat_type === "direct" && (
-            <div className="space-y-3.5 text-xs text-slate-300">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">
-                  Disponibilité
-                </span>
-                <span className="text-emerald-400 font-bold">Autorisé</span>
-              </div>
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">
-                  Mute notifications
-                </span>
-                <span className="text-slate-400">Non silencieux</span>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* DIALOG CREATION SALON (MODAL) */}
-      <Dialog
-        open={newOpen}
-        onOpenChange={(o) => {
-          setNewOpen(o);
-          if (!o) resetCreateForm();
-        }}
-      >
-        <DialogContent className="max-w-md bg-slate-900 border border-white/10 text-slate-100 rounded-2xl">
+      {/* ── DIALOG CRÉATION SALON ────────────────────────────────────── */}
+      <Dialog open={newOpen} onOpenChange={(o) => { setNewOpen(o); if (!o) resetCreateForm(); }}>
+        <DialogContent className="max-w-md rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black tracking-tight text-slate-100">
-              Créer un salon de groupe
-            </DialogTitle>
+            <DialogTitle className="text-lg font-bold">Créer un salon de groupe</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label
-                htmlFor="salon-name"
-                className="text-slate-300 text-xs font-semibold"
-              >
-                Nom du salon
-              </Label>
-              <Input
-                id="salon-name"
-                placeholder="Ex: Coordination Ramadan"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="bg-slate-950 border-white/10 text-slate-200 placeholder:text-slate-600 rounded-xl"
-              />
+          <div className="space-y-4 pt-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="salon-name" className="text-xs font-semibold">Nom du salon</Label>
+              <Input id="salon-name" placeholder="Ex: Coordination Ramadan" value={newName} onChange={(e) => setNewName(e.target.value)} className="rounded-xl" />
             </div>
 
-            <div className="space-y-2">
-              <Label
-                htmlFor="invite-mode"
-                className="text-slate-300 text-xs font-semibold"
-              >
-                Mode d&apos;invitation
-              </Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="invite-mode" className="text-xs font-semibold">Mode d&apos;invitation</Label>
               <select
                 id="invite-mode"
-                className="flex h-10 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 shadow-sm focus:outline-none"
+                className="flex h-10 w-full rounded-xl border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none"
+                style={{ borderColor: "var(--border)" }}
                 value={inviteMode}
-                onChange={(e) =>
-                  setInviteMode(e.target.value as ChatInviteMode)
-                }
+                onChange={(e) => setInviteMode(e.target.value as ChatInviteMode)}
               >
-                {modeOptions.map((opt) => (
-                  <option
-                    key={opt.value}
-                    value={opt.value}
-                    className="bg-slate-900"
-                  >
-                    {opt.label}
-                  </option>
-                ))}
+                {modeOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </select>
             </div>
 
-            {isAdmin &&
-            needsPresetDaara(inviteMode) &&
-            daarasForSelect.length > 0 ? (
-              <div className="space-y-2">
-                <Label
-                  htmlFor="preset-daara"
-                  className="text-slate-300 text-xs font-semibold"
-                >
-                  Daara cible
-                </Label>
+            {isAdmin && needsPresetDaara(inviteMode) && daarasForSelect.length > 0 && (
+              <div className="space-y-1.5">
+                <Label htmlFor="preset-daara" className="text-xs font-semibold">Daara cible</Label>
                 <select
                   id="preset-daara"
-                  className="flex h-10 w-full rounded-xl border border-white/10 bg-slate-950 px-3 py-2 text-xs text-slate-200 shadow-sm focus:outline-none"
+                  className="flex h-10 w-full rounded-xl border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none"
+                  style={{ borderColor: "var(--border)" }}
                   value={presetDaaraId}
                   onChange={(e) => setPresetDaaraId(e.target.value)}
                 >
-                  <option value="" className="bg-slate-900">
-                    Sélectionner un Daara
-                  </option>
-                  {daarasForSelect.map((daara) => (
-                    <option
-                      key={daara.id}
-                      value={daara.id}
-                      className="bg-slate-900"
-                    >
-                      {daara.name || `Daara #${daara.id}`}
-                    </option>
-                  ))}
+                  <option value="">Sélectionner un Daara</option>
+                  {daarasForSelect.map((daara) => <option key={daara.id} value={daara.id}>{daara.name || `Daara #${daara.id}`}</option>)}
                 </select>
               </div>
-            ) : null}
+            )}
 
-            {inviteMode === "manual" && pickableUsers.length > 0 ? (
-              <div className="space-y-2">
-                <Label className="text-slate-300 text-xs font-semibold">
-                  Membres à inviter
-                </Label>
+            {inviteMode === "manual" && pickableUsers.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Membres à inviter</Label>
                 <Input
                   value={manualSearch}
                   onChange={(e) => setManualSearch(e.target.value)}
                   placeholder="Filtrer les membres..."
-                  className="bg-slate-950 border-white/10 text-slate-200 placeholder:text-slate-600 h-9 rounded-xl text-xs"
+                  className="h-9 rounded-xl text-xs"
                 />
-                <ScrollArea className="h-36 rounded-xl border border-white/10 p-3 bg-slate-950/40">
-                  <div className="space-y-2.5 pr-2">
+                <ScrollArea className="h-36 rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
+                  <div className="space-y-2.5 pr-1">
                     {pickableUsers
                       .filter((u) => {
                         const q = manualSearch.trim().toLowerCase();
-                        if (!q) return true;
-                        return `${u.first_name} ${u.last_name} ${u.role}`
-                          .toLowerCase()
-                          .includes(q);
+                        return !q || `${u.first_name} ${u.last_name} ${u.role}`.toLowerCase().includes(q);
                       })
                       .map((u) => (
-                        <label
-                          key={u.id}
-                          className="flex items-center gap-2.5 text-xs cursor-pointer hover:text-white transition-colors"
-                        >
-                          <Checkbox
-                            checked={manualIds.includes(u.id)}
-                            onCheckedChange={() => toggleManualId(u.id)}
-                            className="border-white/20"
-                          />
-                          <span>
-                            {u.first_name} {u.last_name}
-                            <span className="text-slate-500 text-[10px] ml-1.5">
-                              ({u.role})
-                            </span>
-                          </span>
+                        <label key={u.id} className="flex items-center gap-2.5 text-xs cursor-pointer hover:text-foreground text-muted-foreground transition-colors">
+                          <Checkbox checked={manualIds.includes(u.id)} onCheckedChange={() => toggleManualId(u.id)} />
+                          <span className="font-medium text-foreground">{u.first_name} {u.last_name}</span>
+                          <span className="text-[10px] text-muted-foreground">({u.role})</span>
                         </label>
                       ))}
                   </div>
                 </ScrollArea>
               </div>
-            ) : null}
+            )}
 
-            {createError ? (
-              <p className="text-xs text-red-500 font-semibold">
-                {createError}
-              </p>
-            ) : null}
+            {createError && <p className="text-xs text-red-500 font-semibold">{createError}</p>}
           </div>
 
-          <DialogFooter className="pt-4 gap-2">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => setNewOpen(false)}
-              className="border-white/10 text-slate-300 hover:bg-white/5 rounded-xl text-xs font-bold"
-            >
-              Annuler
-            </Button>
-            <Button
-              type="button"
-              disabled={isPending}
-              onClick={handleCreateChat}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-500/20"
-            >
-              Créer
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" type="button" onClick={() => setNewOpen(false)} className="rounded-xl text-sm">Annuler</Button>
+            <Button type="button" disabled={isPending} onClick={handleCreateChat} className="rounded-xl text-sm text-white" style={{ background: "var(--primary)" }}>
+              Créer le salon
             </Button>
           </DialogFooter>
         </DialogContent>
