@@ -14,6 +14,7 @@ import {
   updateUserDocument,
 } from "@/app/actions/users";
 import PhoneNumberValidation from "@/components/PhoneNumberValidation";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { toast } from "sonner";
 
 type TitleOption = { id: number; name: string; is_active?: boolean };
@@ -81,7 +82,7 @@ export function ProfileClient({
     router.refresh();
   };
 
-  const handleSubmitProfile = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmitProfile = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     const rawData = new FormData(e.currentTarget);
     const firstName = rawData.get("first_name") as string;
@@ -328,12 +329,7 @@ export function ProfileClient({
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground ml-1">Date de naissance</Label>
-                  <Input
-                    name="birth_date"
-                    type="date"
-                    defaultValue={profile?.birth_date || ""}
-                    className="h-11 rounded-lg bg-muted/10 border-transparent focus:border-yessal-violet focus:bg-background transition-all font-medium"
-                  />
+                  <DatePicker name="birth_date" defaultValue={profile?.birth_date || ""} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground ml-1">Genre</Label>

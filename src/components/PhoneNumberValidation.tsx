@@ -55,13 +55,13 @@ export default function PhoneNumberValidation({
           Téléphone
         </Label>
       )}
-      <div className="w-full relative rounded-xl focus-within:ring-2 focus-within:ring-yessal-violet/50 transition-all">
+      <div className="w-full relative rounded-xl">
         {name && <input type="hidden" name={name} value={internalValue ? `+${internalValue}` : ""} />}
         <PhoneInput
           value={internalValue}
           onChange={handleChange}
           onBlur={onBlur}
-          inputClass="!h-11 !rounded-xl !bg-muted/20 !border-none !px-4 !w-full focus:!outline-none"
+          inputClass="!h-11 !rounded-xl !bg-transparent !border-none !px-4 !w-full focus:!outline-none"
           buttonClass="!border-none !bg-transparent !rounded-l-xl pl-2"
           containerClass="w-full"
           placeholder="77 000 00 00"

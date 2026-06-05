@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Target } from "lucide-react";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 type FeteOption = { id: number | string; name: string };
 type MemberOption = {
@@ -152,13 +153,7 @@ export function NewCampaignClient({
             </div>
             <div className="space-y-2">
               <Label htmlFor="deadline">Date limite</Label>
-              <Input
-                id="deadline"
-                name="deadline"
-                type="date"
-                defaultValue={initialCampaign?.deadline ?? ""}
-                required
-              />
+              <DatePicker name="deadline" defaultValue={initialCampaign?.deadline ?? ""} required />
             </div>
           </div>
 

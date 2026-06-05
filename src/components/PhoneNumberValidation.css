@@ -1,0 +1,150 @@
+/* ── react-phone-input-2 · Yessal design override ─────────────────────────── */
+
+/* Container */
+.react-tel-input {
+  font-family: inherit !important;
+  width: 100% !important;
+  background: hsl(var(--muted) / 0.2) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 12px !important;
+}
+
+/* Input field */
+.react-tel-input .form-control {
+  height: 44px !important;
+  width: 100% !important;
+  padding-left: 52px !important;
+  padding-right: 16px !important;
+  border: none !important;
+  border-radius: 12px !important;
+  background: transparent !important;
+  color: hsl(var(--foreground)) !important;
+  font-size: 14px !important;
+  font-family: inherit !important;
+  outline: none !important;
+  transition: background 0.15s ease !important;
+  box-shadow: none !important;
+}
+
+.react-tel-input:focus-within {
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2) !important;
+}
+
+.react-tel-input .form-control:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.react-tel-input .form-control::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 0.6 !important;
+}
+
+/* Flag dropdown container */
+.react-tel-input .flag-dropdown {
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid hsl(var(--border) / 0.5) !important;
+  border-radius: 12px 0 0 12px !important;
+}
+
+.react-tel-input .flag-dropdown.open {
+  background: transparent !important;
+  border-radius: 12px 0 0 12px !important;
+}
+
+/* Selected flag button */
+.react-tel-input .selected-flag {
+  background: transparent !important;
+  border-radius: 12px 0 0 12px !important;
+  padding: 0 10px !important;
+  width: 48px !important;
+}
+
+.react-tel-input .selected-flag:hover,
+.react-tel-input .selected-flag:focus,
+.react-tel-input .flag-dropdown.open .selected-flag {
+  background: hsl(var(--muted) / 0.3) !important;
+}
+
+/* Dropdown list */
+.react-tel-input .country-list {
+  background: hsl(var(--popover)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.15) !important;
+  padding: 4px !important;
+  margin-top: 4px !important;
+  width: 300px !important;
+  max-height: 260px !important;
+  overflow-y: auto !important;
+}
+
+.react-tel-input .country-list .country {
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 13px !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.react-tel-input .country-list .country:hover,
+.react-tel-input .country-list .country.highlight {
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+.react-tel-input .country-list .country-name {
+  font-size: 13px !important;
+}
+
+.react-tel-input .country-list .dial-code {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 12px !important;
+}
+
+/* Search box */
+.react-tel-input .search {
+  background: hsl(var(--popover)) !important;
+  padding: 8px !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  position: sticky !important;
+  top: 0 !important;
+}
+
+.react-tel-input .search-box {
+  background: hsl(var(--muted) / 0.2) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 7px 12px !important;
+  width: 100% !important;
+  color: hsl(var(--foreground)) !important;
+  font-size: 13px !important;
+  font-family: inherit !important;
+  outline: none !important;
+}
+
+.react-tel-input .search-box:focus {
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.3) !important;
+}
+
+.react-tel-input .search-box::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Scrollbar */
+.react-tel-input .country-list::-webkit-scrollbar {
+  width: 4px;
+}
+.react-tel-input .country-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.react-tel-input .country-list::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}

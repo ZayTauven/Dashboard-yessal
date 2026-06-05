@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, User, CreditCard, Banknote, CheckCircle2, Loader2, Plus, UserPlus } from "lucide-react";
+import { Search, User, Banknote, CheckCircle2, Loader2, UserPlus } from "lucide-react";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import PhoneNumberValidation from "@/components/PhoneNumberValidation";
 import {
   Dialog,
   DialogContent,
@@ -70,7 +71,7 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
     });
   };
 
-  const handleQuickRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleQuickRegister = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const data = Object.fromEntries(formData);
@@ -146,8 +147,7 @@ export function CollectClient({ campaigns }: { campaigns: any[] }) {
                                         <Input name="email" type="email" placeholder="email@exemple.com" />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label className="text-[10px] uppercase font-black ml-1">Téléphone</Label>
-                                        <Input name="phone" placeholder="77..." required />
+                                        <PhoneNumberValidation name="phone" required />
                                     </div>
                                     <p className="text-[9px] text-muted-foreground italic mt-2">Le mot de passe par défaut sera : YessalUser2024!</p>
                                     <DialogFooter>
