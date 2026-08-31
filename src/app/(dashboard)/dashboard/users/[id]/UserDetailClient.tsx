@@ -52,6 +52,7 @@ import {
   Hash,
 } from "lucide-react";
 import AppAreaChart from "@/components/AppAreaChart";
+import { MemberProfileCard } from "@/components/vireo/MemberProfileCard";
 import { DonationListClient } from "../../donations/DonationListClient";
 import { updateUserStatus, deleteUserAction } from "@/app/actions/users";
 import { toast } from "sonner";
@@ -101,6 +102,13 @@ export default function UserDetailClient({
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
 
   const kpis = stats?.kpis || [];
+
+  /* DRF sérialise les Decimal en chaîne : on repasse par Number avant de
+     sommer, sinon « 5000 » + « 3000 » donne « 50003000 ». */
+  const totalDonated = donations.reduce(
+    (sum: number, d: { amount?: string | number }) => sum + Number(d?.amount ?? 0),
+    0,
+  );
 
   const handleBlock = () => {
     toast(`Bloquer l'accès de ${user?.first_name} ${user?.last_name} ?`, {
@@ -193,93 +201,19 @@ export default function UserDetailClient({
         </div>
       </div>
 
-      {/* ─── PROFILE HERO ─────────────────────────────────────────── */}
-      <div
-        className="bg-white dark:bg-card rounded-3xl border shadow-sm overflow-visible relative"
-        style={{ borderColor: "var(--border)" }}
-      >
-        {/* Banner */}
-        <div className="h-44 rounded-t-3xl bg-gradient-to-r from-yessal-violet to-violet-600 relative overflow-hidden">
-          <div
-            className="absolute inset-0 opacity-10"
-            style={{
-              backgroundImage: `repeating-linear-gradient(45deg, white 0px, white 1px, transparent 0px, transparent 50%)`,
-              backgroundSize: "20px 20px",
-            }}
-          />
-          {/* ID badge */}
-          <div className="absolute top-4 right-4">
-            <Badge className="bg-white/20 backdrop-blur-md border-white/30 text-white font-bold py-1 px-3 flex items-center gap-1.5">
-              <Hash size={12} /> {user?.id}
-            </Badge>
-          </div>
-        </div>
-
-        {/* Avatar – positioned so it is NOT clipped by overflow-hidden */}
-        <div className="absolute top-[100px] left-8 p-1.5 bg-white dark:bg-card rounded-full shadow-2xl z-20 border-4 border-white dark:border-card">
-          <Avatar className="size-28 md:size-32">
-            <AvatarImage src={user?.avatar || user?.avatar_url || undefined} className="object-cover" />
-            <AvatarFallback className="text-3xl font-black bg-muted uppercase">
-              {user?.first_name?.[0]}
-              {user?.last_name?.[0]}
-            </AvatarFallback>
-          </Avatar>
-        </div>
-
-        {/* Info row below banner */}
-        <div className="pt-20 pb-8 px-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 md:ml-44">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl md:text-4xl font-black tracking-tighter leading-none">
-                {user?.first_name} {user?.last_name}
-              </h1>
-              <Badge className="bg-yessal-violet/10 text-yessal-violet border-none font-black uppercase text-[10px] px-2 py-1 tracking-widest">
-                {user?.role_display || user?.role}
-              </Badge>
-              {user?.is_active ? (
-                <div className="flex items-center gap-1.5 bg-green-50 text-green-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-100">
-                  <ShieldCheck size={12} /> Actif
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 bg-red-50 text-red-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-red-100">
-                  <ShieldAlert size={12} /> Inactif
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 text-muted-foreground text-sm font-bold">
-              {user?.daara_name && (
-                <span className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-lg">
-                  <Building2 size={13} className="text-yessal-violet" />{" "}
-                  {user.daara_name}
-                </span>
-              )}
-              {user?.title_name && (
-                <span className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-lg">
-                  <BookOpen size={13} className="text-yessal-violet" />{" "}
-                  {user.title_name}
-                </span>
-              )}
-              {user?.ldd_name && (
-                <span className="flex items-center gap-1.5 bg-muted/50 px-3 py-1 rounded-lg">
-                  <MapPin size={13} className="text-yessal-violet" />{" "}
-                  {user.ldd_name}
-                </span>
-              )}
-              {user?.date_joined && (
-                <span className="flex items-center gap-1.5">
-                  <Calendar size={13} /> Inscrit le{" "}
-                  {new Date(user.date_joined).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      {/*
+        Fiche membre — remplace l'ancien en-tête (bannière violette figée +
+        état civil en vrac) par le composant partagé : bannière construite sur
+        l'accent actif, bandeau de KPI, jauge de complétude qui dit précisément
+        ce qui manque au dossier, proches sous tutelle et pièces déposées.
+      */}
+      <MemberProfileCard
+        member={user}
+        totalDonated={totalDonated}
+        donationCount={donations.length}
+        documents={documents}
+        tutelle={tutelle}
+      />
 
       {/* ─── MAIN GRID ────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -343,7 +277,7 @@ export default function UserDetailClient({
             </CardHeader>
             <CardContent className="p-0">
               {tutelle.length === 0 ? (
-                <p className="p-8 text-center text-sm text-muted-foreground italic bg-muted/10">
+                <p className="text-center text-sm text-muted-foreground italic bg-muted/10">
                   Aucun tuteur renseigné.
                 </p>
               ) : (
@@ -463,23 +397,33 @@ export default function UserDetailClient({
               {kpis.map((kpi: any, idx: number) => {
                 const Icon = IconMap[kpi.icon] || User;
                 return (
-                  <div
-                    key={idx}
-                    className="bg-white dark:bg-card p-5 rounded-3xl border shadow-sm flex flex-col gap-3 hover:border-yessal-violet/40 transition-all group"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <div className="p-3 rounded-2xl bg-yessal-violet/10 text-yessal-violet w-fit group-hover:scale-110 transition-transform duration-300">
-                      <Icon size={20} />
+                  /*
+                    Les KPI arrivent du backend déjà formatés (`kpi.value` est
+                    une chaîne), donc on garde le rendu direct et on adopte
+                    seulement le contrat visuel `.ax-kpi` de Vireo. Les tuiles
+                    d'icône alternent sur c1..c4 pour que quatre cartes
+                    voisines ne soient pas quatre fois la même.
+                  */
+                  <article key={idx} className="ax-card ax-card--stat">
+                    <div className="ax-card__body">
+                      <div className="ax-kpi">
+                        <div className="ax-kpi__top">
+                          <span
+                            className={`ax-kpi__icon ax-kpi__icon--c${(idx % 4) + 1}`}
+                            aria-hidden="true"
+                          >
+                            <Icon />
+                          </span>
+                        </div>
+                        <div>
+                          <p className="ax-kpi__label">{kpi.title}</p>
+                          <p className="ax-kpi__value font-mono tabular">
+                            {kpi.value}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest">
-                        {kpi.title}
-                      </p>
-                      <h3 className="text-xl font-black mt-0.5 tracking-tighter text-yessal-violet leading-none">
-                        {kpi.value}
-                      </h3>
-                    </div>
-                  </div>
+                  </article>
                 );
               })}
             </div>

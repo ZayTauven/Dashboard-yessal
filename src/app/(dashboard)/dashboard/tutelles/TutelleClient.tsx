@@ -92,7 +92,7 @@ export function TutelleClient({ initialTutelles }: { initialTutelles: any[] }) {
 
       <div className="border rounded-md" style={{ borderColor: "var(--border)" }}>
         {initialTutelles.length === 0 ? (
-          <div className="p-8 text-center" style={{ color: "var(--muted-foreground)" }}>
+          <div className="text-center" style={{ color: "var(--muted-foreground)" }}>
             Vous n'avez pas encore enregistré de proches sous tutelle.
           </div>
         ) : (

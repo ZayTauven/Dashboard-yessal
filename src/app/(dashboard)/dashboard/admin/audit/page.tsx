@@ -26,7 +26,7 @@ export default async function AdminAuditPage() {
   const { data: logs, error } = await getAuditLogs();
 
   return (
-    <div className="p-8 max-w-6xl mx-auto flex flex-col gap-8">
+    <div className="max-w-6xl mx-auto flex flex-col gap-8">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

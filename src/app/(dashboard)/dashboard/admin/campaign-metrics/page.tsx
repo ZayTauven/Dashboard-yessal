@@ -27,7 +27,7 @@ export default async function CampaignMetricsPage() {
 
   if (error) {
     return (
-      <div className="p-8 max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <ErrorAlert message={`${error} — Impossible de charger les métriques.`} />
       </div>
     );
@@ -42,7 +42,7 @@ export default async function CampaignMetricsPage() {
   const totalChats = metrics?.reduce((acc: number, m: CampaignMetric) => acc + m.chat_count, 0) || 0;
 
   return (
-    <div className="p-8 max-w-6xl mx-auto flex flex-col gap-8">
+    <div className="max-w-6xl mx-auto flex flex-col gap-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>

@@ -655,7 +655,7 @@ export function ChatInterface({
                   })}
 
                 {chatList.length === 0 && (
-                  <div className="p-8 text-center text-sm text-muted-foreground italic">Aucune discussion.</div>
+                  <div className="text-center text-sm text-muted-foreground italic">Aucune discussion.</div>
                 )}
               </div>
             </ScrollArea>

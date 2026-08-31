@@ -15,7 +15,7 @@ export default async function MembersPage() {
   const { data: members, error } = await getDirectoryUsers();
 
   return (
-    <div className="p-8 max-w-6xl mx-auto flex flex-col gap-8">
+    <div className="max-w-6xl mx-auto flex flex-col gap-8">
       <div>
         <h1
           className="text-3xl font-semibold tracking-tight"

@@ -32,7 +32,7 @@ export default async function DonationsPage() {
         : "Historique de vos dons personnels et des dons effectués pour vos tutelles.";
 
   return (
-    <div className="p-8 max-w-6xl mx-auto flex flex-col gap-8">
+    <div className="max-w-6xl mx-auto flex flex-col gap-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1

@@ -33,7 +33,7 @@ export default async function EditCampaignPage({
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="max-w-6xl mx-auto flex flex-col gap-6">
       <div>
         <h1
           className="text-3xl font-semibold tracking-tight"

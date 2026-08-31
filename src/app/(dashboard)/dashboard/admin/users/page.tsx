@@ -21,7 +21,7 @@ export default async function AdminUsersPage() {
   const error = userError || daaraError;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto flex flex-col gap-8">
+    <div className="max-w-7xl mx-auto flex flex-col gap-8">
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Utilisateurs et rôles</h1>

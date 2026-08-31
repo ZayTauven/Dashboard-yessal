@@ -226,14 +226,14 @@ export default function PilotagePage() {
 
   if (isLoading) {
     return (
-      <div className="p-8 flex justify-center">
+      <div className="flex justify-center">
         <Loader2 className="animate-spin text-yessal-violet" />
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="max-w-7xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Settings className="text-yessal-violet" /> Pilotage du systeme

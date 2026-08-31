@@ -1,9 +1,9 @@
 ﻿"use client";
 
-import { LogOut, Moon, Settings, Sun, User as UserIcon, ChevronRight, Home } from "lucide-react";
+import { LogOut, Moon, Search, Settings, Sun, User as UserIcon, ChevronRight, Home } from "lucide-react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
@@ -19,6 +19,7 @@ import { useTheme } from "next-themes";
 import { SidebarTrigger } from "./ui/sidebar";
 import { NotificationBell } from "@/components/NotificationBell";
 import type { NotificationDto } from "@/app/actions/notifications";
+import { QuickActions } from "@/components/vireo/QuickActions";
 
 // Mapping des segments d'URL vers des labels lisibles
 const BREADCRUMB_LABELS: Record<string, string> = {
@@ -93,6 +94,7 @@ const Navbar = ({
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
+  const [quickOpen, setQuickOpen] = useState(false);
 
   const handleLogout = () => {
     startTransition(async () => {
@@ -111,6 +113,42 @@ const Navbar = ({
 
       {/* RIGHT */}
       <div className="flex items-center gap-4 text-sm font-medium">
+        {/*
+          Entrée de la palette ⌘K. On affiche le raccourci plutôt qu'un simple
+          icône : c'est ce qui fait que les gens finissent par l'apprendre.
+        */}
+        <button
+          type="button"
+          onClick={() => setQuickOpen(true)}
+          aria-label="Ouvrir les actions rapides"
+          className="hidden items-center gap-2 rounded-pill border px-3 py-1.5 text-sm
+                     text-text-subtle transition hover:text-text-strong sm:flex"
+          style={{
+            borderColor: "var(--ax-border)",
+            background: "var(--ax-surface-subtle)",
+          }}
+        >
+          <Search className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden lg:inline">Rechercher une action…</span>
+          <kbd className="ax-quick__kbd ms-1">⌘K</kbd>
+        </button>
+
+        <Button
+          variant="outline"
+          size="icon"
+          className="sm:hidden"
+          aria-label="Ouvrir les actions rapides"
+          onClick={() => setQuickOpen(true)}
+        >
+          <Search className="h-[1.1rem] w-[1.1rem]" />
+        </Button>
+
+        <QuickActions
+          role={user?.role}
+          open={quickOpen}
+          onOpenChange={setQuickOpen}
+        />
+
         <span className="hidden md:inline text-muted-foreground">
           Bonjour,{" "}
           <span className="text-foreground font-bold">

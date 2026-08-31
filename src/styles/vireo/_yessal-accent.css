@@ -1,0 +1,72 @@
+/*
+ * Yessal Gui — preset d'accent maison, greffé sur le modèle Vireo/Aurora.
+ * ─────────────────────────────────────────────────────────────────────────
+ * Le client n'a pas encore livré de logo (l'actuel est un dummy) mais a
+ * exprimé une préférence nette pour le violet. On ancre donc la marque sur
+ * #916EE7 — le violet déjà déployé sur les 28 pages du dashboard.
+ *
+ * La rampe est construite autour de la teinte hsl(257) du violet de marque :
+ *   · 400 = #916EE7 VERBATIM — le violet client, intact.
+ *   · 500 = #7954D4 — version approfondie, 5.21:1 sur blanc (AA texte normal).
+ *     C'est lui l'accent en mode clair : le 400 ne tient que 3.76:1, insuffisant
+ *     pour un bouton plein avec libellé blanc.
+ *   · En mode sombre l'accent redevient le 400 (#916EE7), qui chante sur le
+ *     canvas #0A0C11, avec une encre prune #140B26 par-dessus (5.05:1).
+ *
+ * Ce fichier se charge APRÈS tokens/_accents.css : il redéfinit le défaut
+ * :root (Verdigris chez Vireo) et ajoute [data-ax-accent="yessal"] pour que le
+ * Customizer puisse y revenir explicitement. Aucun autre token n'est touché.
+ */
+
+:root,
+[data-ax-accent='yessal'] {
+  --ax-accent-50: #f2edfc;
+  --ax-accent-100: #e1d8f9;
+  --ax-accent-200: #cab9f4;
+  --ax-accent-300: #b097ee;
+  --ax-accent-400: #916ee7; /* violet de marque, verbatim */
+  --ax-accent-500: #7954d4;
+  --ax-accent-600: #6037c3;
+  --ax-accent-700: #4e2e9e;
+  --ax-accent-800: #3d247a;
+  --ax-accent-900: #2c1b55;
+
+  --ax-accent: var(--ax-accent-500);
+  --ax-accent-hover: var(--ax-accent-600);
+  --ax-accent-wash: var(--ax-accent-50);
+  --ax-on-accent: #ffffff;
+  --ax-focus-ring: var(--ax-accent-500);
+  --ax-link: var(--ax-accent-700);
+  --ax-accent-rgb: 121, 84, 212;
+  --ax-focus-shadow: 0 0 0 3px rgba(var(--ax-accent-rgb), 0.18);
+}
+
+[data-ax-theme='dark'],
+[data-ax-theme='dark'][data-ax-accent='yessal'] {
+  --ax-accent: #916ee7; /* le violet client, tel quel, sur fond sombre */
+  --ax-accent-hover: #b097ee;
+  --ax-accent-wash: #1e1633;
+  --ax-on-accent: #140b26;
+  --ax-link: #b097ee;
+  --ax-focus-ring: #b097ee;
+  --ax-accent-rgb: 145, 110, 231;
+  --ax-focus-shadow: 0 0 0 3px rgba(var(--ax-accent-rgb), 0.3);
+}
+
+/*
+ * Le vert Yessal reste la couleur SÉMANTIQUE des montants FCFA — c'est un
+ * choix produit déjà en place, pas un accent concurrent. On l'expose comme
+ * jeton dédié pour que les montants ne dépendent jamais de l'accent actif :
+ * changer l'accent dans le Customizer ne doit pas repeindre les sommes.
+ */
+:root {
+  --yessal-montant: #1a5c3a;
+  --yessal-montant-wash: #e6f0ea;
+  --yessal-or: #b8860b;
+}
+
+[data-ax-theme='dark'] {
+  --yessal-montant: #5aa47c;
+  --yessal-montant-wash: #16261e;
+  --yessal-or: #d4a520;
+}

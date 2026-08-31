@@ -55,7 +55,7 @@ export default async function DaaraPage() {
 
   if (error) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="flex flex-col items-center gap-4 py-20 text-center">
           <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
             <Building2 size={28} className="text-red-400" />
@@ -74,7 +74,7 @@ export default async function DaaraPage() {
 
   if (!daara) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="flex flex-col items-center gap-4 py-20 text-center">
           <div className="w-20 h-20 rounded-3xl bg-muted/40 flex items-center justify-center">
             <Building2 size={36} className="text-muted-foreground/30" />
@@ -102,7 +102,7 @@ export default async function DaaraPage() {
   const collectors = d.collectors ?? [];
 
   return (
-    <div className="p-8 max-w-5xl mx-auto flex flex-col gap-8">
+    <div className="max-w-5xl mx-auto flex flex-col gap-8">
       <div
         className="relative overflow-hidden rounded-3xl p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
         style={{

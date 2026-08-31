@@ -1,0 +1,415 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  /* ── Yessal Gui — Brand tokens ── */
+  --color-yessal-violet: var(--yessal-violet);   /* Primaire confrérie */
+  --color-yessal-green: var(--yessal-green);     /* Accent nature/argent */
+  --color-yessal-gold: var(--yessal-gold);
+  --color-yessal-success: var(--yessal-success);
+  --color-yessal-warning: var(--yessal-warning);
+  --color-yessal-error: var(--yessal-error);
+  --color-yessal-info: var(--yessal-info);
+}
+
+/* ─── Yessal Gui — Spacing Tokens ─── */
+:root {
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 48px;
+  --space-2xl: 96px;
+}
+
+/* ─── Yessal Gui — Light Mode ─── */
+:root {
+  --radius: 0.625rem; /* 10px — arrondi doux et moderne */
+
+  /* ── Brand — Violet confrérie + Vert nature ── */
+  --yessal-violet: #916ee7;   /* Violet confrérie — couleur primaire */
+  --yessal-green: #1a5c3a;    /* Vert — accent montants, succès */
+  --yessal-gold: #b8860b;     /* Or — highlights financiers */
+  --yessal-success: #2d6a4f;
+  --yessal-warning: #92620a;
+  --yessal-error: #8b2e2e;
+  --yessal-info: #1c4e7a;
+
+  /* Backgrounds */
+  --background: #fafaf8;
+  --foreground: #1c1c1a;
+
+  /* Cards */
+  --card: #ffffff;
+  --card-foreground: #1c1c1a;
+
+  /* Popovers */
+  --popover: #ffffff;
+  --popover-foreground: #1c1c1a;
+
+  /* Primary = Violet Yessal */
+  --primary: #916ee7;
+  --primary-foreground: #ffffff;
+
+  /* Secondary */
+  --secondary: #f0f0ed;
+  --secondary-foreground: #1c1c1a;
+
+  /* Muted */
+  --muted: #f0f0ed;
+  --muted-foreground: #6b6b65;
+
+  /* Accent = teinté violet très clair */
+  --accent: #f3effe;
+  --accent-foreground: #6b48c8;
+
+  /* Destructive */
+  --destructive: #8b2e2e;
+
+  /* Borders */
+  --border: #e2e2de;
+  --input: #e2e2de;
+  --ring: #916ee7;
+
+  /* Charts — violet lead, vert second */
+  --chart-1: #916ee7;
+  --chart-2: #1a5c3a;
+  --chart-3: #b49aea;
+  --chart-4: #2d6a4f;
+  --chart-5: #b8860b;
+
+  /* Sidebar */
+  --sidebar: #fafaf8;
+  --sidebar-foreground: #1c1c1a;
+  --sidebar-primary: #916ee7;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f3effe;
+  --sidebar-accent-foreground: #6b48c8;
+  --sidebar-border: #e2e2de;
+  --sidebar-ring: #916ee7;
+}
+
+/* ─── Yessal Gui — Dark Mode ─── */
+.dark {
+  /* ── Brand dark ── */
+  --yessal-violet: #b49aea;   /* Violet plus clair sur fond sombre */
+  --yessal-green: #3d8a5c;
+  --yessal-gold: #d4a520;
+
+  /* Backgrounds */
+  --background: #0f0f0f;
+  --foreground: #e8e8e2;
+
+  /* Cards */
+  --card: #1a1a1a;
+  --card-foreground: #e8e8e2;
+
+  /* Popovers */
+  --popover: #1a1a1a;
+  --popover-foreground: #e8e8e2;
+
+  /* Primary = Violet clair */
+  --primary: #b49aea;
+  --primary-foreground: #0f0f0f;
+
+  /* Secondary */
+  --secondary: #262626;
+  --secondary-foreground: #e8e8e2;
+
+  /* Muted */
+  --muted: #262626;
+  --muted-foreground: #999990;
+
+  /* Accent = teinté violet sombre */
+  --accent: #2a1f3d;
+  --accent-foreground: #b49aea;
+
+  /* Destructive */
+  --destructive: #c0504a;
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #b49aea;
+
+  /* Charts */
+  --chart-1: #b49aea;
+  --chart-2: #3d8a5c;
+  --chart-3: #916ee7;
+  --chart-4: #5baa84;
+  --chart-5: #d4a520;
+
+  /* Sidebar */
+  --sidebar: #141414;
+  --sidebar-foreground: #e8e8e2;
+  --sidebar-primary: #b49aea;
+  --sidebar-primary-foreground: #0f0f0f;
+  --sidebar-accent: #2a1f3d;
+  --sidebar-accent-foreground: #b49aea;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #b49aea;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ─── Galerie landing — scroll infini ─── */
+@keyframes scroll-gallery {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.gallery-scroll {
+  animation: scroll-gallery 30s linear infinite;
+}
+
+.gallery-scroll:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gallery-scroll {
+    animation: none;
+  }
+}
+
+/* ─── Animations utilitaires ─── */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseViolet {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(145, 110, 231, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(145, 110, 231, 0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out both;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.35s ease-out both;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out both;
+}
+
+.animate-pulse-violet {
+  animation: pulseViolet 2s ease-in-out infinite;
+}
+
+/* Staggered children */
+.stagger-children > * {
+  animation: fadeIn 0.4s ease-out both;
+}
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+/* ─── Skeleton Loader ─── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    color-mix(in srgb, var(--muted) 60%, var(--background)) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+  border-radius: var(--radius);
+}
+
+/* ─── Scrollbar stylisée ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ─── Page transitions ─── */
+main {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ─── Transitions UI ─── */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Focus visible — accessibilité ─── */
+:focus-visible {
+  outline: 2px solid var(--yessal-violet);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Text utilities Yessal ─── */
+.text-yessal-violet {
+  color: var(--yessal-violet);
+}
+.bg-yessal-violet {
+  background-color: var(--yessal-violet);
+}
+.border-yessal-violet {
+  border-color: var(--yessal-violet);
+}
+
+.text-yessal-green {
+  color: var(--yessal-green);
+}
+.bg-yessal-green {
+  background-color: var(--yessal-green);
+}
+.border-yessal-green {
+  border-color: var(--yessal-green);
+}
+
+/* ─── Card hover premium ─── */
+.card-hover {
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.card-hover:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}

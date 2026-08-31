@@ -1,66 +1,43 @@
-# Development stage
-FROM node:20-alpine AS dev
+# syntax=docker/dockerfile:1
 
+# ─── Base ───────────────────────────────────────────────
+# Debian slim plutôt qu'Alpine : Tailwind v4 (lightningcss) et le SWC de
+# Next 16 s'appuient sur des binaires natifs mieux supportés en glibc.
+FROM node:22-bookworm-slim AS base
 WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Install pnpm
-RUN npm install -g pnpm
+# ─── Dépendances ────────────────────────────────────────
+FROM base AS deps
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-
-# Install all dependencies (including dev)
-RUN pnpm install
-
-# Copy source code
+# ─── Développement ──────────────────────────────────────
+FROM base AS dev
+ENV NODE_ENV=development
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
 EXPOSE 3000
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
 
-# Development server with turbopack
-CMD ["npx", "next", "dev", "--turbopack"]
-
-# Builder stage for production
-FROM node:20-alpine AS builder
-
-WORKDIR /app
-
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-
-# Install pnpm and dependencies
-RUN npm install -g pnpm && pnpm install
-
-# Copy source code
+# ─── Build de production ────────────────────────────────
+FROM base AS builder
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN npm run build
 
-# Build the application
-RUN pnpm build
-
-# Production runtime stage
-FROM node:20-alpine AS production
-
-WORKDIR /app
-
-# Install pnpm in production image
-RUN npm install -g pnpm
-
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-
-# Install production dependencies only
-RUN pnpm install --prod
-
-# Copy built application from builder
+# ─── Runtime de production ──────────────────────────────
+FROM base AS production
+ENV NODE_ENV=production
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-
-# Expose port
+COPY --from=builder /app/next.config.ts ./next.config.ts
 EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/', (r) => {if (r.statusCode < 200 || r.statusCode >= 400) throw new Error(r.statusCode)})"
-
-# Start the application
-CMD ["pnpm", "start"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD curl -f http://localhost:3000/ || exit 1
+CMD ["npm", "run", "start"]

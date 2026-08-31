@@ -9,7 +9,7 @@ export default async function NotificationsPage() {
   const { data: notifications, error } = await getNotifications();
 
   return (
-    <div className="p-8 max-w-4xl mx-auto flex flex-col gap-8">
+    <div className="max-w-4xl mx-auto flex flex-col gap-8">
       <div className="flex justify-between items-end">
         <div>
           <h1

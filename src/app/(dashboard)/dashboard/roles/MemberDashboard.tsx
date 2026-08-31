@@ -51,7 +51,7 @@ export default function MemberDashboard({ stats }: { stats: any }) {
 
       {/* WELCOME SECTION */}
       <div
-        className="p-8 rounded-3xl text-white shadow-lg relative overflow-hidden"
+        className="rounded-3xl text-white shadow-lg relative overflow-hidden"
         style={{
           background:
             "linear-gradient(135deg, var(--yessal-violet) 0%, #6b3fd4 100%)",

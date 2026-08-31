@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import AppSidebar from "@/components/AppSidebar";
-import Navbar from "@/components/Navbar";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
 import { getProfile, getUserDocuments } from "@/app/actions/users";
 import { getNotificationsPreview } from "@/app/actions/notifications";
 import ProfileCompletionBanner from "@/components/ProfileCompletionBanner";
 import { FCMProvider } from "@/components/FCMProvider";
+import { AppShell } from "@/components/vireo/AppShell";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 type DashboardUser = {
   user_id?: number;
@@ -25,17 +23,26 @@ export const metadata: Metadata = {
   title: "Tableau de bord",
 };
 
+/*
+ * Le layout ne fait plus que charger les données et déléguer la mise en page à
+ * <AppShell>, la coque Aurora. L'ancien assemblage (SidebarProvider +
+ * AppSidebar + Navbar) est remplacé : c'est ce changement de squelette qui
+ * débloque le rail repliable, le tiroir mobile et les réglages de coque du
+ * panneau Apparence.
+ *
+ * Les appels serveur restent identiques, et toujours en parallèle : le profil
+ * et l'aperçu des notifications n'ont aucune raison de s'attendre.
+ */
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const cookieStore = await cookies();
-  const defaultOpenValue = (await cookieStore).get("sidebar_state")?.value === "true";
-  
+
   let user: DashboardUser | null = null;
-  const token = (await cookieStore).get("session-yessal")?.value;
-  
+  const token = cookieStore.get("session-yessal")?.value;
+
   if (token) {
     try {
       user = jwtDecode(token);
@@ -58,17 +65,15 @@ export default async function DashboardLayout({
   const notificationPreview = previewRes.data ?? [];
 
   return (
-    <SidebarProvider defaultOpen={defaultOpenValue}>
-      <AppSidebar user={profile || user} />
-      <main className="w-full min-h-screen flex flex-col">
-        <Navbar
-          user={profile || user}
-          notificationPreview={notificationPreview}
-        />
-        <ProfileCompletionBanner profile={profile} />
-        <div className="flex-1 p-4 lg:p-6">{children}</div>
-      </main>
+    <>
+      <AppShell
+        user={profile || user}
+        notificationPreview={notificationPreview}
+        banner={<ProfileCompletionBanner profile={profile} />}
+      >
+        {children}
+      </AppShell>
       <FCMProvider />
-    </SidebarProvider>
+    </>
   );
 }

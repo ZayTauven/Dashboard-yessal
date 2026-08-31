@@ -53,7 +53,7 @@ export function DaaraEditClient({ daara }: { daara: DaaraData }) {
   };
 
   return (
-    <div className="p-8 max-w-xl mx-auto flex flex-col gap-8">
+    <div className="max-w-xl mx-auto flex flex-col gap-8">
       <Button variant="ghost" className="w-fit gap-2 -ml-2" asChild>
         <Link href="/dashboard/admin/daara">
           <ArrowLeft size={16} />

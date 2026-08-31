@@ -1,6 +1,6 @@
 export default function AdminRolesPage() {
     return (
-      <div className="p-8 max-w-6xl mx-auto flex flex-col gap-8 text-center py-20 opacity-60">
+      <div className="max-w-6xl mx-auto flex flex-col gap-8 text-center py-20 opacity-60">
          <div className="w-20 h-20 bg-muted rounded-full mx-auto flex items-center justify-center mb-4">
               <span className="text-3xl font-bold">🛡️</span>
          </div>

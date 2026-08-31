@@ -3,7 +3,7 @@ import { Badge } from "./ui/badge";
 import { EmptyState } from "./ui/empty-state";
 import { LayoutList } from "lucide-react";
 
-interface CardListItem {
+export interface CardListItem {
   id: number | string;
   title: string;
   badge?: string;

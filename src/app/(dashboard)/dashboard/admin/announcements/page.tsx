@@ -15,7 +15,7 @@ export default async function AdminAnnouncementsPage() {
   const error = annError || daaraError;
 
   return (
-    <div className="p-8 max-w-6xl mx-auto flex flex-col gap-8">
+    <div className="max-w-6xl mx-auto flex flex-col gap-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Espace Annonces</h1>
         <p className="text-muted-foreground mt-2">

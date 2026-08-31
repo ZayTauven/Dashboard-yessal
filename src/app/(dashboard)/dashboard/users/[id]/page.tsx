@@ -29,14 +29,14 @@ export default async function UserDetailPage({
 
   if (userRes.error && !user) {
     return (
-      <div className="p-8">
+      <div>
         <ErrorAlert title="Utilisateur introuvable" message={userRes.error} />
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-8 bg-muted/10 min-h-screen">
+    <div className="bg-muted/10">
       <UserDetailClient
         user={user}
         stats={stats}
