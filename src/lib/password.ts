@@ -47,3 +47,14 @@ export function generateProvisionalPassword(length = DEFAULT_LENGTH): string {
 
   return out;
 }
+
+/**
+ * Longueur minimale exigée d'un mot de passe choisi par un membre.
+ *
+ * Alignée sur `MinimumLengthValidator` de Django, qui la fait respecter côté
+ * serveur — c'est lui qui tranche. La constante n'existe ici que pour poser
+ * `minLength` sur les champs de saisie : le navigateur refuse alors avant
+ * l'aller-retour, et le message d'aide annonce la même règle que celle qui
+ * sera appliquée.
+ */
+export const PASSWORD_MIN_LENGTH = 8;

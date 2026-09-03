@@ -143,6 +143,50 @@ export async function forgotPasswordAction(email: string) {
   }
 }
 
+/**
+ * Second temps du parcours « mot de passe oublié » : échange le lien reçu
+ * par courriel contre un nouveau mot de passe.
+ *
+ * `uid` et `token` sont relayés tels quels — le front ne les interprète pas,
+ * seul le backend sait si le jeton est encore valide. Un jeton Django est
+ * dérivé du mot de passe actuel : il devient caduc dès qu'il a servi, sans
+ * qu'aucun état ne soit stocké.
+ *
+ * Aucun cookie n'est posé ici, volontairement : réinitialiser son mot de passe
+ * ferme TOUTES les sessions du compte, et connecter automatiquement celle-ci
+ * irait contre le but — on réinitialise souvent parce qu'on soupçonne un accès
+ * non désiré.
+ */
+export async function resetPasswordAction(
+  uid: string,
+  token: string,
+  newPassword: string,
+) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/reset-password/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, token, new_password: newPassword }),
+    });
+
+    const result = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      return {
+        error: extractApiError(
+          result,
+          "Ce lien n'est plus valable. Refaites une demande.",
+        ),
+      };
+    }
+
+    return { success: true, message: result?.detail };
+  } catch (err) {
+    console.error("resetPasswordAction:", err);
+    return { error: "Erreur de connexion au serveur." };
+  }
+}
+
 /*
  * ═══════════════════════════════════════════════════════════════════════════
  * Changement de mot de passe par l'intéressé
