@@ -1,34 +1,49 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Annuaire des membres
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Cet écran garde sa grille de cartes plutôt que de passer au tableau : on y
+ * cherche une PERSONNE, et un visage se reconnaît plus vite qu'une ligne. Le
+ * tableau reste réservé aux écrans où l'on compare des valeurs (Jëfs, audit).
+ *
+ * Trois corrections de fond :
+ *
+ *   · Le filtre par rôle passe en `.ax-segment`. Il gardait ses compteurs —
+ *     qui sont la vraie information de la barre — mais était peint à la main
+ *     en `bg-muted/40` avec des libellés en `text-[11px] font-bold uppercase`,
+ *     une graisse qu'on ne trouve nulle part ailleurs dans l'interface.
+ *
+ *   · Le filtre par statut n'existait pas. Sur un annuaire de plusieurs
+ *     centaines de personnes, « qui reste à valider ? » est pourtant la
+ *     question quotidienne d'un chef de Daara.
+ *
+ *   · La fiche s'ouvrait dans une modale à en-tête violet plein, dont le
+ *     contraste et les arrondis ne suivaient ni le thème sombre ni l'accent.
+ *     Elle passe sur <Modal>, donc sur la surface de verre Aurora.
+ */
+
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { SmartLink } from "@/components/SmartLink";
-import {
-  Search,
-  Users,
   Building2,
-  Filter,
-  UserCircle,
-  Phone,
-  Mail,
-  Shield,
-  MapPin,
   FileText,
-  CheckCircle2,
-  XCircle,
+  Mail,
+  MapPin,
+  Phone,
+  Search,
+  Shield,
+  Users,
 } from "lucide-react";
 import { promoteUserToCollector } from "@/app/actions/directory";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar } from "@/components/vireo/Avatar";
+import { FilterBar } from "@/components/vireo/FilterBar";
+import { Modal } from "@/components/vireo/Modal";
+import { Pagination } from "@/components/vireo/Pagination";
+import { StatusBadge } from "@/components/vireo/StatusBadge";
+import { ALL, useCollection } from "@/hooks/useCollection";
 
 type Role = "chef_daara" | "collector" | "member";
 
@@ -38,14 +53,16 @@ const ROLE_LABELS: Record<Role, string> = {
   member: "Talibé",
 };
 
-const ROLE_COLORS: Record<Role, string> = {
-  chef_daara: "bg-blue-100 text-blue-700 dark:bg-blue-900/40",
-  collector: "bg-orange-100 text-orange-700 dark:bg-orange-900/40",
-  member: "bg-green-100 text-green-700 dark:bg-green-900/40",
+/* Le rôle est une qualité, pas un état : il reste en badge doux, sans la
+   sémantique succès/alerte réservée aux statuts. */
+const ROLE_BADGE: Record<Role, string> = {
+  chef_daara: "ax-badge--info",
+  collector: "ax-badge--accent",
+  member: "ax-badge--neutral",
 };
 
-const FILTER_ROLES: (Role | "all")[] = [
-  "all",
+const FILTER_ROLES: (Role | typeof ALL)[] = [
+  ALL,
   "member",
   "chef_daara",
   "collector",
@@ -60,13 +77,27 @@ type MemberRow = {
   role: string;
   status: string;
   daara_name?: string | null;
+  /*
+   * ⚠️ `zone_name` et `zone_code` n'existent NULLE PART côté backend — ni dans
+   * `UserSerializer`, ni dans `DirectoryUserSerializer`. Ils valaient donc
+   * toujours `undefined`, et la ligne « LDD » affichait « Inconnue » sur
+   * chaque fiche, y compris pour des membres dont le Daara a bel et bien une
+   * zone. Les champs réels sont `ldd_name` et `daara.ldd.code`.
+   *
+   * Conservés en optionnel au cas où l'API les fournirait un jour, mais ils ne
+   * sont plus la source de vérité.
+   */
   zone_name?: string | null;
   zone_code?: string | null;
+  /* La zone vient du Daara, via `DirectoryDaaraBriefSerializer`. */
+  daara?: { id?: number; name?: string | null; ldd_code?: string | null; ldd_name?: string | null } | null;
   avatar?: string | null;
   avatar_url?: string | null;
   title?: string | null;
   documents_count?: number;
 };
+
+const fullName = (m: MemberRow) => `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim();
 
 export function MembersClient({
   initialMembers,
@@ -76,40 +107,37 @@ export function MembersClient({
   viewerRole: "admin" | "chef_daara" | "collector";
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<Role | "all">("all");
   const [detail, setDetail] = useState<MemberRow | null>(null);
   const [isPending, startTransition] = useTransition();
   const [promoteError, setPromoteError] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9;
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return initialMembers.filter((m) => {
-      const r = m.role as Role;
-      const matchesSearch =
-        !q ||
-        m.first_name?.toLowerCase().includes(q) ||
-        m.last_name?.toLowerCase().includes(q) ||
-        m.email?.toLowerCase().includes(q) ||
-        m.daara_name?.toLowerCase().includes(q);
-      const matchesRole = roleFilter === "all" || m.role === roleFilter;
-      return matchesSearch && matchesRole;
-    });
-  }, [initialMembers, search, roleFilter]);
+  const searchable = useMemo(
+    () => (m: MemberRow) => [m.first_name, m.last_name, m.email, m.phone, m.daara_name],
+    [],
+  );
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filtered.slice(start, start + itemsPerPage);
-  }, [filtered, currentPage]);
+  const filters = useMemo(
+    () => ({
+      role: (m: MemberRow, v: string) => m.role === v,
+      status: (m: MemberRow, v: string) => m.status === v,
+    }),
+    [],
+  );
 
+  const c = useCollection(initialMembers, {
+    searchable,
+    filters,
+    pageSize: 9,
+  });
+
+  /*
+   * Compteurs par rôle — calculés sur l'ensemble, pas sur le filtré : le
+   * compteur d'un onglet doit dire ce qu'on trouvera EN CLIQUANT dessus, sinon
+   * chaque onglet non sélectionné afficherait zéro.
+   */
   const roleCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: initialMembers.length };
-    initialMembers.forEach((m) => {
-      counts[m.role] = (counts[m.role] || 0) + 1;
-    });
+    const counts: Record<string, number> = { [ALL]: initialMembers.length };
+    for (const m of initialMembers) counts[m.role] = (counts[m.role] ?? 0) + 1;
     return counts;
   }, [initialMembers]);
 
@@ -126,339 +154,267 @@ export function MembersClient({
     });
   };
 
+  const activeRole = c.filter("role");
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            placeholder="Rechercher par nom, email ou Daara…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 h-11 bg-card border rounded-xl"
-            style={{ borderColor: "var(--border)" }}
-          />
-        </div>
-        <div className="flex items-center gap-2 bg-muted/40 rounded-xl p-1 flex-wrap">
-          <Filter size={13} className="text-muted-foreground ml-2" />
-          {FILTER_ROLES.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRoleFilter(r)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${
-                roleFilter === r
-                  ? "bg-card shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {r === "all" ? "Tous" : ROLE_LABELS[r as Role]}{" "}
-              <span className="opacity-60">({roleCounts[r] ?? 0})</span>
-            </button>
-          ))}
-        </div>
+    <div className="flex flex-col gap-4">
+      {/* Sélecteur de rôle — c'est la navigation principale de l'écran, donc
+          au-dessus de la recherche et non noyé parmi les selects. */}
+      <div className="ax-segment ax-scroll-x max-w-full" role="group" aria-label="Filtrer par rôle">
+        {FILTER_ROLES.map((r) => (
+          <button
+            key={r}
+            type="button"
+            className="ax-segment__option"
+            aria-pressed={activeRole === r}
+            onClick={() => c.setFilter("role", r)}
+          >
+            {r === ALL ? "Tous" : ROLE_LABELS[r as Role]}
+            <span className="ax-badge ax-badge--count ax-badge--sm">
+              {roleCounts[r] ?? 0}
+            </span>
+          </button>
+        ))}
       </div>
 
-      <p className="text-xs text-muted-foreground font-medium">
-        {filtered.length} résultat{filtered.length !== 1 ? "s" : ""}
-      </p>
+      <FilterBar
+        searchValue={c.search}
+        onSearchChange={c.setSearch}
+        searchPlaceholder="Nom, e-mail, téléphone ou Daara…"
+        resultCount={c.total}
+        itemLabel="membre"
+        filters={[
+          {
+            label: "Statut du compte",
+            value: c.filter("status"),
+            onChange: (v) => c.setFilter("status", v),
+            options: [
+              { value: ALL, label: "Tous les statuts" },
+              { value: "active", label: "Actif" },
+              { value: "pending", label: "À valider" },
+              { value: "inactive", label: "Inactif" },
+              { value: "blocked", label: "Bloqué" },
+            ],
+          },
+        ]}
+      />
 
-      {filtered.length === 0 && (
-        <div className="flex flex-col items-center gap-4 py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center">
-            <Users size={28} className="text-muted-foreground/30" />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Aucun résultat ne correspond à votre recherche.
-          </p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {paginated.map((m) => {
-          const role = m.role as Role;
-          const roleColor = ROLE_COLORS[role] || ROLE_COLORS.member;
-          const roleLabel = ROLE_LABELS[role] || m.role;
-          const initials = `${m.first_name?.[0] ?? ""}${m.last_name?.[0] ?? ""}`;
-
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setDetail(m)}
-              className="text-left bg-card border rounded-2xl p-5 flex items-center gap-4 shadow-sm hover:shadow-md hover:border-yessal-violet/20 transition-all group"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <Avatar className="h-14 w-14 flex-shrink-0 ring-2 ring-transparent group-hover:ring-yessal-violet/20 transition-all">
-                <AvatarImage
-                  src={m.avatar || m.avatar_url || undefined}
-                  className="object-cover"
-                />
-                <AvatarFallback
-                  className="text-white font-black text-sm"
-                  style={{ background: "var(--primary)" }}
-                >
-                  {initials || "?"}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="flex-1 min-w-0">
-                <div className="font-bold truncate text-base group-hover:text-yessal-violet transition-colors">
-                  {m.first_name} {m.last_name}
-                </div>
-                <div className="text-xs text-muted-foreground truncate mb-2">
-                  {m.email}
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge
-                    variant="secondary"
-                    className={`capitalize text-[10px] py-0 px-2 font-black border-none ${roleColor}`}
+      {c.total === 0 ? (
+        <div className="ax-card">
+          <div className="ax-card__body">
+            <EmptyState
+              icon={c.isFiltered ? Search : Users}
+              tone={c.isFiltered ? "search" : "neutral"}
+              title={
+                c.isFiltered ? "Aucun membre ne correspond" : "Annuaire vide"
+              }
+              description={
+                c.isFiltered
+                  ? "Essayez un autre nom, ou remettez les filtres à zéro."
+                  : "Les membres apparaîtront ici dès leur inscription validée."
+              }
+              action={
+                c.isFiltered ? (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--outline"
+                    onClick={c.resetFilters}
                   >
-                    {roleLabel}
-                  </Badge>
-                  {m.daara_name && (
-                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
-                      <Building2 size={10} /> {m.daara_name}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl">
-          {detail && (
-            <div className="flex flex-col">
-              {/* Header Visual */}
-              <div className="bg-yessal-violet p-8 flex flex-col items-center gap-4 relative overflow-hidden">
-                <div className="absolute inset-0 opacity-10 pointer-events-none">
-                  <Users
-                    size={200}
-                    className="absolute -bottom-10 -right-10 rotate-12"
+                    <span className="ax-btn__label">Réinitialiser les filtres</span>
+                  </button>
+                ) : undefined
+              }
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {c.rows.map((m) => {
+            const role = m.role as Role;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setDetail(m)}
+                className="ax-card ax-card--interactive text-start"
+              >
+                <div className="ax-card__body flex items-center gap-4">
+                  <Avatar
+                    src={m.avatar || m.avatar_url}
+                    name={fullName(m)}
+                    size="lg"
                   />
-                </div>
-                <Avatar className="h-24 w-24 border-4 border-white/30 shadow-xl relative z-10">
-                  <AvatarImage
-                    src={detail.avatar || detail.avatar_url || undefined}
-                    className="object-cover"
-                  />
-                  <AvatarFallback className="bg-white text-yessal-violet text-3xl font-black">
-                    {detail.first_name?.[0]}
-                    {detail.last_name?.[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-center text-white relative z-10">
-                  <h3 className="text-2xl font-black">
-                    {detail.first_name} {detail.last_name}
-                  </h3>
-                  <Badge className="mt-2 bg-white/20 text-white border-none backdrop-blur-md uppercase text-[10px] font-black px-3 py-1">
-                    {ROLE_LABELS[detail.role as Role] || detail.role}
-                  </Badge>
-                </div>
-              </div>
 
-              <div className="p-6 space-y-6">
-                {/* Status & Identity */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-muted/30 p-3 rounded-2xl border flex flex-col gap-1">
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">
-                      Statut
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {detail.status === "active" ? (
-                        <>
-                          <CheckCircle2 size={16} className="text-green-600" />{" "}
-                          <span className="font-bold text-sm text-green-700">
-                            Actif
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle size={16} className="text-red-600" />{" "}
-                          <span className="font-bold text-sm text-red-700">
-                            Inactif
-                          </span>
-                        </>
+                  <div className="min-w-0 flex-1">
+                    <div className="ax-truncate font-semibold">{fullName(m)}</div>
+                    <div className="ax-truncate ax-text-subtle text-xs">
+                      {m.email}
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span
+                        className={`ax-badge ax-badge--sm ${
+                          ROLE_BADGE[role] ?? ROLE_BADGE.member
+                        }`}
+                      >
+                        {ROLE_LABELS[role] ?? m.role}
+                      </span>
+                      {m.status !== "active" && (
+                        <StatusBadge domain="user" value={m.status} size="sm" />
+                      )}
+                      {m.daara_name && (
+                        <span className="ax-text-muted inline-flex items-center gap-1 text-xs">
+                          <Building2 size={11} aria-hidden="true" />
+                          {m.daara_name}
+                        </span>
                       )}
                     </div>
                   </div>
-                  <div className="bg-muted/30 p-3 rounded-2xl border flex flex-col gap-1">
-                    <span className="text-[10px] font-black uppercase text-muted-foreground">
-                      Titre
-                    </span>
-                    <div className="flex items-center gap-2 font-bold text-sm">
-                      <Shield size={16} className="text-yessal-violet" />{" "}
-                      {detail.title || "Talibé"}
-                    </div>
-                  </div>
                 </div>
-
-                {/* Contact */}
-                <div className="space-y-3">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">
-                    Coordonnées
-                  </h4>
-                  <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-yessal-violet/10 flex items-center justify-center text-yessal-violet">
-                      <Mail size={16} />
-                    </div>
-                    <span className="font-medium">{detail.email}</span>
-                  </div>
-                  {detail.phone && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-lg bg-yessal-violet/10 flex items-center justify-center text-yessal-violet">
-                        <Phone size={16} />
-                      </div>
-                      <span className="font-medium">{detail.phone}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Localisation */}
-                <div className="space-y-3">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b pb-1">
-                    Localisation
-                  </h4>
-                  <div className="grid grid-cols-1 gap-2">
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-lg bg-yessal-violet/10 flex items-center justify-center text-yessal-violet">
-                        <Building2 size={16} />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-xs">
-                          {detail.daara_name || "Non assigné"}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          Daara
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-lg bg-yessal-violet/10 flex items-center justify-center text-yessal-violet">
-                        <MapPin size={16} />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-xs">
-                          {detail.zone_name || "Inconnue"} (
-                          {detail.zone_code || "??"})
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          LDD
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Documents */}
-                <div className="bg-muted/30 p-4 rounded-2xl border flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FileText size={20} className="text-muted-foreground" />
-                    <div>
-                      <div className="text-xs font-bold">
-                        {detail.documents_count || 0} document(s)
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        Soumis pour validation
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    variant="link"
-                    className="text-yessal-violet text-xs font-bold p-0"
-                  >
-                    Consulter
-                  </Button>
-                </div>
-
-                {promoteError && (
-                  <p className="text-xs text-red-600 font-medium text-center">
-                    {promoteError}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-          <DialogFooter className="gap-2 sm:gap-0">
-            {detail && (
-              <Button
-                type="button"
-                variant="outline"
-                className="border-yessal-violet text-yessal-violet hover:bg-yessal-violet/5 font-bold"
-                onClick={() => router.push(`/dashboard/users/${detail.id}`)}
-              >
-                Voir plus de détails
-              </Button>
-            )}
-            {detail &&
-              detail.role === "member" &&
-              (viewerRole === "chef_daara" || viewerRole === "admin") && (
-                <Button
-                  type="button"
-                  disabled={isPending}
-                  style={{ background: "var(--primary)", color: "white" }}
-                  onClick={() => handlePromote(detail.id)}
-                >
-                  {isPending ? "…" : "Nommer collecteur"}
-                </Button>
-              )}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDetail(null)}
-            >
-              Fermer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-12">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="h-9 px-4 rounded-lg font-bold border-none bg-muted/20"
-          >
-            Précédent
-          </Button>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <Button
-                key={p}
-                variant={currentPage === p ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setCurrentPage(p)}
-                className={`h-9 w-9 rounded-lg font-bold border-none ${
-                  currentPage === p
-                    ? "bg-yessal-violet text-white shadow-lg shadow-yessal-violet/20"
-                    : "text-muted-foreground hover:text-yessal-violet hover:bg-yessal-violet/5"
-                }`}
-              >
-                {p}
-              </Button>
-            ))}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="h-9 px-4 rounded-lg font-bold border-none bg-muted/20"
-          >
-            Suivant
-          </Button>
+              </button>
+            );
+          })}
         </div>
       )}
+
+      <Pagination
+        page={c.page}
+        totalPages={c.totalPages}
+        onPageChange={c.setPage}
+        totalItems={c.total}
+        pageSize={c.pageSize}
+        itemLabel="membres"
+      />
+
+      <Modal
+        open={Boolean(detail)}
+        onOpenChange={(o) => {
+          if (!o) {
+            setDetail(null);
+            setPromoteError("");
+          }
+        }}
+        title={detail ? fullName(detail) : ""}
+        description={
+          detail
+            ? (ROLE_LABELS[detail.role as Role] ?? detail.role)
+            : undefined
+        }
+        footer={
+          detail && (
+            <>
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost"
+                onClick={() => setDetail(null)}
+              >
+                <span className="ax-btn__label">Fermer</span>
+              </button>
+              {detail.role === "member" &&
+                (viewerRole === "chef_daara" || viewerRole === "admin") && (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--outline"
+                    disabled={isPending}
+                    onClick={() => handlePromote(detail.id)}
+                  >
+                    <span className="ax-btn__label">
+                      {isPending ? "Nomination…" : "Nommer collecteur"}
+                    </span>
+                  </button>
+                )}
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary"
+                onClick={() => router.push(`/dashboard/users/${detail.id}`)}
+              >
+                <span className="ax-btn__label">Voir la fiche complète</span>
+              </button>
+            </>
+          )
+        }
+      >
+        {detail && (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center gap-4">
+              <Avatar
+                src={detail.avatar || detail.avatar_url}
+                name={fullName(detail)}
+                size="2xl"
+              />
+              <div className="flex flex-col gap-2">
+                <StatusBadge domain="user" value={detail.status} />
+                <span className="ax-text-muted inline-flex items-center gap-2 text-sm">
+                  <Shield size={14} aria-hidden="true" />
+                  {detail.title || "Talibé"}
+                </span>
+              </div>
+            </div>
+
+            <section className="flex flex-col gap-2">
+              <h4 className="ax-eyebrow">Coordonnées</h4>
+              <ul className="ax-list ax-list--compact">
+                <li className="ax-list__row">
+                  <Mail className="ax-list__leading" size={16} aria-hidden="true" />
+                  <span className="ax-list__content">{detail.email}</span>
+                </li>
+                {detail.phone && (
+                  <li className="ax-list__row">
+                    <Phone className="ax-list__leading" size={16} aria-hidden="true" />
+                    <span className="ax-list__content font-mono tabular">
+                      {detail.phone}
+                    </span>
+                  </li>
+                )}
+              </ul>
+            </section>
+
+            <section className="flex flex-col gap-2">
+              <h4 className="ax-eyebrow">Rattachement</h4>
+              <ul className="ax-list ax-list--compact">
+                <li className="ax-list__row">
+                  <Building2 className="ax-list__leading" size={16} aria-hidden="true" />
+                  <span className="ax-list__content">
+                    <span className="ax-list__title">
+                      {detail.daara_name || "Non assigné"}
+                    </span>
+                    <span className="ax-list__meta">Daara</span>
+                  </span>
+                </li>
+                <li className="ax-list__row">
+                  <MapPin className="ax-list__leading" size={16} aria-hidden="true" />
+                  <span className="ax-list__content">
+                    <span className="ax-list__title">
+                      {detail.daara?.ldd_name || detail.zone_name || "Non renseignée"}
+                      {detail.daara?.ldd_code || detail.zone_code
+                        ? ` (${detail.daara?.ldd_code || detail.zone_code})`
+                        : ""}
+                    </span>
+                    <span className="ax-list__meta">LDD</span>
+                  </span>
+                </li>
+              </ul>
+            </section>
+
+            <div className="ax-alert ax-alert--neutral ax-alert--inline">
+              <FileText className="ax-alert__icon" aria-hidden="true" />
+              <div className="ax-alert__content">
+                <p className="ax-alert__message">
+                  {detail.documents_count || 0} document
+                  {(detail.documents_count || 0) > 1 ? "s" : ""} soumis pour
+                  validation
+                </p>
+              </div>
+            </div>
+
+            {promoteError && (
+              <p className="ax-field__message ax-field__message--error">
+                {promoteError}
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

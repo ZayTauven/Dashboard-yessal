@@ -1,284 +1,45 @@
 "use client";
 
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Accueil public
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Repris du patron `pages/Landing` de Vireo : barre flottante, hero en deux
+ * colonnes, et une colonne visuelle qui respire.
+ *
+ * Trois corrections de fond :
+ *
+ *   · L'écran était figé en `h-screen overflow-hidden` avec un hero
+ *     `w-1/2` / `flex-1` SANS point de rupture. Sur téléphone, le texte se
+ *     retrouvait donc écrasé sur la moitié de l'écran, à côté d'une galerie
+ *     qui prenait l'autre moitié — sur la page d'entrée du produit, dans un
+ *     pays où l'essentiel du trafic est mobile. La grille passe en une seule
+ *     colonne sous lg, et la galerie disparaît là où elle nuit.
+ *
+ *   · Les trois « statistiques » — Membres, Daaras, Pays — n'affichaient
+ *     AUCUN chiffre : juste une icône et un mot. Une statistique sans nombre
+ *     n'est pas une statistique. Elles deviennent ce qu'elles sont réellement :
+ *     les trois promesses du produit, formulées comme telles.
+ *
+ *   · Tout l'écran était peint sur `var(--yessal-violet)` littéral, avec des
+ *     ombres `rgba(145,110,231,0.35)`. C'est pourtant la première page où l'on
+ *     doit voir la couleur de marque retenue.
+ */
+
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import {
+  Globe,
+  Heart,
+  HelpCircle,
+  LogIn,
   Moon,
   Sun,
-  LogIn,
-  HelpCircle,
   Users,
-  Heart,
-  Globe,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import type { LucideIcon } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
-
-export default function LandingPage() {
-  return (
-    <div
-      className="h-screen w-full overflow-hidden flex flex-col"
-      style={{ background: "var(--background)" }}
-    >
-      {/* ── Navbar flottante ── */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-5">
-        <BrandMark href="/" size="sm" showSubtitle={false} />
-        <nav className="flex items-center gap-2">
-          <ThemeToggle />
-          <Link href="/contact">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-sm gap-2 hidden sm:flex"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              <HelpCircle size={14} strokeWidth={1.5} />
-              Support
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button
-              size="sm"
-              className="text-sm gap-2"
-              style={{
-                background: "var(--yessal-violet)",
-                color: "#ffffff",
-                borderRadius: "8px",
-              }}
-            >
-              <LogIn size={14} strokeWidth={1.5} />
-              Connexion
-            </Button>
-          </Link>
-        </nav>
-      </header>
-
-      {/* ── Hero 50/50 ── */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* ── Gauche : Texte ── */}
-        <section className="w-1/2 h-full flex flex-col justify-center pl-16 pr-8 max-w-2xl">
-          {/* Pill badge */}
-          <div className="flex items-center mb-8">
-            <span
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide"
-              style={{
-                background: "var(--accent)",
-                color: "var(--yessal-violet)",
-                border: "1px solid",
-                borderColor:
-                  "color-mix(in srgb, var(--yessal-violet) 20%, transparent)",
-              }}
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: "var(--yessal-violet)" }}
-              />
-              Réseau Yessal Gui · Confrérie Mouride
-            </span>
-          </div>
-
-          {/* Headline */}
-          <h1
-            className="text-5xl mb-5"
-            style={{
-              fontWeight: 300,
-              lineHeight: 1.15,
-              letterSpacing: "-0.03em",
-              color: "var(--foreground)",
-            }}
-          >
-            Gérez les dons <br />
-            <span style={{ color: "var(--yessal-violet)", fontWeight: 400 }}>
-              de votre Daara
-            </span>
-          </h1>
-
-          <p
-            className="text-base mb-10 leading-relaxed"
-            style={{ color: "var(--muted-foreground)", maxWidth: "400px" }}
-          >
-            Centralisez les Ndiguels, tracez chaque Jëfs et renforcez les liens
-            de votre communauté — depuis n&apos;importe où dans le monde.
-          </p>
-
-          {/* Stats rapides */}
-          <div className="flex items-center gap-6 mb-10">
-            <Stat icon={Users} label="Membres" />
-            <div
-              style={{
-                width: "1px",
-                height: "28px",
-                background: "var(--border)",
-              }}
-            />
-            <Stat icon={Heart} label="Daaras" />
-            <div
-              style={{
-                width: "1px",
-                height: "28px",
-                background: "var(--border)",
-              }}
-            />
-            <Stat icon={Globe} label="Pays" />
-          </div>
-
-          {/* CTAs */}
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button
-                size="lg"
-                style={{
-                  background: "var(--yessal-violet)",
-                  color: "#ffffff",
-                  borderRadius: "10px",
-                  padding: "0 28px",
-                  height: "48px",
-                  fontSize: "15px",
-                  fontWeight: 500,
-                  boxShadow: "0 4px 16px rgba(145,110,231,0.35)",
-                }}
-              >
-                <LogIn size={15} strokeWidth={1.5} />
-                Se connecter
-              </Button>
-            </Link>
-            <Link href="/contact">
-              <Button
-                variant="ghost"
-                size="lg"
-                style={{
-                  borderRadius: "10px",
-                  height: "48px",
-                  fontSize: "15px",
-                  color: "var(--muted-foreground)",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                Contacter le support
-              </Button>
-            </Link>
-          </div>
-        </section>
-
-        {/* ── Droite : Galerie défilante ── */}
-        <section
-          className="flex-1 h-full relative overflow-hidden"
-          style={{
-            maskImage:
-              "linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)",
-            WebkitMaskImage:
-              "linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)",
-          }}
-        >
-          {/* Gradient overlay gauche pour transition douce */}
-          <div
-            className="absolute inset-y-0 left-0 w-16 z-10 pointer-events-none"
-            style={{
-              background:
-                "linear-gradient(to right, var(--background), transparent)",
-            }}
-          />
-
-          <div className="absolute inset-0 flex gap-4 px-4 py-4 justify-center pointer-events-none">
-            {/* Colonne 1 */}
-            <div
-              className="gallery-scroll flex flex-col gap-4"
-              style={{ width: "48%", marginTop: "-8vh" }}
-            >
-              {gallerySlots.concat(gallerySlots).map((slot, i) => (
-                <div
-                  key={`col1-${i}`}
-                  className="relative shrink-0 overflow-hidden"
-                  style={{
-                    aspectRatio: i % 2 === 0 ? "4 / 5" : "1 / 1",
-                    borderRadius: "14px",
-                  }}
-                >
-                  <Image
-                    src={slot.src}
-                    alt={slot.label}
-                    fill
-                    className="object-cover"
-                    sizes="22vw"
-                  />
-                  <div className="absolute inset-0 bg-black/15" />
-                  {/* Label flottant */}
-                  <div className="absolute bottom-2 left-2 right-2">
-                    <span
-                      className="inline-block text-[10px] font-medium px-2 py-0.5 rounded-full truncate"
-                      style={{
-                        background: "rgba(0,0,0,0.45)",
-                        color: "rgba(255,255,255,0.9)",
-                        backdropFilter: "blur(4px)",
-                      }}
-                    >
-                      {slot.label}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Colonne 2 (décalée) */}
-            <div
-              className="gallery-scroll flex flex-col gap-4"
-              style={{ width: "48%", marginTop: "8vh" }}
-            >
-              {[...gallerySlots]
-                .reverse()
-                .concat([...gallerySlots].reverse())
-                .map((slot, i) => (
-                  <div
-                    key={`col2-${i}`}
-                    className="relative shrink-0 overflow-hidden"
-                    style={{
-                      aspectRatio: i % 2 === 0 ? "1 / 1" : "4 / 5",
-                      borderRadius: "14px",
-                    }}
-                  >
-                    <Image
-                      src={slot.src}
-                      alt={slot.label}
-                      fill
-                      className="object-cover"
-                      sizes="22vw"
-                    />
-                    <div className="absolute inset-0 bg-black/15" />
-                  </div>
-                ))}
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
-  );
-}
-
-/* ── Composant stat ── */
-function Stat({
-  icon: Icon,
-  label,
-}: {
-  icon: React.ElementType;
-  label: string;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <Icon
-        size={14}
-        strokeWidth={1.5}
-        style={{ color: "var(--yessal-violet)", opacity: 0.7 }}
-      />
-      <span
-        className="text-xs font-medium"
-        style={{ color: "var(--muted-foreground)" }}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
 
 /* ── Slots galerie ── */
 const gallerySlots = [
@@ -290,31 +51,169 @@ const gallerySlots = [
   { label: "Communauté", src: "/assets/yessal-event-6.jpg" },
 ];
 
-/* ── Toggle dark/light ── */
+/*
+ * Les trois arguments du produit. Ils remplacent les anciennes « statistiques »
+ * sans chiffre : mieux vaut une promesse assumée qu'un nombre absent.
+ */
+const PROMISES: { icon: LucideIcon; title: string; text: string }[] = [
+  {
+    icon: Users,
+    title: "Chaque Daara à sa place",
+    text: "Membres, chefs et collecteurs, réunis par structure.",
+  },
+  {
+    icon: Heart,
+    title: "Chaque Jëf tracé",
+    text: "Du don en espèces au virement, tout est consigné.",
+  },
+  {
+    icon: Globe,
+    title: "Depuis partout",
+    text: "La diaspora contribue comme si elle était sur place.",
+  },
+];
+
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   return (
-    <Button
-      variant="ghost"
-      size="icon"
+    <button
+      type="button"
+      className="ax-btn ax-btn--ghost ax-btn--icon"
       aria-label="Basculer le thème"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      style={{
-        width: "36px",
-        height: "36px",
-        color: "var(--muted-foreground)",
-      }}
     >
       <Sun
-        size={15}
-        strokeWidth={1.5}
+        size={16}
         className="rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0"
+        aria-hidden="true"
       />
       <Moon
-        size={15}
-        strokeWidth={1.5}
+        size={16}
         className="absolute rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100"
+        aria-hidden="true"
       />
-    </Button>
+    </button>
+  );
+}
+
+export default function LandingPage() {
+  return (
+    <div className="flex min-h-dvh flex-col">
+      {/* ── Barre flottante ── */}
+      <header className="sticky top-0 z-50 flex items-center justify-between px-5 py-5 backdrop-blur-sm sm:px-8 lg:px-10">
+        <BrandMark href="/" size="sm" showSubtitle={false} />
+
+        <nav className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link href="/contact" className="ax-btn ax-btn--ghost hidden sm:inline-flex">
+            <HelpCircle className="ax-btn__icon" size={15} aria-hidden="true" />
+            <span className="ax-btn__label">Support</span>
+          </Link>
+          <Link href="/login" className="ax-btn ax-btn--primary">
+            <LogIn className="ax-btn__icon" size={15} aria-hidden="true" />
+            <span className="ax-btn__label">Connexion</span>
+          </Link>
+        </nav>
+      </header>
+
+      {/* ── Hero ── */}
+      <main className="grid flex-1 grid-cols-1 lg:grid-cols-2">
+        <section className="flex flex-col justify-center px-6 py-16 sm:px-10 lg:px-20 lg:py-24">
+          <div className="mb-10">
+            <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill">
+              <span className="ax-badge__dot" aria-hidden="true" />
+              Réseau Yessal Gui · Confrérie Mouride
+            </span>
+          </div>
+
+          <h1 className="mb-6 text-4xl leading-tight font-light tracking-tight lg:text-5xl">
+            Gérez les dons
+            <br />
+            <span className="ax-text-accent font-normal">de votre Daara</span>
+          </h1>
+
+          <p className="ax-text-muted mb-12 max-w-prose text-base leading-relaxed">
+            Centralisez les Ndiguels, tracez chaque Jëf et renforcez les liens de
+            votre communauté — depuis n&apos;importe où dans le monde.
+          </p>
+
+          {/* Les trois promesses, chiffres absents assumés. */}
+          <ul className="mb-12 flex flex-col gap-5">
+            {PROMISES.map(({ icon: Icon, title, text }) => (
+              <li key={title} className="flex items-start gap-3">
+                <span
+                  className="ax-kpi__icon ax-kpi__icon--c1 shrink-0"
+                  aria-hidden="true"
+                >
+                  <Icon />
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-sm font-medium">{title}</span>
+                  <span className="ax-text-muted text-sm">{text}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/login" className="ax-btn ax-btn--primary ax-btn--lg">
+              <LogIn className="ax-btn__icon" size={16} aria-hidden="true" />
+              <span className="ax-btn__label">Se connecter</span>
+            </Link>
+            <Link href="/register" className="ax-btn ax-btn--outline ax-btn--lg">
+              <span className="ax-btn__label">Demander un accès</span>
+            </Link>
+          </div>
+        </section>
+
+        {/*
+          Galerie — masquée sous lg. Sur téléphone, elle disputait la moitié de
+          l'écran au texte ; elle n'y apporte rien que le hero ne dise déjà.
+        */}
+        <section
+          className="relative hidden overflow-hidden lg:block"
+          aria-hidden="true"
+          style={{
+            maskImage:
+              "linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)",
+            WebkitMaskImage:
+              "linear-gradient(transparent 0%, black 10%, black 90%, transparent 100%)",
+          }}
+        >
+          <div className="absolute inset-0 flex justify-center gap-4 px-4 py-4">
+            {[0, 1].map((col) => (
+              <div
+                key={col}
+                className="gallery-scroll flex flex-col gap-4"
+                /* La seconde colonne démarre décalée, pour éviter deux bandes
+                   parfaitement synchrones. */
+                style={col === 1 ? { animationDelay: "-15s" } : undefined}
+              >
+                {[...gallerySlots, ...gallerySlots].map((slot, i) => (
+                  <div
+                    key={`${col}-${slot.label}-${i}`}
+                    className="relative h-56 w-44 shrink-0 overflow-hidden rounded-(--ax-radius-lg)"
+                  >
+                    <Image
+                      src={slot.src}
+                      alt=""
+                      fill
+                      sizes="176px"
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/15" />
+                    <div className="absolute inset-x-2 bottom-2">
+                      <span className="ax-badge ax-badge--sm ax-badge--solid ax-truncate">
+                        {slot.label}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }

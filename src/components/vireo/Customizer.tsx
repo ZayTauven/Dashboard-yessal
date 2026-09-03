@@ -8,7 +8,7 @@
  * setter that flips the <html> data-ax-* attribute + persists the ax: key. Same
  * .ax-customizer DOM classes/ARIA as the reference so it renders identically.
  */
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCustomizer } from '@/context/CustomizerContext';
 import { PRESETS } from '@/lib/vireo/theme';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
@@ -77,6 +77,27 @@ export function Customizer({ open, onClose }: { open: boolean; onClose: () => vo
   const c = useCustomizer();
   const ref = useRef<HTMLElement>(null);
   useFocusTrap(ref, open);
+
+  /*
+   * Rendu APRÈS montage, et c'est nécessaire.
+   *
+   * Ce panneau reflète des préférences que le serveur ne connaît pas : le mode
+   * clair/sombre vient de next-themes (donc de localStorage), le reste des
+   * attributs `data-ax-*` posés sur <html> par le script d'amorçage. Au premier
+   * rendu client, `useCustomizer()` a déjà les vraies valeurs alors que le HTML
+   * reçu porte celles de `SSR_STATE`.
+   *
+   * Résultat : React signalait « A tree hydrated but some attributes of the
+   * server rendered HTML didn't match » sur `ax-segmented__btn is-active` — sur
+   * TOUTES les pages, ce qui a fait passer le défaut pour un problème du module
+   * où on le remarquait.
+   *
+   * Le panneau est un tiroir fermé par défaut : ne rien rendre au premier
+   * passage ne coûte rien, et le déclencheur vit dans l'en-tête, pas ici.
+   */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
 
   return (
     <aside

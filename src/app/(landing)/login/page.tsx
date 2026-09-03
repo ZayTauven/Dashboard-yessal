@@ -1,194 +1,238 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { loginAction } from "@/app/actions/auth";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Connexion
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Repris du patron `auth/SignInCover` de Vireo : une couverture à gauche sur
+ * grand écran, le formulaire à droite, et le formulaire seul en dessous de lg.
+ *
+ * Note d'intégration : `.ax-auth-cover` n'est PAS un contrat partagé de Vireo —
+ * c'est une balise `<style>` locale à son écran. La grille est donc refaite en
+ * utilitaires ici, plutôt que d'importer une classe qui n'existe pas dans les
+ * feuilles portées.
+ *
+ * Corrections de fond :
+ *
+ *   · Le bouton et les liens étaient peints sur `var(--yessal-violet)` en dur,
+ *     avec une ombre `rgba(145,110,231,0.35)` de la même couleur écrite en
+ *     chiffres. Sur l'écran d'entrée du produit, c'est précisément là qu'il
+ *     faut voir l'accent choisi dans le Customizer.
+ *
+ *   · Le halo décoratif reprenait le même violet littéral.
+ *
+ *   · Le champ mot de passe portait son bouton œil en position absolue calculée
+ *     à la main ; il passe sur `.ax-field__affix--button`.
+ */
+
+import { Suspense, useState, useTransition } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, LogIn, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react";
+import { loginAction } from "@/app/actions/auth";
 import { BrandMark } from "@/components/BrandMark";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { CoverBand } from "@/components/vireo/CoverBand";
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Le message « session fermée », isolé derrière une frontière Suspense
+ * ═══════════════════════════════════════════════════════════════════════════
+ * `useSearchParams()` était appelé directement dans <LoginPage>. Or ce hook
+ * force le composant qui l'appelle à sortir du rendu statique : sans
+ * <Suspense> au-dessus, Next refuse de prérendre la page et `next build`
+ * s'arrête net —
+ *
+ *     useSearchParams() should be wrapped in a suspense boundary at "/login"
+ *
+ * — ce qui rendait la compilation de production impossible, et donc l'image
+ * Docker de production non constructible. Le développement, lui, ne prérend
+ * rien : le défaut ne se voyait qu'au build.
+ *
+ * Le hook descend donc dans ce composant minuscule. La page reste statique ;
+ * seul ce message attend les paramètres d'URL.
+ */
+function RevokedNotice() {
+  /*
+   * Arrivé ici depuis /logout?reason=revoked : la session a été fermée à
+   * distance, pas expirée d'elle-même. La distinction compte — c'est souvent
+   * le membre lui-même qui l'a demandée, et il doit savoir que ça a marché.
+   */
+  const revoked = useSearchParams().get("reason") === "revoked";
+  if (!revoked) return null;
+
+  return (
+    <div className="ax-alert ax-alert--info ax-alert--inline">
+      <div className="ax-alert__content">
+        <p className="ax-alert__message">
+          Votre session a été fermée parce que le mot de passe de ce compte a
+          changé. Connectez-vous avec le nouveau.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
+
   const router = useRouter();
 
-  async function handleLogin(formData: FormData) {
+  const handleLogin = (formData: FormData) => {
     setErrorMsg("");
     startTransition(async () => {
       const res = await loginAction(formData);
       if (res.error) {
         setErrorMsg(res.error);
-      } else if (res.success) {
-        router.push("/dashboard");
+        return;
       }
+      if (res.success) router.push("/dashboard");
     });
-  }
+  };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4 relative"
-      style={{ background: "var(--background)" }}
-    >
-      {/* Retour accueil */}
-      <div className="absolute top-5 left-5">
-        <Link href="/">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-2 text-sm"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            <ArrowLeft size={14} strokeWidth={1.5} />
-            Accueil
-          </Button>
-        </Link>
-      </div>
+    <div className="grid min-h-dvh grid-cols-1 lg:grid-cols-[52%_48%]">
+      {/* ── Couverture — masquée sous lg, où elle volerait la place au formulaire ── */}
+      <aside className="relative hidden lg:block">
+        <CoverBand height={2000} className="absolute inset-0" />
 
-      {/* Halo décoratif violet */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(ellipse at center, rgba(145,110,231,0.12) 0%, transparent 70%)",
-        }}
-      />
+        <div className="relative flex h-full flex-col justify-between p-12">
+          <BrandMark href="/" size="md" />
 
-      <div className="w-full max-w-sm relative">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <BrandMark href="/" size="md" className="justify-center" />
-          <h1
-            className="mt-4 text-2xl"
-            style={{
-              fontWeight: 300,
-              letterSpacing: "-0.025em",
-              color: "var(--foreground)",
-            }}
-          >
-            Connexion à votre espace
-          </h1>
-          <p className="mt-1.5 text-sm" style={{ color: "var(--muted-foreground)" }}>
-            Réservé aux membres de la confrérie
+          <div className="max-w-md">
+            <p className="ax-eyebrow mb-3">Yessal Gui</p>
+            <p className="text-2xl leading-snug font-medium text-foreground">
+              La plateforme de la confrérie : Jëfs, Ndiguels, fêtes et
+              actualités, réunis en un seul endroit.
+            </p>
+            <p className="ax-text-muted mt-4 text-sm">
+              Chaque contribution est tracée, chaque Daara y trouve sa place.
+            </p>
+          </div>
+
+          <p className="ax-text-subtle text-xs">
+            Votre compte est validé par un administrateur.
           </p>
         </div>
+      </aside>
 
-        {/* Card formulaire */}
-        <div
-          className="rounded-2xl p-7 flex flex-col gap-5"
-          style={{
-            background: "var(--card)",
-            border: "1px solid var(--border)",
-            boxShadow:
-              "0 1px 3px rgba(0,0,0,0.04), 0 8px 32px rgba(145,110,231,0.08)",
-          }}
+      {/* ── Formulaire ── */}
+      <main className="relative flex items-center justify-center px-4 py-10">
+        <Link
+          href="/"
+          className="ax-btn ax-btn--ghost ax-btn--sm absolute top-5 left-5"
         >
-          <form className="flex flex-col gap-5" action={handleLogin}>
-            {/* Identifiant */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="identifier" className="text-sm font-medium">
-                Email ou téléphone
-              </Label>
-              <Input
-                id="identifier"
-                name="identifier"
-                type="text"
-                autoComplete="email"
-                placeholder="nom@exemple.com ou +221…"
-                required
-                className="h-11 text-[15px]"
-              />
-            </div>
+          <ArrowLeft className="ax-btn__icon" size={14} aria-hidden="true" />
+          <span className="ax-btn__label">Accueil</span>
+        </Link>
 
-            {/* Mot de passe */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-sm font-medium">
-                  Mot de passe
-                </Label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs font-medium transition-colors hover:underline underline-offset-4"
-                  style={{ color: "var(--yessal-violet)" }}
-                >
-                  Oublié ?
-                </Link>
-              </div>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  required
-                  className="h-11 text-[15px] pr-10"
-                />
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center lg:hidden">
+            <BrandMark href="/" size="md" className="justify-center" />
+          </div>
+
+          <div className="mb-8 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Connexion à votre espace
+            </h1>
+            <p className="ax-text-muted mt-1.5 text-sm">
+              Réservé aux membres de la confrérie.
+            </p>
+          </div>
+
+          <div className="ax-card">
+            <div className="ax-card__body">
+              <form className="flex flex-col gap-6" action={handleLogin}>
+                <div className="ax-field">
+                  <label className="ax-field__label" htmlFor="identifier">
+                    E-mail ou téléphone
+                  </label>
+                  <input
+                    id="identifier"
+                    name="identifier"
+                    type="text"
+                    autoComplete="username"
+                    className="ax-input ax-input--lg"
+                    placeholder="nom@exemple.com ou +221…"
+                    required
+                  />
+                </div>
+
+                <div className="ax-field">
+                  <div className="flex items-center justify-between">
+                    <label className="ax-field__label" htmlFor="password">
+                      Mot de passe
+                    </label>
+                    <Link href="/forgot-password" className="ax-link text-xs">
+                      Oublié ?
+                    </Link>
+                  </div>
+
+                  <div className="ax-field__control">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
+                      className="ax-input ax-input--lg ax-input--with-trailing"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="ax-field__affix ax-field__affix--trailing ax-field__affix--button"
+                      aria-label={
+                        showPassword
+                          ? "Masquer le mot de passe"
+                          : "Afficher le mot de passe"
+                      }
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff aria-hidden="true" />
+                      ) : (
+                        <Eye aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {!errorMsg && (
+                  <Suspense fallback={null}>
+                    <RevokedNotice />
+                  </Suspense>
+                )}
+
+                {errorMsg && <ErrorAlert message={errorMsg} />}
+
                 <button
-                  type="button"
-                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors hover:opacity-80"
-                  style={{ color: "var(--muted-foreground)" }}
+                  type="submit"
+                  className="ax-btn ax-btn--primary ax-btn--lg ax-btn--block"
+                  disabled={isPending}
                 >
-                  {showPassword ? (
-                    <EyeOff size={16} strokeWidth={1.5} />
-                  ) : (
-                    <Eye size={16} strokeWidth={1.5} />
-                  )}
+                  <LogIn className="ax-btn__icon" size={16} aria-hidden="true" />
+                  <span className="ax-btn__label">
+                    {isPending ? "Connexion…" : "Se connecter"}
+                  </span>
                 </button>
-              </div>
+              </form>
             </div>
+          </div>
 
-            {/* Erreur */}
-            {errorMsg && <ErrorAlert message={errorMsg} />}
+          <p className="ax-text-muted mt-5 text-center text-sm">
+            Pas encore de compte ?{" "}
+            <Link href="/register" className="ax-link font-medium">
+              Demander un accès
+            </Link>
+          </p>
 
-            {/* Submit */}
-            <Button
-              type="submit"
-              disabled={isPending}
-              className="w-full h-11 gap-2 text-[15px] font-medium mt-1"
-              style={{
-                background: isPending
-                  ? "color-mix(in srgb, var(--yessal-violet) 70%, transparent)"
-                  : "var(--yessal-violet)",
-                color: "#ffffff",
-                borderRadius: "10px",
-                boxShadow: isPending
-                  ? "none"
-                  : "0 4px 14px rgba(145,110,231,0.35)",
-                transition: "all 0.2s ease",
-              }}
-            >
-              <LogIn size={16} strokeWidth={1.5} />
-              {isPending ? "Connexion en cours…" : "Se connecter"}
-            </Button>
-          </form>
+          <p className="ax-text-subtle mt-3 text-center text-xs lg:hidden">
+            Votre compte est validé par un administrateur.
+          </p>
         </div>
-
-        {/* Pied de page */}
-        <p className="text-center text-xs mt-5" style={{ color: "var(--muted-foreground)" }}>
-          Pas encore de compte ?{" "}
-          <Link
-            href="/register"
-            className="font-semibold transition-colors hover:underline underline-offset-4"
-            style={{ color: "var(--yessal-violet)" }}
-          >
-            Demander un accès
-          </Link>
-        </p>
-
-        <p
-          className="text-center text-[11px] mt-3"
-          style={{ color: "var(--border)" }}
-        >
-          Votre compte est validé par un administrateur.
-        </p>
-      </div>
+      </main>
     </div>
   );
 }

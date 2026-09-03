@@ -1,162 +1,343 @@
 "use client";
 
-import AppAreaChart from "@/components/AppAreaChart";
-import { Wallet, HandCoins, Landmark, Users, Heart, ArrowUpRight, Calendar, Bell, AlertCircle, AlertTriangle, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Tableau de bord — Membre
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Le membre ne pilote rien : il contribue. Sa page doit répondre à « qu'est-ce
+ * que j'ai donné », « à quoi », et « qu'est-ce que la direction attend de
+ * moi ». Le reste est du bruit.
+ *
+ * Corrections de fond par rapport à la version précédente :
+ *
+ *   · Les annonces étaient affichées DEUX FOIS — en bandeau d'alerte en haut,
+ *     puis en liste complète en bas. On garde le bandeau pour les urgentes et
+ *     la liste pour le reste, sans doublon.
+ *
+ *   · Le bouton « Voir les Jëfs » pointait vers /dashboard/campaigns,
+ *     c'est-à-dire les Ndiguels. Dans le vocabulaire du produit, un Jëf est un
+ *     don et un Ndiguel une campagne : le libellé mentait sur la destination.
+ *
+ *   · Le bandeau d'accueil était peint en violet en dur avec une ombre
+ *     violette en dur. Il suit maintenant l'accent actif — sinon changer de
+ *     couleur dans le panneau Apparence laissait un rectangle violet orphelin
+ *     en haut de la page la plus vue du produit.
+ */
+
 import Link from "next/link";
+import {
+  AlertCircle,
+  AlertTriangle,
+  Bell,
+  HandCoins,
+  Heart,
+  Info,
+  Landmark,
+  Users,
+  Wallet,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { AreaTrend, formatFCFA, type Point } from "@/components/charts/YessalCharts";
+import { KpiValue } from "@/components/vireo/Amount";
+import { PageHead } from "@/components/vireo/PageHead";
+import { EmptyState } from "@/components/ui/empty-state";
 
-export default function MemberDashboard({ stats }: { stats: any }) {
-  const kpis = stats?.kpis || [];
-  const announcements = stats?.announcements || [];
-  const campaignDonations = stats?.campaign_donations || [];
-  const chartData = stats?.chartData || [];
+const ICON_MAP: Record<string, LucideIcon> = {
+  Wallet,
+  HandCoins,
+  Landmark,
+  Users,
+};
 
-  const topAnnouncements = announcements.slice(0, 3); // Show top 3 as alerts
+const URGENCY: Record<string, { cls: string; icon: LucideIcon }> = {
+  critical: { cls: "ax-alert--danger", icon: AlertCircle },
+  warning: { cls: "ax-alert--warning", icon: AlertTriangle },
+  info: { cls: "ax-alert--info", icon: Info },
+};
+
+interface Kpi {
+  title: string;
+  value: string | number;
+  icon?: string;
+}
+
+interface Announcement {
+  id: number | string;
+  title: string;
+  content?: string | null;
+  urgency?: string | null;
+  target?: string | null;
+  created_at?: string | null;
+}
+
+interface CampaignDonation {
+  id: number | string;
+  name: string;
+  total: number;
+}
+
+interface AreaRow {
+  name: string;
+  total: number;
+}
+
+interface MemberStats {
+  kpis?: Kpi[];
+  announcements?: Announcement[];
+  campaign_donations?: CampaignDonation[];
+  chartData?: AreaRow[];
+}
+
+const dateFmt = new Intl.DateTimeFormat("fr-SN", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+function formatDate(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : dateFmt.format(d);
+}
+
+export default function MemberDashboard({ stats }: { stats: MemberStats | null }) {
+  const kpis = stats?.kpis ?? [];
+  const announcements = stats?.announcements ?? [];
+  const campaignDonations = stats?.campaign_donations ?? [];
+  const chartRows = stats?.chartData ?? [];
+
+  /* Seules les annonces urgentes montent en bandeau. Les autres restent dans
+     la liste plus bas — pas de double affichage. */
+  const urgentes = announcements.filter(
+    (a) => a.urgency === "critical" || a.urgency === "warning",
+  );
+  const courantes = announcements.filter(
+    (a) => a.urgency !== "critical" && a.urgency !== "warning",
+  );
+
+  const evolution: Point[] = chartRows.map((r) => ({
+    label: r.name,
+    value: Number(r.total ?? 0),
+  }));
+
+  const totalParCampagne = campaignDonations.reduce(
+    (s, c) => s + Number(c.total ?? 0),
+    0,
+  );
 
   return (
-    <div className="space-y-6">
-      {/* INLINE ANNOUNCEMENTS / ALERTS */}
-      {topAnnouncements.length > 0 && (
-          <div className="flex flex-col gap-3">
-              {topAnnouncements.map((ann: any) => (
-                  <div key={ann.id} className={`flex items-center gap-4 p-4 rounded-2xl border bg-white shadow-sm overflow-hidden relative group transition-all hover:shadow-md animate-in slide-in-from-top duration-500`} 
-                       style={{ borderColor: ann.urgency === 'critical' ? 'var(--red-500)' : ann.urgency === 'warning' ? 'var(--orange-400)' : 'var(--border)' }}>
-                      <div className={`absolute left-0 top-0 w-1 h-full ${
-                          ann.urgency === 'critical' ? 'bg-red-500' : ann.urgency === 'warning' ? 'bg-orange-400' : 'bg-blue-400'
-                      }`} />
-                      
-                      <div className={`p-2 rounded-xl hidden sm:flex ${
-                          ann.urgency === 'critical' ? 'bg-red-50 text-red-500' : ann.urgency === 'warning' ? 'bg-orange-50 text-orange-500' : 'bg-blue-50 text-blue-500'
-                      }`}>
-                          {ann.urgency === 'critical' ? <AlertCircle size={20} /> : ann.urgency === 'warning' ? <AlertTriangle size={20} /> : <Info size={20} />}
-                      </div>
+    <div className="flex flex-col gap-6">
+      <PageHead
+        role="member"
+        title="Mon tableau de bord"
+        subtitle="Vos contributions, vos Ndiguels et les annonces de la direction."
+        crumbs={[{ label: "Application" }]}
+      />
 
-                      <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-sm truncate">{ann.title}</h4>
-                              <span className="text-[10px] font-black uppercase text-muted-foreground opacity-60">
-                                  {new Date(ann.created_at).toLocaleDateString('fr-FR')}
-                              </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-1">{ann.content}</p>
-                      </div>
-
-                      <Button variant="ghost" size="sm" className="h-8 px-3 text-[10px] uppercase font-black tracking-widest text-yessal-violet hover:bg-yessal-violet/10 border-none transition-all">
-                          Lire la suite
-                      </Button>
-                  </div>
-              ))}
-          </div>
-      )}
-
-      {/* WELCOME SECTION */}
-      <div
-        className="rounded-3xl text-white shadow-lg relative overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(135deg, var(--yessal-violet) 0%, #6b3fd4 100%)",
-          boxShadow: "0 8px 32px rgba(145,110,231,0.35)",
-        }}
-      >
-        <div className="relative z-10">
-          <h2 className="text-3xl font-bold">Heureux de vous revoir !</h2>
-          <p className="mt-2 opacity-85 max-w-md text-sm leading-relaxed">
-            Votre engagement fait revivre nos Daaras. Voici l'état de vos contributions et de vos membres sous tutelle.
-          </p>
-          <div className="flex gap-3 mt-6">
-            <Button
-              asChild
-              variant="secondary"
-              className="bg-white hover:bg-gray-100 border-none shadow-sm font-bold"
-              style={{ color: "var(--yessal-violet)" }}
-            >
-              <Link href="/dashboard/donations">Mes contributions</Link>
-            </Button>
-            <Button
-              variant="ghost"
-              className="text-white border border-white/20 hover:bg-white/10 font-bold"
-            >
-              <Link href="/dashboard/campaigns">Voir les Jëfs</Link>
-            </Button>
-          </div>
-        </div>
-        <Heart className="absolute -right-8 -bottom-8 w-64 h-64 text-white/10 rotate-12" />
-      </div>
-
-      {/* KPI GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Campaign List as a special card if Member */}
-        {campaignDonations.length > 0 && (
-           <div className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-3 hover:border-yessal-violet/30 transition-all col-span-1 md:col-span-2 lg:col-span-1" style={{ borderColor: "var(--border)" }}>
-              <div className="flex justify-between items-center mb-1">
-                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Dons par Campagne</p>
-                 <Wallet size={16} className="text-yessal-violet" />
-              </div>
-              <div className="space-y-2 max-h-[100px] overflow-y-auto pr-2">
-                 {campaignDonations.map((cd: any) => (
-                    <div key={cd.id} className="flex justify-between items-center text-xs border-b border-dashed pb-1 last:border-0" style={{ borderColor: 'var(--border)' }}>
-                       <span className="truncate max-w-[120px] font-medium" title={cd.name}>{cd.name}</span>
-                       <span className="font-bold text-yessal-green">{cd.total.toLocaleString()} <span className="text-[9px]">F</span></span>
-                    </div>
-                 ))}
-              </div>
-           </div>
-        )}
-
-        {kpis.map((kpi: any, idx: number) => {
-          const Icon = kpi.icon === 'Wallet' ? Wallet : 
-                       kpi.icon === 'HandCoins' ? HandCoins : 
-                       kpi.icon === 'Landmark' ? Landmark : Users;
-          return (
-            <div key={idx} className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2 hover:border-yessal-violet/30 transition-all" style={{ borderColor: "var(--border)" }}>
-              <div className="flex justify-between items-start">
-                <div className="p-2 rounded-lg bg-yessal-violet/10 text-yessal-violet">
-                    <Icon size={20} />
+      {/* ── Annonces urgentes ── */}
+      {urgentes.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {urgentes.slice(0, 3).map((ann) => {
+            const cfg = URGENCY[ann.urgency ?? "info"] ?? URGENCY.info;
+            const Icon = cfg.icon;
+            return (
+              <div
+                key={ann.id}
+                className={`ax-alert ax-alert--accent-edge ${cfg.cls}`}
+                role="status"
+              >
+                <span className="ax-alert__icon" aria-hidden="true">
+                  <Icon size={18} />
+                </span>
+                <div className="ax-alert__content">
+                  <p className="ax-alert__title">{ann.title}</p>
+                  {ann.content && <p className="ax-alert__message">{ann.content}</p>}
                 </div>
               </div>
-              <div className="mt-2">
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{kpi.title}</p>
-                <h3 className="text-2xl font-bold mt-1 tracking-tight">{kpi.value}</h3>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Bandeau d'accueil ── */}
+      <section
+        className="relative overflow-hidden rounded-xl p-8"
+        style={{
+          /* Dégradé bâti sur l'accent actif : il suit le panneau Apparence. */
+          background:
+            "linear-gradient(135deg, var(--ax-accent) 0%, color-mix(in oklab, var(--ax-accent) 55%, #1b1030) 100%)",
+          color: "var(--ax-on-accent)",
+          boxShadow: "0 18px 44px -22px rgba(var(--ax-accent-rgb), 0.55)",
+        }}
+      >
+        <div className="relative z-10 max-w-xl">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Heureux de vous revoir
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed opacity-90">
+            Votre engagement fait vivre les Daaras. Voici l&apos;état de vos
+            contributions et des membres dont vous avez la tutelle.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/dashboard/donations"
+              className="ax-btn"
+              style={{
+                background: "var(--ax-surface-solid)",
+                color: "var(--ax-accent)",
+                fontWeight: 600,
+              }}
+            >
+              Mes Jëfs
+            </Link>
+            <Link
+              href="/dashboard/campaigns"
+              className="ax-btn"
+              style={{
+                border: "1px solid rgba(255,255,255,0.3)",
+                color: "var(--ax-on-accent)",
+              }}
+            >
+              Voir les Ndiguels
+            </Link>
+          </div>
+        </div>
+
+        <Heart
+          className="pointer-events-none absolute -bottom-10 -end-10 h-56 w-56 rotate-12 opacity-10"
+          aria-hidden="true"
+        />
+      </section>
+
+      {/* ── KPI + dons par Ndiguel ── */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {kpis.map((kpi, idx) => {
+          const Icon = ICON_MAP[kpi.icon ?? ""] ?? Users;
+          return (
+            <article key={idx} className="ax-card ax-card--stat">
+              <div className="ax-card__body">
+                <div className="ax-kpi">
+                  <div className="ax-kpi__top">
+                    <span
+                      className={`ax-kpi__icon ax-kpi__icon--c${(idx % 4) + 1}`}
+                      aria-hidden="true"
+                    >
+                      <Icon />
+                    </span>
+                  </div>
+                  <div>
+                    <p className="ax-kpi__label">{kpi.title}</p>
+                    <p className="ax-kpi__value font-mono tabular">
+                      <KpiValue value={kpi.value} />
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            </article>
           );
         })}
+
+        {campaignDonations.length > 0 && (
+          <article className="ax-card md:col-span-2 lg:col-span-1">
+            <div className="ax-card__body">
+              <div className="mb-3 flex items-baseline justify-between gap-2">
+                <p className="ax-kpi__label">Mes dons par Ndiguel</p>
+                <span className="font-mono text-xs tabular text-text-subtle">
+                  {campaignDonations.length}
+                </span>
+              </div>
+
+              <ul className="flex max-h-[104px] flex-col gap-1.5 overflow-y-auto pe-1">
+                {campaignDonations.map((cd) => (
+                  <li
+                    key={cd.id}
+                    className="flex items-baseline justify-between gap-3 text-sm"
+                  >
+                    <span className="truncate text-text-muted" title={cd.name}>
+                      {cd.name}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs font-semibold tabular text-montant">
+                      {formatFCFA(Number(cd.total ?? 0))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <p className="mt-3 border-t pt-2 text-end font-mono text-sm font-semibold tabular text-montant"
+                 style={{ borderColor: "var(--ax-border)" }}>
+                {formatFCFA(totalParCampagne)}
+              </p>
+            </div>
+          </article>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card p-6 rounded-2xl border shadow-sm" style={{ borderColor: "var(--border)" }}>
-             <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold">Évolution de mes dons</h3>
-                <span className="text-xs text-muted-foreground">7 derniers jours</span>
-             </div>
-              <AppAreaChart 
-                data={chartData} 
-                title="" 
-                subtitle="Dons cumulés par jour"
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* ── Évolution des dons ── */}
+        <section className="ax-card" aria-label="Évolution de mes dons">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">Évolution de mes dons</h2>
+              <p className="ax-card__subtitle">Cumul journalier, 7 derniers jours</p>
+            </div>
+          </div>
+          <div className="ax-card__body pt-0">
+            <AreaTrend
+              data={evolution}
+              name="Donné"
+              height={280}
+              emptyMessage="Vos dons apparaîtront ici dès votre première contribution."
+            />
+          </div>
+        </section>
+
+        {/* ── Annonces courantes ── */}
+        <section className="ax-card" aria-label="Annonces de la direction">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">
+                <Bell size={16} className="me-1.5 inline align-[-2px]" aria-hidden="true" />
+                Annonces de la direction
+              </h2>
+            </div>
+            <Link href="/dashboard/news" className="ax-btn ax-btn--link ax-btn--sm">
+              Tout voir
+            </Link>
+          </div>
+
+          <div className="ax-card__body pt-0">
+            {courantes.length === 0 ? (
+              <EmptyState
+                icon={Bell}
+                size="sm"
+                tone="search"
+                title="Aucune annonce récente"
+                description="Les communications de la direction s'afficheront ici."
               />
-        </div>
-        <div className="bg-card p-6 rounded-2xl border shadow-sm divide-y" style={{ borderColor: "var(--border)" }}>
-             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <Bell size={18} className="text-yessal-violet" /> Annonces de la Direction
-             </h3>
-             {announcements.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-4 italic">Aucune annonce récente.</p>
-             ) : (
-                announcements.map((ann: any) => (
-                    <div key={ann.id} className="py-4 flex flex-col gap-1 group cursor-pointer">
-                       <div className="flex justify-between items-start">
-                           <p className="text-sm font-bold group-hover:text-yessal-violet transition-colors">{ann.title}</p>
-                           <span className="text-[9px] uppercase font-bold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                               {ann.target === 'global' ? 'National' : 'Daara'}
-                           </span>
-                       </div>
-                       <p className="text-xs text-muted-foreground line-clamp-2">{ann.content}</p>
-                       <span className="text-[10px] text-muted-foreground/60 mt-1">Publié le {new Date(ann.created_at).toLocaleDateString('fr-FR')}</span>
+            ) : (
+              <ul className="divide-y" style={{ borderColor: "var(--ax-border)" }}>
+                {courantes.slice(0, 5).map((ann) => (
+                  <li key={ann.id} className="flex flex-col gap-1 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium text-text-strong">{ann.title}</p>
+                      <span className="ax-badge ax-badge--sm ax-badge--soft ax-badge--neutral shrink-0">
+                        {ann.target === "global" ? "National" : "Daara"}
+                      </span>
                     </div>
-                ))
-             )}
-             <Button variant="link" className="w-full text-xs text-yessal-violet h-auto pt-4 font-bold">Voir toutes les annonces</Button>
-        </div>
+                    {ann.content && (
+                      <p className="line-clamp-2 text-sm text-text-muted">{ann.content}</p>
+                    )}
+                    {ann.created_at && (
+                      <span className="text-xs text-text-subtle">
+                        Publié le {formatDate(ann.created_at)}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

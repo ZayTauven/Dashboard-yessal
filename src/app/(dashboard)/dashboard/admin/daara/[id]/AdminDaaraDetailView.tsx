@@ -1,37 +1,55 @@
 "use client";
 
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Fiche d'un Daara (vue administrateur)
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Repris du patron `crm/Companies` de Vireo : identité de l'entité, bandeau de
+ * KPI, puis onglets sur les personnes et les finances.
+ *
+ * Corrections de fond :
+ *
+ *   · La DESCRIPTION du Daara n'était éditable nulle part. Le formulaire de
+ *     cette modale ne la proposait pas ; seul `DaaraEditClient.tsx` la gérait —
+ *     un fichier qui n'était importé par AUCUN écran, donc du code mort. Le
+ *     champ rejoint ici le formulaire vivant, et le fichier mort est supprimé.
+ *
+ *   · Les cartes de collecteur avaient un en-tête `bg-yessal-violet` plein,
+ *     avec l'avatar en verre par-dessus : ni thème sombre, ni accent.
+ *
+ *   · `STATUS_CONFIG` recopiait localement un vocabulaire de statut déjà
+ *     centralisé, en couleurs figées (`bg-green-100`).
+ *
+ *   · Le bandeau du chef de Daara était peint en `bg-yessal-violet/5` avec sa
+ *     propre bordure teintée ; il passe sur `.ax-card--accent-edge`.
+ */
+
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { updateDaara } from "@/app/actions/daara";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   ArrowLeft,
-  Building2,
-  Layers,
-  Users,
-  TrendingUp,
   BookOpen,
-  UserCircle,
-  Phone,
-  Mail,
-  Edit,
-  CheckCircle2,
-  Clock,
-  XCircle,
+  Building2,
   ExternalLink,
+  Layers,
+  Mail,
+  Pencil,
+  Phone,
+  TrendingUp,
+  UserCircle,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { updateDaara } from "@/app/actions/daara";
+import { EmptyState } from "@/components/ui/empty-state";
+import { roleLabel } from "@/lib/roles";
+import { formatFCFA } from "@/components/charts/YessalCharts";
+import { Avatar } from "@/components/vireo/Avatar";
+import { Modal } from "@/components/vireo/Modal";
+import { PageHead } from "@/components/vireo/PageHead";
+import { StatCard } from "@/components/vireo/StatCard";
+import { StatusBadge } from "@/components/vireo/StatusBadge";
 
 type Member = {
   id: number;
@@ -75,34 +93,25 @@ type Etat = {
 type DaaraData = {
   id: number;
   name: string;
+  description?: string | null;
   is_active?: boolean;
-  ldd?: { id: number; code: string; name: string; location?: string | null } | null;
+  ldd?: {
+    id: number;
+    code: string;
+    name: string;
+    location?: string | null;
+  } | null;
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  member: "Talibé",
-  chef_daara: "Chef Daara",
-  collector: "Collecteur",
-  admin: "Admin",
-};
+const dateFmt = new Intl.DateTimeFormat("fr-SN", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; cls: string }> = {
-  active: { label: "Actif", icon: CheckCircle2, cls: "bg-green-100 text-green-700" },
-  pending: { label: "En attente", icon: Clock, cls: "bg-yellow-100 text-yellow-700" },
-  completed: { label: "Terminé", icon: CheckCircle2, cls: "bg-gray-100 text-gray-600" },
-  inactive: { label: "Inactif", icon: XCircle, cls: "bg-red-100 text-red-600" },
-};
+const fullName = (m: Member) => `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim();
 
-function MemberAvatar({ m, size = "h-9 w-9" }: { m: Member; size?: string }) {
-  return (
-    <Avatar className={size}>
-      <AvatarImage src={m.avatar || undefined} className="object-cover" />
-      <AvatarFallback className="bg-yessal-violet/10 text-yessal-violet font-bold text-xs uppercase">
-        {m.first_name?.[0]}{m.last_name?.[0]}
-      </AvatarFallback>
-    </Avatar>
-  );
-}
+type Tab = "members" | "collectors" | "finances";
 
 export function AdminDaaraDetailView({
   daara,
@@ -115,17 +124,24 @@ export function AdminDaaraDetailView({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
+  const [tab, setTab] = useState<Tab>("members");
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     setErrorMsg("");
+
     startTransition(async () => {
       const res = await updateDaara(daara.id, {
         name: String(formData.get("name") || "").trim(),
+        description:
+          String(formData.get("description") || "").trim() || undefined,
         is_active: formData.get("is_active") === "on",
       });
-      if (res.error) { setErrorMsg(res.error); return; }
+      if (res.error) {
+        setErrorMsg(res.error);
+        return;
+      }
       toast.success("Daara mis à jour.");
       setIsEditOpen(false);
       router.refresh();
@@ -133,293 +149,502 @@ export function AdminDaaraDetailView({
   };
 
   const totalCollected = Number(etat?.total_collected || 0);
+  const ldd = etat?.ldd ?? daara.ldd;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
-      {/* Back */}
-      <Button variant="ghost" className="w-fit gap-2 -ml-2" asChild>
-        <Link href="/dashboard/admin/daara">
-          <ArrowLeft size={16} /> Retour à la liste
-        </Link>
-      </Button>
-
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-3xl font-bold tracking-tight">{etat?.name ?? daara.name}</h1>
-            <Badge className={`text-[10px] uppercase font-bold border-none ${daara.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
-              {daara.is_active ? "Actif" : "Inactif"}
-            </Badge>
-            {(etat?.ldd ?? daara.ldd) && (
-              <Badge variant="outline" className="text-[10px] font-bold gap-1">
-                <Layers size={10} /> {(etat?.ldd ?? daara.ldd)?.code} — {(etat?.ldd ?? daara.ldd)?.name}
-              </Badge>
-            )}
-            {etat?.created_at && (
-              <span className="text-xs text-muted-foreground">
-                Créé le {new Date(etat.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-              </span>
-            )}
-          </div>
+    <div className="flex flex-col gap-6">
+      <PageHead
+        role="admin"
+        title={etat?.name ?? daara.name}
+        crumbs={[
+          { label: "Administration" },
+          { label: "Gestion des Daaras", href: "/dashboard/admin/daara" },
+        ]}
+        actions={
+          <>
+            <Link
+              href="/dashboard/admin/daara"
+              className="ax-btn ax-btn--ghost"
+            >
+              <ArrowLeft className="ax-btn__icon" size={16} aria-hidden="true" />
+              <span className="ax-btn__label">Retour à la liste</span>
+            </Link>
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary"
+              onClick={() => setIsEditOpen(true)}
+            >
+              <Pencil className="ax-btn__icon" size={15} aria-hidden="true" />
+              <span className="ax-btn__label">Modifier</span>
+            </button>
+          </>
+        }
+      >
+        <div className="ax-cluster ax-text-muted mt-3 flex-wrap gap-3 text-sm">
+          <StatusBadge
+            domain="user"
+            value={daara.is_active === false ? "inactive" : "active"}
+            size="sm"
+          />
+          {ldd && (
+            <span className="ax-badge ax-badge--outline ax-badge--sm">
+              <Layers className="ax-badge__icon" aria-hidden="true" />
+              {ldd.code} — {ldd.name}
+            </span>
+          )}
+          {etat?.created_at && (
+            <span className="text-xs">
+              Créé le {dateFmt.format(new Date(etat.created_at))}
+            </span>
+          )}
         </div>
-        <Button
-          onClick={() => setIsEditOpen(true)}
-          className="gap-2 bg-yessal-violet hover:bg-violet-700 text-white border-none shadow-lg shadow-yessal-violet/20 font-bold uppercase tracking-widest text-[10px] h-11 px-6 rounded-xl"
-        >
-          <Edit size={14} /> Modifier le Daara
-        </Button>
+      </PageHead>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Membres"
+          value={etat?.members_count ?? 0}
+          icon={Users}
+          tone="accent"
+        />
+        <StatCard
+          label="Collecteurs"
+          value={etat?.collectors_count ?? 0}
+          icon={UserCircle}
+          tone="info"
+        />
+        <StatCard
+          label="Total collecté"
+          value={totalCollected}
+          currency
+          icon={TrendingUp}
+          tone="montant"
+          hint={`${etat?.donation_count ?? 0} Jëf${(etat?.donation_count ?? 0) > 1 ? "s" : ""} confirmé${(etat?.donation_count ?? 0) > 1 ? "s" : ""}`}
+        />
+        <StatCard
+          label="Ndiguels"
+          value={etat?.campaigns_count ?? 0}
+          icon={BookOpen}
+          tone="or"
+        />
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { icon: Users, label: "Membres", value: etat?.members_count ?? "—", color: "text-yessal-violet" },
-          { icon: UserCircle, label: "Collecteurs", value: etat?.collectors_count ?? "—", color: "text-blue-600" },
-          { icon: TrendingUp, label: "Total collecté", value: `${totalCollected.toLocaleString("fr-FR")} F`, color: "text-yessal-green" },
-          { icon: BookOpen, label: "Ndiguels", value: etat?.campaigns_count ?? "—", color: "text-orange-500" },
-        ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="bg-card rounded-xl border p-4 flex flex-col gap-2" style={{ borderColor: "var(--border)" }}>
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              <Icon size={14} className={color} /> {label}
-            </div>
-            <span className={`text-2xl font-bold ${color}`}>{value}</span>
-          </div>
-        ))}
+      <div className="ax-tabs">
+        <div className="ax-tabs__list" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            className="ax-tabs__tab"
+            aria-selected={tab === "members"}
+            onClick={() => setTab("members")}
+          >
+            Membres
+            <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+              {etat?.members_count ?? 0}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className="ax-tabs__tab"
+            aria-selected={tab === "collectors"}
+            onClick={() => setTab("collectors")}
+          >
+            Collecteurs
+            <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+              {etat?.collectors_count ?? 0}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className="ax-tabs__tab"
+            aria-selected={tab === "finances"}
+            onClick={() => setTab("finances")}
+          >
+            Finances
+            <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+              {etat?.campaigns_count ?? 0}
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="members" className="w-full">
-        <TabsList className="bg-muted/50 p-1 rounded-xl w-fit">
-          <TabsTrigger value="members" className="rounded-lg px-5 font-bold">
-            Membres <Badge variant="secondary" className="ml-2 text-[10px]">{etat?.members_count ?? 0}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="collectors" className="rounded-lg px-5 font-bold">
-            Collecteurs <Badge variant="secondary" className="ml-2 text-[10px]">{etat?.collectors_count ?? 0}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="finances" className="rounded-lg px-5 font-bold">
-            Finances <Badge variant="secondary" className="ml-2 text-[10px]">{etat?.campaigns_count ?? 0}</Badge>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ── MEMBRES ── */}
-        <TabsContent value="members" className="mt-4">
-          {/* Chef highlight */}
+      {/* ══ Membres ══ */}
+      {tab === "members" && (
+        <div className="flex flex-col gap-4" role="tabpanel">
           {etat?.chef && (
-            <div className="mb-4 flex items-center gap-4 p-4 rounded-xl border bg-yessal-violet/5 border-yessal-violet/20">
-              <MemberAvatar m={etat.chef} size="h-12 w-12" />
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-yessal-violet mb-0.5">Chef de Daara</div>
-                <div className="font-bold">{etat.chef.first_name} {etat.chef.last_name}</div>
-                <div className="text-xs text-muted-foreground">{etat.chef.email}</div>
+            <section className="ax-card ax-card--accent-edge">
+              <div className="ax-card__body flex flex-wrap items-center gap-4">
+                <Avatar
+                  src={etat.chef.avatar}
+                  name={fullName(etat.chef)}
+                  size="xl"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="ax-eyebrow ax-text-accent">Chef de Daara</p>
+                  <p className="ax-card__title">{fullName(etat.chef)}</p>
+                  <p className="ax-text-muted text-sm">{etat.chef.email}</p>
+                </div>
+                {etat.chef.phone && (
+                  <a
+                    href={`tel:${etat.chef.phone}`}
+                    className="ax-btn ax-btn--outline"
+                  >
+                    <Phone className="ax-btn__icon" size={14} aria-hidden="true" />
+                    <span className="ax-btn__label font-mono tabular">
+                      {etat.chef.phone}
+                    </span>
+                  </a>
+                )}
               </div>
-              {etat.chef.phone && (
-                <a href={`tel:${etat.chef.phone}`} className="ml-auto">
-                  <Button size="sm" variant="outline" className="gap-1 font-bold text-xs h-8">
-                    <Phone size={12} /> {etat.chef.phone}
-                  </Button>
-                </a>
-              )}
-            </div>
+            </section>
           )}
 
-          <div className="bg-card rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--border)" }}>
+          <section className="ax-card">
             {!etat?.members?.length ? (
-              <div className="p-12 text-center text-sm text-muted-foreground italic">Aucun membre enregistré dans ce Daara.</div>
+              <div className="ax-card__body">
+                <EmptyState
+                  icon={Users}
+                  title="Aucun membre enregistré"
+                  description="Les talibés rattachés à ce Daara apparaîtront ici."
+                />
+              </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-muted/30">
-                  <tr>
-                    <th className="px-5 py-3 text-left font-bold uppercase text-[10px] tracking-widest">Membre</th>
-                    <th className="px-5 py-3 text-left font-bold uppercase text-[10px] tracking-widest">Rôle</th>
-                    <th className="px-5 py-3 text-left font-bold uppercase text-[10px] tracking-widest">Téléphone</th>
-                    <th className="px-5 py-3 text-right font-bold uppercase text-[10px] tracking-widest">Fiche</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {etat.members.map((m) => (
-                    <tr key={m.id} className="border-t hover:bg-muted/10 transition-colors" style={{ borderColor: "var(--border)" }}>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          <MemberAvatar m={m} />
-                          <div className="flex flex-col">
-                            <span className="font-semibold">{m.first_name} {m.last_name}</span>
-                            <span className="text-[10px] text-muted-foreground">{m.email}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wider">
-                          {ROLE_LABELS[m.role] ?? m.role}
-                        </Badge>
-                        {m.title_name && (
-                          <span className="ml-2 text-[10px] text-muted-foreground italic">{m.title_name}</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-muted-foreground">{m.phone || "—"}</td>
-                      <td className="px-5 py-3 text-right">
-                        <Button size="sm" variant="ghost" className="h-7 gap-1 text-[10px] font-bold" asChild>
-                          <Link href={`/dashboard/users/${m.id}`}>
-                            <ExternalLink size={11} /> Voir
-                          </Link>
-                        </Button>
-                      </td>
+              <div className="ax-table-wrap">
+                <table className="ax-table ax-table--hover">
+                  <caption className="ax-visually-hidden">
+                    Membres du Daara {etat.name}
+                  </caption>
+                  <thead className="ax-table__head">
+                    <tr>
+                      <th scope="col" className="ax-table__th">
+                        Membre
+                      </th>
+                      <th scope="col" className="ax-table__th hidden sm:table-cell">
+                        Rôle
+                      </th>
+                      <th scope="col" className="ax-table__th hidden md:table-cell">
+                        Téléphone
+                      </th>
+                      <th scope="col" className="ax-table__th ax-table__th--num">
+                        <span className="ax-visually-hidden">Fiche</span>
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {etat.members.map((m) => (
+                      <tr key={m.id} className="ax-table__row">
+                        <td className="ax-table__td">
+                          <div className="flex items-center gap-3">
+                            <Avatar src={m.avatar} name={fullName(m)} size="sm" />
+                            <div className="min-w-0">
+                              <div className="font-medium">{fullName(m)}</div>
+                              <div className="ax-text-subtle ax-truncate text-xs">
+                                {m.email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="ax-table__td hidden sm:table-cell">
+                          <span className="ax-badge ax-badge--neutral ax-badge--sm">
+                            {roleLabel(m.role)}
+                          </span>
+                          {m.title_name && (
+                            <span className="ax-text-subtle ms-2 text-xs italic">
+                              {m.title_name}
+                            </span>
+                          )}
+                        </td>
+                        <td className="ax-table__td ax-text-muted hidden md:table-cell font-mono tabular text-xs">
+                          {m.phone || "—"}
+                        </td>
+                        <td className="ax-table__td ax-table__td--num">
+                          <Link
+                            href={`/dashboard/users/${m.id}`}
+                            className="ax-btn ax-btn--ghost ax-btn--sm"
+                          >
+                            <ExternalLink
+                              className="ax-btn__icon"
+                              size={12}
+                              aria-hidden="true"
+                            />
+                            <span className="ax-btn__label">Fiche</span>
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
-        </TabsContent>
+          </section>
+        </div>
+      )}
 
-        {/* ── COLLECTEURS ── */}
-        <TabsContent value="collectors" className="mt-4">
+      {/* ══ Collecteurs ══ */}
+      {tab === "collectors" && (
+        <div role="tabpanel">
           {!etat?.collectors?.length ? (
-            <div className="p-12 text-center text-sm text-muted-foreground italic border-2 border-dashed rounded-xl">
-              Aucun collecteur désigné pour ce Daara.
+            <div className="ax-card">
+              <div className="ax-card__body">
+                <EmptyState
+                  icon={UserCircle}
+                  title="Aucun collecteur désigné"
+                  description="Un chef de Daara peut nommer un talibé collecteur depuis l'annuaire."
+                />
+              </div>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {etat.collectors.map((c) => (
-                <div key={c.id} className="bg-card rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--border)" }}>
-                  <div className="bg-yessal-violet p-5 flex items-center gap-4">
-                    <Avatar className="h-14 w-14 border-2 border-white/30">
-                      <AvatarImage src={c.avatar || undefined} className="object-cover" />
-                      <AvatarFallback className="bg-white/20 text-white font-bold text-lg">
-                        {c.first_name?.[0]}{c.last_name?.[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="text-white">
-                      <div className="font-bold text-base leading-tight">{c.first_name} {c.last_name}</div>
-                      <div className="text-[10px] font-black uppercase tracking-widest opacity-70 mt-0.5">Collecteur Officiel</div>
+                <article key={c.id} className="ax-card">
+                  <div className="ax-card__header">
+                    <Avatar src={c.avatar} name={fullName(c)} size="lg" />
+                    <div className="ax-card__titles">
+                      <h3 className="ax-card__title">{fullName(c)}</h3>
+                      <p className="ax-card__subtitle">Collecteur officiel</p>
                     </div>
                   </div>
-                  <div className="p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail size={13} className="text-muted-foreground shrink-0" />
-                      <span className="truncate text-xs">{c.email}</span>
-                    </div>
-                    {c.phone && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone size={13} className="text-muted-foreground shrink-0" />
-                        <span className="text-xs">{c.phone}</span>
-                      </div>
-                    )}
-                    <div className="flex gap-2 pt-2">
+
+                  <div className="ax-card__body">
+                    <ul className="ax-list ax-list--compact">
+                      <li className="ax-list__row px-0!">
+                        <Mail className="ax-list__leading" size={14} aria-hidden="true" />
+                        <span className="ax-list__content ax-truncate text-sm">
+                          {c.email}
+                        </span>
+                      </li>
                       {c.phone && (
-                        <Button size="sm" className="flex-1 bg-yessal-violet text-white border-none h-9 text-[10px] font-bold gap-1" asChild>
-                          <a href={`tel:${c.phone}`}><Phone size={12} /> Appeler</a>
-                        </Button>
+                        <li className="ax-list__row px-0!">
+                          <Phone
+                            className="ax-list__leading"
+                            size={14}
+                            aria-hidden="true"
+                          />
+                          <span className="ax-list__content font-mono tabular text-sm">
+                            {c.phone}
+                          </span>
+                        </li>
                       )}
-                      <Button size="sm" variant="outline" className="flex-1 h-9 text-[10px] font-bold gap-1" asChild>
-                        <Link href={`/dashboard/users/${c.id}`}><ExternalLink size={12} /> Fiche</Link>
-                      </Button>
-                    </div>
+                    </ul>
                   </div>
-                </div>
+
+                  <div className="ax-card__footer">
+                    {c.phone && (
+                      <a
+                        href={`tel:${c.phone}`}
+                        className="ax-btn ax-btn--primary ax-btn--sm flex-1"
+                      >
+                        <Phone className="ax-btn__icon" size={13} aria-hidden="true" />
+                        <span className="ax-btn__label">Appeler</span>
+                      </a>
+                    )}
+                    <Link
+                      href={`/dashboard/users/${c.id}`}
+                      className="ax-btn ax-btn--outline ax-btn--sm flex-1"
+                    >
+                      <ExternalLink
+                        className="ax-btn__icon"
+                        size={13}
+                        aria-hidden="true"
+                      />
+                      <span className="ax-btn__label">Fiche</span>
+                    </Link>
+                  </div>
+                </article>
               ))}
             </div>
           )}
-        </TabsContent>
+        </div>
+      )}
 
-        {/* ── FINANCES ── */}
-        <TabsContent value="finances" className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-card rounded-xl border p-5 flex flex-col gap-1" style={{ borderColor: "var(--border)" }}>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total collecté</span>
-              <span className="text-3xl font-bold text-yessal-green">{totalCollected.toLocaleString("fr-FR")} <span className="text-sm font-normal">FCFA</span></span>
-              <span className="text-xs text-muted-foreground">{etat?.donation_count ?? 0} don{(etat?.donation_count ?? 0) > 1 ? "s" : ""} confirmés</span>
-            </div>
-            <div className="bg-card rounded-xl border p-5 flex flex-col gap-1" style={{ borderColor: "var(--border)" }}>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Ndiguels associés</span>
-              <span className="text-3xl font-bold">{etat?.campaigns_count ?? 0}</span>
-              <span className="text-xs text-muted-foreground">campagnes liées à ce Daara</span>
-            </div>
-          </div>
-
-          {etat?.campaigns?.length ? (
-            <div className="bg-card rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--border)" }}>
-              <div className="px-5 py-4 border-b font-bold text-sm" style={{ borderColor: "var(--border)" }}>Ndiguels du Daara</div>
-              <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-                {etat.campaigns.map((c) => {
-                  const cfg = STATUS_CONFIG[c.status] ?? STATUS_CONFIG.pending;
-                  const StatusIcon = cfg.icon;
-                  const goal = Number(c.goal_amount || 0);
-                  const collected = Number(c.collected_amount || 0);
-                  return (
-                    <div key={c.id} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/10 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <Link href={`/dashboard/campaigns/${c.id}/etat`} className="font-semibold text-sm hover:underline" style={{ color: "var(--primary)" }}>
-                            {c.name}
-                          </Link>
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${cfg.cls}`}>
-                            <StatusIcon size={10} /> {cfg.label}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-muted-foreground flex gap-3 flex-wrap">
-                          {c.organizer_name && <span>Organisateur : {c.organizer_name}</span>}
-                          <span>Échéance : {new Date(c.deadline).toLocaleDateString("fr-FR")}</span>
-                        </div>
-                        {goal > 0 && (
-                          <div className="mt-2 flex items-center gap-3">
-                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div className="h-full bg-yessal-green rounded-full" style={{ width: `${Math.min(c.progress_pct, 100)}%` }} />
-                            </div>
-                            <span className="text-[10px] text-muted-foreground shrink-0">{c.progress_pct}%</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-bold text-yessal-green">{collected.toLocaleString("fr-FR")} <span className="text-xs font-normal text-muted-foreground">FCFA</span></div>
-                        {goal > 0 && <div className="text-[10px] text-muted-foreground">sur {goal.toLocaleString("fr-FR")} FCFA</div>}
-                      </div>
-                    </div>
-                  );
-                })}
+      {/* ══ Finances ══ */}
+      {tab === "finances" && (
+        <div className="flex flex-col gap-4" role="tabpanel">
+          {!etat?.campaigns?.length ? (
+            <div className="ax-card">
+              <div className="ax-card__body">
+                <EmptyState
+                  icon={BookOpen}
+                  title="Aucun Ndiguel associé"
+                  description="Les campagnes rattachées à ce Daara apparaîtront ici."
+                />
               </div>
             </div>
           ) : (
-            <div className="p-12 text-center text-sm text-muted-foreground italic border-2 border-dashed rounded-xl">
-              Aucun Ndiguel associé à ce Daara.
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+            <section className="ax-card">
+              <div className="ax-card__header">
+                <div className="ax-card__titles">
+                  <h2 className="ax-card__title">Ndiguels du Daara</h2>
+                </div>
+                <span className="ax-badge ax-badge--neutral ax-badge--sm">
+                  {etat.campaigns.length}
+                </span>
+              </div>
 
-      {/* ── EDIT DIALOG ── */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 size={18} className="text-yessal-violet" /> Modifier le Daara
-            </DialogTitle>
-          </DialogHeader>
+              <ul className="ax-list ax-list--comfortable">
+                {etat.campaigns.map((c) => {
+                  const goal = Number(c.goal_amount || 0);
+                  const collected = Number(c.collected_amount || 0);
+
+                  return (
+                    <li key={c.id} className="ax-list__row items-start">
+                      <span className="ax-list__content gap-2">
+                        <span className="ax-cluster flex-wrap gap-2">
+                          <Link
+                            href={`/dashboard/campaigns/${c.id}/etat`}
+                            className="ax-link font-medium"
+                          >
+                            {c.name}
+                          </Link>
+                          <StatusBadge
+                            domain="campaign"
+                            value={c.status}
+                            size="sm"
+                          />
+                        </span>
+
+                        <span className="ax-list__meta ax-cluster flex-wrap gap-3 text-xs">
+                          {c.organizer_name && (
+                            <span>Responsable : {c.organizer_name}</span>
+                          )}
+                          <span>
+                            Échéance :{" "}
+                            {new Date(c.deadline).toLocaleDateString("fr-SN")}
+                          </span>
+                        </span>
+
+                        {goal > 0 && (
+                          <span
+                            className="ax-progress ax-progress--xs mt-1"
+                            role="progressbar"
+                            aria-valuenow={Math.round(c.progress_pct)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label={`Progression de ${c.name}`}
+                          >
+                            <span className="ax-progress__track">
+                              <span
+                                className="ax-progress__fill block"
+                                style={{
+                                  width: `${Math.min(c.progress_pct, 100)}%`,
+                                }}
+                              />
+                            </span>
+                            <span className="ax-progress__value">
+                              {c.progress_pct} %
+                            </span>
+                          </span>
+                        )}
+                      </span>
+
+                      <span className="ax-list__trailing flex-col items-end">
+                        <span className="text-montant font-mono tabular text-sm font-semibold">
+                          {formatFCFA(collected)}
+                        </span>
+                        {goal > 0 && (
+                          <span className="ax-text-subtle font-mono tabular text-xs">
+                            sur {formatFCFA(goal)}
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* ── Édition ── */}
+      <Modal
+        open={isEditOpen}
+        onOpenChange={setIsEditOpen}
+        title="Modifier le Daara"
+        description={daara.name}
+        size="md"
+      >
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
           {daara.ldd && (
-            <div className="flex items-center gap-3 p-3 rounded-xl border bg-muted/20 text-sm" style={{ borderColor: "var(--border)" }}>
-              <Layers size={14} className="text-yessal-violet shrink-0" />
-              <span className="font-bold">[{daara.ldd.code}] {daara.ldd.name}</span>
-              <span className="text-xs text-muted-foreground ml-auto">non modifiable ici</span>
+            <div className="ax-alert ax-alert--neutral ax-alert--inline">
+              <Layers className="ax-alert__icon" aria-hidden="true" />
+              <div className="ax-alert__content">
+                <p className="ax-alert__message">
+                  Zone <strong>[{daara.ldd.code}] {daara.ldd.name}</strong> — se
+                  modifie depuis l&apos;onglet Zones LDD.
+                </p>
+              </div>
             </div>
           )}
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                Nom du Daara <span className="text-red-500">*</span>
-              </label>
-              <Input name="name" defaultValue={daara.name} required className="h-11" />
-            </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer p-3 rounded-lg border bg-muted/20" style={{ borderColor: "var(--border)" }}>
-              <input type="checkbox" name="is_active" defaultChecked={daara.is_active !== false} className="rounded border" />
-              <span className="font-medium">Daara actif</span>
+
+          <div className="ax-field">
+            <label className="ax-field__label" htmlFor="daara-edit-name">
+              Nom du Daara
+              <span className="ax-field__required" aria-hidden="true"> *</span>
             </label>
-            {errorMsg && <p className="text-sm text-red-600 font-medium p-3 bg-red-50 rounded-lg">{errorMsg}</p>}
-            <Button type="submit" disabled={isPending} className="w-full h-11 bg-yessal-violet text-white border-none font-bold">
+            <input
+              id="daara-edit-name"
+              name="name"
+              className="ax-input"
+              defaultValue={daara.name}
+              required
+            />
+          </div>
+
+          {/*
+            Champ récupéré du fichier mort `DaaraEditClient.tsx` : la
+            description existait côté modèle mais n'était éditable par aucun
+            écran vivant.
+          */}
+          <div className="ax-field">
+            <label className="ax-field__label" htmlFor="daara-edit-description">
+              Description
+            </label>
+            <textarea
+              id="daara-edit-description"
+              name="description"
+              rows={4}
+              className="ax-textarea"
+              defaultValue={daara.description ?? ""}
+              placeholder="Précisions géographiques ou historiques…"
+            />
+          </div>
+
+          <label className="ax-check">
+            <input
+              type="checkbox"
+              name="is_active"
+              className="ax-checkbox"
+              defaultChecked={daara.is_active !== false}
+            />
+            <span className="flex flex-col">
+              <span className="text-sm font-medium">Daara actif</span>
+              <span className="ax-text-subtle text-xs">
+                Décoché, ce Daara n&apos;apparaît plus lors des inscriptions.
+              </span>
+            </span>
+          </label>
+
+          {errorMsg && (
+            <p className="ax-field__message ax-field__message--error">
+              {errorMsg}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            className="ax-btn ax-btn--primary ax-btn--block"
+            disabled={isPending}
+          >
+            <Building2 className="ax-btn__icon" size={16} aria-hidden="true" />
+            <span className="ax-btn__label">
               {isPending ? "Enregistrement…" : "Enregistrer les modifications"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+            </span>
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 }

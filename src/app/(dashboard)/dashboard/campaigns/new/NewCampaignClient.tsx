@@ -1,15 +1,38 @@
-﻿"use client";
+"use client";
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Lancer / modifier un Ndiguel
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Formulaire sur les contrats `.ax-field` (patron `forms/Layouts` de Vireo).
+ *
+ * Ce que la reprise change :
+ *
+ *   · Les libellés étaient saisis sans accents — « Une campagne peut etre liee
+ *     a une fete », « Description detaillee », « Mise a jour », « Creation ».
+ *     Ils sont réécrits en français correct.
+ *
+ *   · Le vocabulaire hésitait entre « campagne » et « Ndiguel » dans le même
+ *     écran, jusque dans le bouton d'envoi (« Enregistrer la campagne » sous un
+ *     titre « Lancer un nouveau Ndiguel »).
+ *
+ *   · L'aperçu de l'image existante s'affichait avec `alt="Current"` — un mot
+ *     anglais lu tel quel par les lecteurs d'écran. L'image est décorative ici :
+ *     l'attribut passe à vide.
+ *
+ *   · L'objectif financier est facultatif mais rien ne disait ce qui se passe
+ *     sans lui. Une précision l'indique, parce que la liste des Ndiguels masque
+ *     effectivement la barre de progression dans ce cas.
+ */
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { addCampaign, updateCampaign } from "@/app/actions/campaigns";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Target } from "lucide-react";
+import { addCampaign, updateCampaign } from "@/app/actions/campaigns";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { roleLabel } from "@/lib/roles";
+import { FileDrop } from "@/components/vireo/FileDrop";
 
 type FeteOption = { id: number | string; name: string };
 type MemberOption = {
@@ -56,162 +79,206 @@ export function NewCampaignClient({
 
       if (res.error) {
         setErrorMsg(res.error);
-      } else {
-        router.push("/dashboard/campaigns");
-        router.refresh();
+        return;
       }
+      router.push("/dashboard/campaigns");
+      router.refresh();
     });
   };
 
-  const eligibleMembers = members.filter((member) =>
-    ["member", "collector", "chef_daara"].includes(member.role || ""),
+  const eligibleMembers = members.filter((m) =>
+    ["member", "collector", "chef_daara"].includes(m.role || ""),
   );
 
   return (
-    <div className="max-w-xl mx-auto flex flex-col gap-8">
-      <Button variant="ghost" className="w-fit gap-2 -ml-2" asChild>
-        <Link href="/dashboard/campaigns">
-          <ArrowLeft size={16} />
-          Retour aux Ndiguels
-        </Link>
-      </Button>
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+      <Link href="/dashboard/campaigns" className="ax-btn ax-btn--ghost w-fit">
+        <ArrowLeft className="ax-btn__icon" size={16} aria-hidden="true" />
+        <span className="ax-btn__label">Retour aux Ndiguels</span>
+      </Link>
 
-      <div
-        className="rounded-xl border bg-card p-6 shadow-sm"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <div className="mb-6">
-          <h2
-            className="text-xl font-semibold flex items-center gap-2"
-            style={{ color: "var(--foreground)" }}
-          >
-            <Target size={20} style={{ color: "var(--primary)" }} />
-            {isEditMode ? "Modifier le Ndiguel" : "Lancer un nouveau Ndiguel"}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Une campagne peut etre liee a une fete et pilotee par un membre.
-          </p>
+      <section className="ax-card">
+        <div className="ax-card__header">
+          <span className="ax-card__kpi-icon ax-card__kpi-icon--c1" aria-hidden="true">
+            <Target />
+          </span>
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">
+              {isEditMode ? "Modifier le Ndiguel" : "Lancer un nouveau Ndiguel"}
+            </h2>
+            <p className="ax-card__subtitle">
+              Un Ndiguel peut être rattaché à une fête et confié à un
+              responsable.
+            </p>
+          </div>
         </div>
 
-        <form action={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nom du Ndiguel</Label>
-            <Input
-              id="name"
-              name="name"
-              placeholder={"Ex.: Contribution mur d'enceinte"}
-              defaultValue={initialCampaign?.name ?? ""}
-              required
-            />
-          </div>
+        <div className="ax-card__body">
+          <form action={handleSubmit} className="flex flex-col gap-5">
+            <div className="ax-field">
+              <label className="ax-field__label" htmlFor="name">
+                Nom du Ndiguel
+                <span className="ax-field__required" aria-hidden="true"> *</span>
+              </label>
+              <input
+                id="name"
+                name="name"
+                className="ax-input"
+                placeholder="Ex. Contribution mur d'enceinte"
+                defaultValue={initialCampaign?.name ?? ""}
+                required
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              name="description"
-              placeholder="Description detaillee de la campagne..."
-              rows={3}
-              defaultValue={initialCampaign?.description ?? ""}
-            />
-          </div>
+            <div className="ax-field">
+              <label className="ax-field__label" htmlFor="description">
+                Description
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                rows={3}
+                className="ax-textarea"
+                placeholder="Ce que finance ce Ndiguel, et pourquoi."
+                defaultValue={initialCampaign?.description ?? ""}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="illustrative_photo">Image illustrative (Optionnel)</Label>
-            <div className="flex flex-col gap-2">
-              {initialCampaign?.illustrative_photo && (
-                <div className="relative h-32 w-full rounded-lg overflow-hidden border">
-                  <img
-                    src={initialCampaign.illustrative_photo}
-                    alt="Current"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              <Input
-                id="illustrative_photo"
+            <div className="ax-field">
+              <span className="ax-field__label">Image illustrative</span>
+
+              {/*
+                L'`<input type="file">` natif affichait « No file chosen » —
+                un texte imposé par la locale du NAVIGATEUR, qu'aucun attribut
+                ne traduit. <FileDrop> le masque et dessine l'interface, en
+                français, avec le plafond de taille annoncé avant le dépôt.
+              */}
+              <FileDrop
                 name="illustrative_photo"
-                type="file"
                 accept="image/*"
-                className="cursor-pointer"
+                hint="JPG ou PNG"
+                currentPreview={initialCampaign?.illustrative_photo}
               />
-            </div>
-          </div>
 
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="goalAmount">Objectif financier (Optionnel)</Label>
-              <Input
-                id="goalAmount"
-                name="goalAmount"
-                type="number"
-                min={1000}
-                placeholder="100000"
-                defaultValue={initialCampaign?.goal_amount ?? ""}
-              />
+              <p className="ax-field__hint">
+                Facultative. Elle habille la carte du Ndiguel dans la liste.
+              </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="deadline">Date limite</Label>
-              <DatePicker name="deadline" defaultValue={initialCampaign?.deadline ?? ""} required />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="feteId">Lier a une fete</Label>
-              <select
-                id="feteId"
-                name="feteId"
-                defaultValue={initialCampaign?.fete ? String(initialCampaign.fete) : ""}
-                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <option value="">Aucune fete</option>
-                {fetes.map((fete) => (
-                  <option key={fete.id} value={fete.id}>
-                    {fete.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="organizerId">Responsable / Organisateur</Label>
-              <select
-                id="organizerId"
-                name="organizerId"
-                defaultValue={initialCampaign?.organizer ? String(initialCampaign.organizer) : ""}
-                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <option value="">Aucun organisateur</option>
-                {eligibleMembers.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.first_name} {member.last_name} ({member.email}) - {member.role}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="ax-field">
+                <label className="ax-field__label" htmlFor="goalAmount">
+                  Objectif financier
+                </label>
+                <div className="ax-field__control">
+                  <input
+                    id="goalAmount"
+                    name="goalAmount"
+                    type="number"
+                    min={1000}
+                    step={1000}
+                    inputMode="numeric"
+                    className="ax-input ax-input--with-trailing font-mono tabular"
+                    placeholder="100000"
+                    defaultValue={initialCampaign?.goal_amount ?? ""}
+                  />
+                  <span className="ax-field__affix ax-field__affix--trailing">
+                    FCFA
+                  </span>
+                </div>
+                <p className="ax-field__hint">
+                  Facultatif. Sans objectif, la barre de progression n&apos;est
+                  pas affichée.
+                </p>
+              </div>
 
-          {errorMsg ? <p className="text-xs text-red-600 font-medium">{errorMsg}</p> : null}
+              <div className="ax-field">
+                <label className="ax-field__label">
+                  Date limite
+                  <span className="ax-field__required" aria-hidden="true"> *</span>
+                </label>
+                <DatePicker
+                  name="deadline"
+                  defaultValue={initialCampaign?.deadline ?? ""}
+                  required
+                />
+              </div>
+            </div>
 
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="w-full mt-2"
-            style={{ background: "var(--primary)", color: "white" }}
-          >
-            {isPending
-              ? isEditMode
-                ? "Mise a jour..."
-                : "Creation..."
-              : isEditMode
-                ? "Enregistrer les modifications"
-                : "Enregistrer la campagne"}
-          </Button>
-        </form>
-      </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="ax-field">
+                <label className="ax-field__label" htmlFor="feteId">
+                  Rattacher à une fête
+                </label>
+                <select
+                  id="feteId"
+                  name="feteId"
+                  className="ax-select"
+                  defaultValue={
+                    initialCampaign?.fete ? String(initialCampaign.fete) : ""
+                  }
+                >
+                  <option value="">Aucune fête</option>
+                  {fetes.map((fete) => (
+                    <option key={fete.id} value={fete.id}>
+                      {fete.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="ax-field">
+                <label className="ax-field__label" htmlFor="organizerId">
+                  Responsable
+                </label>
+                <select
+                  id="organizerId"
+                  name="organizerId"
+                  className="ax-select"
+                  defaultValue={
+                    initialCampaign?.organizer
+                      ? String(initialCampaign.organizer)
+                      : ""
+                  }
+                >
+                  <option value="">Aucun responsable</option>
+                  {eligibleMembers.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.first_name} {m.last_name}
+                      {m.role ? ` · ${roleLabel(m.role)}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="ax-field__hint">
+                  Il pourra gérer les tâches et ouvrir un salon d&apos;organisation.
+                </p>
+              </div>
+            </div>
+
+            {errorMsg && (
+              <p className="ax-field__message ax-field__message--error">
+                {errorMsg}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary ax-btn--lg ax-btn--block"
+              disabled={isPending}
+            >
+              <span className="ax-btn__label">
+                {isPending
+                  ? isEditMode
+                    ? "Mise à jour…"
+                    : "Création…"
+                  : isEditMode
+                    ? "Enregistrer les modifications"
+                    : "Lancer le Ndiguel"}
+              </span>
+            </button>
+          </form>
+        </div>
+      </section>
     </div>
   );
 }

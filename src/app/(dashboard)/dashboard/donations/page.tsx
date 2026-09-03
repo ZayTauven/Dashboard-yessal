@@ -1,15 +1,26 @@
-﻿import Link from "next/link";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { getDonations } from "@/app/actions/donations";
 import { getProfile } from "@/app/actions/users";
-import { DonationListClient } from "./DonationListClient";
-import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { Plus } from "lucide-react";
+import { PageHead } from "@/components/vireo/PageHead";
+import type { Role } from "@/lib/nav";
+import { DonationListClient } from "./DonationListClient";
 
+/*
+ * L'en-tête maison (titre en `text-3xl` + bouton stylé à la main) laisse place
+ * à <PageHead> : même hiérarchie typographique que les vingt-sept autres
+ * écrans, fil d'Ariane déduit de la navigation, actions toujours au même
+ * endroit. La largeur maximale disparaît aussi — c'est désormais la coque
+ * (`data-ax-width`) qui la décide, pas chaque page dans son coin.
+ */
 export default async function DonationsPage() {
-  const { data: donations, error } = await getDonations();
-  const { data: profile } = await getProfile();
-  const role = profile?.role;
+  const [{ data: donations, error }, { data: profile }] = await Promise.all([
+    getDonations(),
+    getProfile(),
+  ]);
+
+  const role = (profile?.role ?? "member") as Role;
 
   const canNewDonation =
     role === "member" || role === "collector" || role === "chef_daara";
@@ -21,46 +32,34 @@ export default async function DonationsPage() {
     role === "admin"
       ? "Les contributions"
       : role === "chef_daara"
-        ? "Dons du Daara"
+        ? "Jëfs du Daara"
         : "Mes contributions";
 
   const subtitle =
     role === "admin"
-      ? "Toutes les contributions enregistrées sur la plateforme, avec le contributeur et le Daara."
+      ? "Toutes les contributions enregistrées sur la plateforme, avec le contributeur et son Daara."
       : role === "chef_daara"
         ? "Contributions des membres rattachés à votre Daara."
-        : "Historique de vos dons personnels et des dons effectués pour vos tutelles.";
+        : "Historique de vos Jëfs personnels et de ceux effectués pour vos tutelles.";
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1
-            className="text-3xl font-semibold tracking-tight"
-            style={{ color: "var(--foreground)" }}
-          >
-            {title}
-          </h1>
-          <p
-            className="text-sm mt-1"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            {subtitle}
-          </p>
-        </div>
-        {canNewDonation && (
-          <Button
-            className="gap-2 shrink-0"
-            style={{ background: "var(--primary)", color: "#FAFAF8" }}
-            asChild
-          >
-            <Link href="/dashboard/donations/new">
-              <Plus size={16} />
-              Faire un Jëfs
+    <div className="flex flex-col gap-6">
+      <PageHead
+        role={role}
+        title={title}
+        subtitle={subtitle}
+        actions={
+          canNewDonation && (
+            <Link
+              href="/dashboard/donations/new"
+              className="ax-btn ax-btn--primary"
+            >
+              <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
+              <span className="ax-btn__label">Faire un Jëf</span>
             </Link>
-          </Button>
-        )}
-      </div>
+          )
+        }
+      />
 
       {error ? (
         <ErrorAlert message={error} />

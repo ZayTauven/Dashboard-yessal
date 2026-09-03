@@ -1,14 +1,36 @@
-﻿"use client";
+"use client";
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Nouveau Jëf
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Formulaire court, sur les contrats `.ax-field` de Vireo (patron
+ * `forms/Layouts`). Un assistant multi-étapes serait ici du zèle : quatre
+ * champs tiennent sur un écran, et découper un don en trois pages ajoute des
+ * clics sans réduire la charge mentale.
+ *
+ * Trois corrections :
+ *
+ *   · Les sept moyens de paiement passent par <PaymentMethodPicker>. Ils
+ *     étaient recopiés à l'identique ici ET dans la modale des Ndiguels — et
+ *     les deux listes avaient divergé, le virement bancaire n'existant que
+ *     dans cet écran-ci.
+ *
+ *   · Les coordonnées bancaires étaient écrites sans accents (« Coordonnees »,
+ *     « Reference », « identite ») et l'IBAN en police proportionnelle. Un IBAN
+ *     se recopie caractère par caractère : il passe en chiffres tabulaires.
+ *
+ *   · Le champ montant portait l'unité « FCFA » à GAUCHE, avant le nombre —
+ *     l'inverse de l'usage local, et de ce que fait le reste de l'interface.
+ */
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { makeDonation, payDonation } from "@/app/actions/donations";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, CreditCard, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ArrowLeft, CreditCard, Wallet, Landmark } from "lucide-react";
+import { makeDonation, payDonation } from "@/app/actions/donations";
+import { PaymentMethodPicker } from "@/components/vireo/PaymentMethodPicker";
 
 type CampaignOption = { id: number | string; name: string };
 type TutelleOption = {
@@ -47,275 +69,248 @@ export function NewDonationClient({
       const res = await makeDonation(formData);
       if (res.error) {
         setErrorMsg(res.error);
-      } else {
-        const donation = res.data;
+        return;
+      }
 
-        // If collector payment, show specific message
-        if (paymentMethod === "collector") {
-          toast.success("Demande de collecte enregistrée. Les responsables ont été notifiés.");
-          router.push("/dashboard/donations");
+      const donation = res.data;
+
+      // Collecte physique : rien à payer en ligne, on notifie les responsables.
+      if (paymentMethod === "collector") {
+        toast.success(
+          "Demande de collecte enregistrée. Les responsables ont été notifiés.",
+        );
+        router.push("/dashboard/donations");
+        return;
+      }
+
+      // Paiement digital : on enchaîne sur Bictorys.
+      if (paymentMethod !== "paypal") {
+        const payRes = await payDonation(donation.id, paymentMethod);
+        if (payRes.error) {
+          setErrorMsg(payRes.error);
           return;
         }
 
-        // If digital payment, initiate Bictorys
-        if (paymentMethod !== "paypal") {
-          const payRes = await payDonation(donation.id, paymentMethod);
-          if (payRes.error) {
-            setErrorMsg(payRes.error);
+        if (paymentMethod === "visa" || paymentMethod === "mastercard") {
+          if (payRes.data?.checkout_url) {
+            window.location.href = payRes.data.checkout_url;
             return;
           }
-
-          if (paymentMethod === "visa" || paymentMethod === "mastercard") {
-            if (payRes.data?.checkout_url) {
-              window.location.href = payRes.data.checkout_url;
-              return;
-            }
-          } else {
-            toast.success(`Demande de paiement ${paymentMethod.replace("_", " ")} envoyée. Validez sur votre téléphone.`);
-          }
+        } else {
+          toast.success(
+            "Demande de paiement envoyée. Validez sur votre téléphone.",
+          );
         }
-
-        router.push("/dashboard/donations");
       }
+
+      router.push("/dashboard/donations");
     });
   };
 
   return (
-    <div className="max-w-xl mx-auto flex flex-col gap-8">
-      <Button variant="ghost" className="w-fit gap-2 -ml-2" asChild>
-        <Link href="/dashboard/donations">
-          <ArrowLeft size={16} />
-          Retour à mes Jëfs
-        </Link>
-      </Button>
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+      <Link href="/dashboard/donations" className="ax-btn ax-btn--ghost w-fit">
+        <ArrowLeft className="ax-btn__icon" size={16} aria-hidden="true" />
+        <span className="ax-btn__label">Retour à mes Jëfs</span>
+      </Link>
 
-      <div
-        className="rounded-xl border bg-card p-6 shadow-sm"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <div className="mb-6">
-          <h2
-            className="text-xl font-semibold flex items-center gap-2"
-            style={{ color: "var(--foreground)" }}
-          >
-            <Wallet size={20} style={{ color: "var(--primary)" }} />
-            Faire un Jëfs
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Choisissez une campagne, un montant et un moyen de paiement.
-          </p>
+      <section className="ax-card">
+        <div className="ax-card__header">
+          <span className="ax-card__kpi-icon ax-card__kpi-icon--c1" aria-hidden="true">
+            <Wallet />
+          </span>
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">Faire un Jëf</h2>
+            <p className="ax-card__subtitle">
+              Choisissez un Ndiguel, un montant et un moyen de paiement.
+            </p>
+          </div>
         </div>
 
-        {campaigns.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Aucune campagne disponible pour le moment.{" "}
-            <Link
-              href="/dashboard/campaigns"
-              className="underline font-medium"
-              style={{ color: "var(--primary)" }}
-            >
-              Voir les Ndiguels
-            </Link>
-          </p>
-        ) : (
-          <form action={handleDonation} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="campaignId">Campagne</Label>
-              <select
-                id="campaignId"
-                name="campaignId"
-                required
-                defaultValue={defaultCampaignId || ""}
-                className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <option value="" disabled>
-                  Sélectionner…
-                </option>
-                {campaigns.map((c) => (
-                  <option key={c.id} value={String(c.id)}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="amount">Montant (FCFA)</Label>
-              <div className="relative">
-                <Input
-                  id="amount"
-                  name="amount"
-                  type="number"
-                  min={5}
-                  placeholder="5000"
-                  className="pl-12"
-                  required
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-xs">
-                  FCFA
-                </span>
+        <div className="ax-card__body">
+          {campaigns.length === 0 ? (
+            <div className="ax-alert ax-alert--info">
+              <Wallet className="ax-alert__icon" aria-hidden="true" />
+              <div className="ax-alert__content">
+                <p className="ax-alert__title">Aucun Ndiguel en cours</p>
+                <p className="ax-alert__message">
+                  Un Jëf se rattache toujours à un Ndiguel. Revenez lorsqu&apos;une
+                  campagne sera lancée.
+                </p>
+                <div className="ax-alert__actions">
+                  <Link
+                    href="/dashboard/campaigns"
+                    className="ax-btn ax-btn--soft-info ax-btn--sm"
+                  >
+                    <span className="ax-btn__label">Voir les Ndiguels</span>
+                  </Link>
+                </div>
               </div>
             </div>
-
-            {tutelles.length > 0 && (
-              <div className="space-y-2">
-                <Label htmlFor="beneficiaryId">Bénéficiaire (tutelle)</Label>
+          ) : (
+            <form action={handleDonation} className="flex flex-col gap-5">
+              <div className="ax-field">
+                <label className="ax-field__label" htmlFor="campaignId">
+                  Ndiguel
+                  <span className="ax-field__required" aria-hidden="true"> *</span>
+                </label>
                 <select
-                  id="beneficiaryId"
-                  name="beneficiaryId"
-                  className="flex h-10 w-full rounded-md border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-                  style={{ borderColor: "var(--border)" }}
+                  id="campaignId"
+                  name="campaignId"
+                  className="ax-select"
+                  required
+                  defaultValue={defaultCampaignId || ""}
                 >
-                  <option value="">Pour moi-même</option>
-                  {tutelles.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.first_name} {t.last_name}
+                  <option value="" disabled>
+                    Sélectionner un Ndiguel…
+                  </option>
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
               </div>
-            )}
 
-            <div className="space-y-2">
-              <Label>Moyen de paiement</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "orange_money" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                  onClick={() => setSelectedMethod("orange_money")}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="orange_money"
-                    checked={selectedMethod === "orange_money"}
-                    onChange={() => setSelectedMethod("orange_money")}
-                    className="sr-only"
-                  />
-                  <span className="text-[10px] font-bold">Orange</span>
+              <div className="ax-field">
+                <label className="ax-field__label" htmlFor="amount">
+                  Montant
+                  <span className="ax-field__required" aria-hidden="true"> *</span>
                 </label>
-                <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "wave" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                  onClick={() => setSelectedMethod("wave")}
-                >
+                <div className="ax-field__control">
                   <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="wave"
-                    checked={selectedMethod === "wave"}
-                    onChange={() => setSelectedMethod("wave")}
-                    className="sr-only"
+                    id="amount"
+                    name="amount"
+                    type="number"
+                    min={5}
+                    step={500}
+                    inputMode="numeric"
+                    className="ax-input ax-input--lg ax-input--with-trailing font-mono tabular"
+                    placeholder="5000"
+                    required
                   />
-                  <span className="text-[10px] font-bold">Wave</span>
-                </label>
-                <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "visa" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                  onClick={() => setSelectedMethod("visa")}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="visa"
-                    checked={selectedMethod === "visa"}
-                    onChange={() => setSelectedMethod("visa")}
-                    className="sr-only"
-                  />
-                  <span className="text-[10px] font-bold">Visa</span>
-                </label>
-                <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "mastercard" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                  onClick={() => setSelectedMethod("mastercard")}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="mastercard"
-                    checked={selectedMethod === "mastercard"}
-                    onChange={() => setSelectedMethod("mastercard")}
-                    className="sr-only"
-                  />
-                  <span className="text-[10px] font-bold">Mastercard</span>
-                </label>
-                <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "paypal" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                  onClick={() => setSelectedMethod("paypal")}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="paypal"
-                    checked={selectedMethod === "paypal"}
-                    onChange={() => setSelectedMethod("paypal")}
-                    className="sr-only"
-                  />
-                  <span className="text-[10px] font-bold">PayPal</span>
-                </label>
-                <label 
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "collector" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                  onClick={() => setSelectedMethod("collector")}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="collector"
-                    checked={selectedMethod === "collector"}
-                    onChange={() => setSelectedMethod("collector")}
-                    className="sr-only"
-                  />
-                  <span className="text-[10px] font-bold">Collecteur</span>
-                </label>
-                <label
-                  className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${selectedMethod === "virement" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                  onClick={() => setSelectedMethod("virement")}
-                >
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="virement"
-                    checked={selectedMethod === "virement"}
-                    onChange={() => setSelectedMethod("virement")}
-                    className="sr-only"
-                  />
-                  <Landmark size={14} />
-                  <span className="text-[10px] font-bold">Virement</span>
-                </label>
-              </div>
-            </div>
-
-            {selectedMethod === "virement" && (
-              <div className="space-y-2 rounded-xl border p-4 bg-muted/20" style={{ borderColor: "var(--border)" }}>
-                <p className="text-xs font-semibold">Coordonnees bancaires</p>
-                <p className="text-xs text-muted-foreground">{bankConfig.bank_name} - {bankConfig.account_name}</p>
-                <p className="text-xs">IBAN: {bankConfig.iban}</p>
-                <p className="text-xs">BIC: {bankConfig.bic}</p>
-                <div className="space-y-1.5 pt-2">
-                  <Label htmlFor="wireReference">Reference de virement</Label>
-                  <Input id="wireReference" name="wireReference" placeholder={bankConfig.reference_format} required />
+                  {/* L'unité suit le nombre, comme partout ailleurs. */}
+                  <span className="ax-field__affix ax-field__affix--trailing">
+                    FCFA
+                  </span>
                 </div>
               </div>
-            )}
 
-            <label className="flex items-center gap-2 text-xs">
-              <input type="checkbox" name="isAnonymous" />
-              Masquer mon identite dans l'etat du Ndiguel
-            </label>
+              {tutelles.length > 0 && (
+                <div className="ax-field">
+                  <label className="ax-field__label" htmlFor="beneficiaryId">
+                    Bénéficiaire
+                  </label>
+                  <select
+                    id="beneficiaryId"
+                    name="beneficiaryId"
+                    className="ax-select"
+                  >
+                    <option value="">Pour moi-même</option>
+                    {tutelles.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.first_name} {t.last_name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="ax-field__hint">
+                    Vous pouvez donner au nom d&apos;un proche sous votre tutelle.
+                  </p>
+                </div>
+              )}
 
-            {errorMsg && (
-              <p className="text-xs text-red-600 font-medium">{errorMsg}</p>
-            )}
+              <PaymentMethodPicker
+                value={selectedMethod}
+                onChange={setSelectedMethod}
+              />
 
-            <Button
-              type="submit"
-              disabled={isPending}
-              className="w-full gap-2 py-6 text-base"
-              style={{ background: "var(--primary)", color: "white" }}
-            >
-              <CreditCard size={18} />
-              {isPending ? "Traitement…" : "Confirmer le don"}
-            </Button>
-          </form>
-        )}
-      </div>
+              {selectedMethod === "virement" && (
+                <div className="ax-card ax-card--compact">
+                  <div className="ax-card__body flex flex-col gap-3">
+                    <h3 className="ax-eyebrow">Coordonnées bancaires</h3>
+
+                    <ul className="ax-list ax-list--compact">
+                      <li className="ax-list__row px-0!">
+                        <span className="ax-list__content">
+                          <span className="ax-list__title">
+                            {bankConfig.bank_name}
+                          </span>
+                          <span className="ax-list__meta">
+                            {bankConfig.account_name}
+                          </span>
+                        </span>
+                      </li>
+                      <li className="ax-list__row px-0!">
+                        <span className="ax-list__content">
+                          {/* Un IBAN se recopie caractère par caractère : il lui
+                              faut des chiffres tabulaires. */}
+                          <span className="ax-list__title font-mono tabular">
+                            {bankConfig.iban}
+                          </span>
+                          <span className="ax-list__meta">IBAN</span>
+                        </span>
+                      </li>
+                      <li className="ax-list__row px-0!">
+                        <span className="ax-list__content">
+                          <span className="ax-list__title font-mono tabular">
+                            {bankConfig.bic}
+                          </span>
+                          <span className="ax-list__meta">BIC</span>
+                        </span>
+                      </li>
+                    </ul>
+
+                    <div className="ax-field">
+                      <label className="ax-field__label" htmlFor="wireReference">
+                        Référence du virement
+                        <span className="ax-field__required" aria-hidden="true"> *</span>
+                      </label>
+                      <input
+                        id="wireReference"
+                        name="wireReference"
+                        className="ax-input font-mono"
+                        placeholder={bankConfig.reference_format}
+                        required
+                      />
+                      <p className="ax-field__hint">
+                        Effectuez le virement, puis saisissez sa référence ici.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <label className="ax-check">
+                <input
+                  type="checkbox"
+                  name="isAnonymous"
+                  className="ax-checkbox"
+                />
+                <span className="text-sm">
+                  Masquer mon identité dans l&apos;état du Ndiguel
+                </span>
+              </label>
+
+              {errorMsg && (
+                <p className="ax-field__message ax-field__message--error">
+                  {errorMsg}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="ax-btn ax-btn--primary ax-btn--lg ax-btn--block"
+                disabled={isPending}
+              >
+                <CreditCard className="ax-btn__icon" size={18} aria-hidden="true" />
+                <span className="ax-btn__label">
+                  {isPending ? "Traitement…" : "Confirmer le Jëf"}
+                </span>
+              </button>
+            </form>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

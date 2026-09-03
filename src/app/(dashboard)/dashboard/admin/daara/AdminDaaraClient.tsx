@@ -1,151 +1,171 @@
-﻿"use client";
+"use client";
 
-import { useState, useMemo, useTransition, useEffect } from "react";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Gestion des Daaras et des zones LDD
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Deux objets, deux onglets `.ax-tabs` : les Daaras (liste + création) et les
+ * zones LDD qui les regroupent.
+ *
+ * Corrections de fond :
+ *
+ *   · Le tri était réimplémenté à la main, et il triait la LISTE COMPLÈTE mais
+ *     paginait après — ce qui était correct — tandis que les autres écrans
+ *     triaient la page. Cette logique passe dans `useCollection`, où elle est
+ *     écrite une fois pour tout le produit.
+ *
+ *   · Les deux premières icônes d'action, « œil » et « crayon », pointaient
+ *     vers la MÊME URL (`/dashboard/admin/daara/<id>`). Deux boutons pour une
+ *     seule destination : ils fusionnent en une entrée de menu.
+ *
+ *   · Les actions des cartes de zone étaient en `opacity-0 group-hover` :
+ *     inatteignables sur écran tactile.
+ *
+ *   · Après un import Excel réussi, le code appelait `window.location.reload()`
+ *     — un rechargement complet qui perd l'onglet actif et le défilement.
+ *     `router.refresh()` recharge les données du serveur sans quitter la page.
+ *
+ *   · Le champ Description était en `focus:ring-green-500`, un vert sans
+ *     rapport avec le reste du formulaire (violet). Détail révélateur : les
+ *     anneaux de focus étaient écrits champ par champ.
+ */
+
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
-  createDaara,
-  deleteDaara,
-  importDaaraExcel,
-  getLDDs,
-  createLDD,
-  updateLDD,
-  deleteLDD,
-} from "@/app/actions/daara";
-import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Plus,
-  Trash2,
-  Building2,
   AlertCircle,
-  Eye,
-  Edit,
-  Upload,
+  Building2,
   CheckCircle,
   Layers,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  createDaara,
+  createLDD,
+  deleteDaara,
+  deleteLDD,
+  getLDDs,
+  importDaaraExcel,
+  updateLDD,
+} from "@/app/actions/daara";
+import { EmptyState } from "@/components/ui/empty-state";
+import { DataTable, type Column } from "@/components/vireo/DataTable";
+import { FilterBar } from "@/components/vireo/FilterBar";
+import { checkFileSize } from "@/components/vireo/FileDrop";
+import { Menu } from "@/components/vireo/Menu";
+import { Modal } from "@/components/vireo/Modal";
+import { Pagination } from "@/components/vireo/Pagination";
+import { StatusBadge } from "@/components/vireo/StatusBadge";
+import { ALL, useCollection } from "@/hooks/useCollection";
 
-export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
+export interface Ldd {
+  id: number;
+  code?: string | null;
+  name?: string | null;
+}
+
+export interface Daara {
+  id: number;
+  name?: string | null;
+  description?: string | null;
+  is_active?: boolean;
+  members_count?: number | null;
+  memberCount?: number | null;
+  ldd?: Ldd | null;
+}
+
+type SortKey = "zone" | "name" | "members" | "status";
+type Tab = "daaras" | "zones";
+
+/** L'API renvoie soit un tableau, soit une page DRF `{ results: [...] }`. */
+function unwrap<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  return ((data as { results?: T[] })?.results ?? []) as T[];
+}
+
+const memberCountOf = (d: Daara) => d.members_count ?? d.memberCount ?? 0;
+
+export function AdminDaaraClient({
+  initialDaaras,
+}: {
+  initialDaaras: Daara[];
+}) {
+  const router = useRouter();
   const [daaras, setDaaras] = useState(initialDaaras);
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
+  const [tab, setTab] = useState<Tab>("daaras");
+
   const [isImporting, setIsImporting] = useState(false);
-  const [importSuccessMsg, setImportSuccessMsg] = useState("");
-  const [editingZone, setEditingZone] = useState<any | null>(null);
-  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
 
-  // LDDs state for the form selector
-  const [ldds, setLdds] = useState<any[]>([]);
+  const [ldds, setLdds] = useState<Ldd[]>([]);
   const [lddsLoading, setLddsLoading] = useState(true);
-
-  // Pagination, Sort, Filter
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState<{
-    key: string;
-    direction: "asc" | "desc";
-  } | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
-
-  const handleSort = (key: string) => {
-    let direction: "asc" | "desc" = "asc";
-    if (
-      sortConfig &&
-      sortConfig.key === key &&
-      sortConfig.direction === "asc"
-    ) {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const filteredAndSortedDaaras = useMemo(() => {
-    let sortableItems = [...daaras];
-
-    if (searchTerm) {
-      sortableItems = sortableItems.filter(
-        (daara) =>
-          (daara.name?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-            false) ||
-          (daara.ldd?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-            false) ||
-          (daara.ldd?.code?.toLowerCase().includes(searchTerm.toLowerCase()) ??
-            false),
-      );
-    }
-
-    if (sortConfig !== null) {
-      sortableItems.sort((a, b) => {
-        let aValue = a[sortConfig.key];
-        let bValue = b[sortConfig.key];
-
-        if (sortConfig.key === "ldd_code") {
-          aValue = a.ldd?.code || "";
-          bValue = b.ldd?.code || "";
-        } else if (sortConfig.key === "members_count") {
-          aValue = a.members_count ?? a.memberCount ?? 0;
-          bValue = b.members_count ?? b.memberCount ?? 0;
-        }
-
-        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
-    return sortableItems;
-  }, [daaras, searchTerm, sortConfig]);
-
-  const totalPages = Math.ceil(filteredAndSortedDaaras.length / itemsPerPage);
-  const paginatedDaaras = filteredAndSortedDaaras.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+  const [editingZone, setEditingZone] = useState<Ldd | null>(null);
+  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
 
   useEffect(() => {
     getLDDs().then((res) => {
-      if (res.data) {
-        // Handle paginated or flat array response
-        const arr = Array.isArray(res.data)
-          ? res.data
-          : ((res.data as any).results ?? []);
-        setLdds(arr);
-      }
+      if (res.data) setLdds(unwrap<Ldd>(res.data));
       setLddsLoading(false);
     });
   }, []);
+
+  const searchable = useMemo(
+    () => (d: Daara) => [d.name, d.ldd?.name, d.ldd?.code],
+    [],
+  );
+
+  const filters = useMemo(
+    () => ({
+      status: (d: Daara, v: string) =>
+        v === "active" ? d.is_active !== false : d.is_active === false,
+      zone: (d: Daara, v: string) => String(d.ldd?.id ?? "") === v,
+    }),
+    [],
+  );
+
+  const sorters = useMemo(
+    () => ({
+      zone: (d: Daara) => d.ldd?.code ?? "",
+      name: (d: Daara) => d.name ?? "",
+      members: (d: Daara) => memberCountOf(d),
+      status: (d: Daara) => (d.is_active === false ? "inactif" : "actif"),
+    }),
+    [],
+  );
+
+  const c = useCollection(daaras, {
+    searchable,
+    filters,
+    sorters,
+    initialSort: { key: "name", dir: "asc" },
+    pageSize: 12,
+  });
+
+  const refreshLdds = async () => {
+    const res = await getLDDs();
+    if (res.data) setLdds(unwrap<Ldd>(res.data));
+  };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const tooBig = checkFileSize(file);
+    if (tooBig) {
+      toast.error(tooBig);
+      e.target.value = "";
+      return;
+    }
+
     setIsImporting(true);
-    setImportSuccessMsg("");
+    setImportMsg("");
     setErrorMsg("");
 
     const formData = new FormData();
@@ -155,517 +175,595 @@ export function AdminDaaraClient({ initialDaaras }: { initialDaaras: any[] }) {
     if (res.error) {
       setErrorMsg(res.error);
     } else {
-      setImportSuccessMsg(res.data?.success || "Importation réussie.");
-      setTimeout(() => setImportSuccessMsg(""), 5000);
-      window.location.reload();
+      setImportMsg(res.data?.success || "Importation réussie.");
+      /* Rafraîchissement des données serveur, sans rechargement complet. */
+      router.refresh();
+      await refreshLdds();
     }
     setIsImporting(false);
+    e.target.value = "";
   };
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleCreateDaara = (formData: FormData) => {
     setErrorMsg("");
     startTransition(async () => {
       const res = await createDaara(formData);
       if (res.error) {
         setErrorMsg(res.error);
-      } else {
-        setDaaras((prev) => [...prev, res.data]);
-        // Reset form
-        const form = document.getElementById(
-          "daara-create-form",
-        ) as HTMLFormElement;
-        form?.reset();
+        return;
       }
+      setDaaras((prev) => [...prev, res.data as Daara]);
+      toast.success("Daara créé.");
+      (
+        document.getElementById("daara-create-form") as HTMLFormElement | null
+      )?.reset();
     });
   };
 
-  const handleDelete = (id: number) => {
-    toast("Supprimer ce Daara ?", {
+  const handleDeleteDaara = (daara: Daara) => {
+    toast(`Supprimer « ${daara.name} » ?`, {
       action: {
         label: "Supprimer",
-        onClick: () => startTransition(async () => {
-          const res = await deleteDaara(id);
-          if (!res.error) {
-            setDaaras((prev) => prev.filter((d) => d.id !== id));
+        onClick: () =>
+          startTransition(async () => {
+            const res = await deleteDaara(daara.id);
+            if (res.error) {
+              toast.error(res.error);
+              return;
+            }
+            setDaaras((prev) => prev.filter((d) => d.id !== daara.id));
             toast.success("Daara supprimé.");
-          } else {
-            toast.error(res.error);
-          }
-        }),
+          }),
       },
       cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
-  const handleZoneSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleZoneSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const name = formData.get("name") as string;
-    const code = formData.get("code") as string;
+    const name = String(formData.get("name") ?? "");
+    const code = String(formData.get("code") ?? "");
 
     startTransition(async () => {
-      let res;
-      if (editingZone) {
-        res = await updateLDD(editingZone.id, { name, code });
-      } else {
-        res = await createLDD({ name, code });
-      }
+      const res = editingZone
+        ? await updateLDD(editingZone.id, { name, code })
+        : await createLDD({ name, code });
 
       if (res.error) {
         toast.error(res.error);
-      } else {
-        toast.success(editingZone ? "Zone mise à jour" : "Zone créée");
-        setIsZoneModalOpen(false);
-        setEditingZone(null);
-        // Refresh LDDs
-        const updatedLDDs = await getLDDs();
-        if (updatedLDDs.data) {
-          const arr = Array.isArray(updatedLDDs.data)
-            ? updatedLDDs.data
-            : ((updatedLDDs.data as any).results ?? []);
-          setLdds(arr);
-        }
+        return;
       }
+      toast.success(editingZone ? "Zone mise à jour." : "Zone créée.");
+      setIsZoneModalOpen(false);
+      setEditingZone(null);
+      await refreshLdds();
     });
   };
 
-  const handleZoneDelete = (id: number) => {
-    toast("Supprimer cette Zone ? (Échouera si des Daaras y sont rattachés)", {
+  const handleZoneDelete = (ldd: Ldd) => {
+    toast(`Supprimer la zone « ${ldd.name} » ?`, {
+      description: "La suppression échoue si des Daaras y sont rattachés.",
       action: {
         label: "Supprimer",
-        onClick: () => startTransition(async () => {
-          const res = await deleteLDD(id);
-          if (res.error) {
-            toast.error(res.error);
-          } else {
+        onClick: () =>
+          startTransition(async () => {
+            const res = await deleteLDD(ldd.id);
+            if (res.error) {
+              toast.error(res.error);
+              return;
+            }
+            setLdds((prev) => prev.filter((l) => l.id !== ldd.id));
             toast.success("Zone supprimée.");
-            setLdds((prev) => prev.filter((l) => l.id !== id));
-          }
-        }),
+          }),
       },
       cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
-  return (
-    <Tabs defaultValue="daaras" className="w-full">
-      <div className="flex items-center justify-between mb-8">
-        <TabsList className="bg-muted/50 p-1 rounded-xl">
-          <TabsTrigger value="daaras" className="rounded-lg px-6 font-bold">
-            Gestion des Daaras
-          </TabsTrigger>
-          <TabsTrigger value="zones" className="rounded-lg px-6 font-bold">
-            Gestion des Zones
-          </TabsTrigger>
-        </TabsList>
+  const columns = useMemo<Column<Daara, SortKey>[]>(
+    () => [
+      {
+        key: "zone",
+        header: "Zone",
+        sortKey: "zone",
+        cell: (d) => (
+          <div className="flex flex-col">
+            <span className="ax-text-accent font-mono text-xs font-semibold">
+              {d.ldd?.code ?? "—"}
+            </span>
+            <span className="ax-text-subtle text-xs">{d.ldd?.name ?? ""}</span>
+          </div>
+        ),
+      },
+      {
+        key: "name",
+        header: "Nom du Daara",
+        sortKey: "name",
+        cell: (d) => <span className="font-medium">{d.name}</span>,
+      },
+      {
+        key: "members",
+        header: "Membres",
+        sortKey: "members",
+        numeric: true,
+        hideBelow: "sm",
+        cell: (d) => memberCountOf(d),
+      },
+      {
+        key: "status",
+        header: "Statut",
+        sortKey: "status",
+        cell: (d) => (
+          <StatusBadge
+            domain="user"
+            value={d.is_active === false ? "inactive" : "active"}
+            size="sm"
+          />
+        ),
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        headerHidden: true,
+        numeric: true,
+        cell: (d) => (
+          <Menu
+            label={`Actions pour ${d.name}`}
+            items={[
+              {
+                label: "Ouvrir la fiche",
+                icon: Pencil,
+                onSelect: () => router.push(`/dashboard/admin/daara/${d.id}`),
+              },
+              {
+                label: "Supprimer",
+                icon: Trash2,
+                danger: true,
+                separatorBefore: true,
+                onSelect: () => handleDeleteDaara(d),
+              },
+            ]}
+          />
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            className="h-10 border-dashed gap-2"
-            onClick={() => {
-              setEditingZone(null);
-              setIsZoneModalOpen(true);
-            }}
-          >
-            <Plus size={16} /> Nouvelle Zone
-          </Button>
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="ax-tabs">
+          <div className="ax-tabs__list" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              className="ax-tabs__tab"
+              aria-selected={tab === "daaras"}
+              onClick={() => setTab("daaras")}
+            >
+              <Building2 className="ax-tabs__icon" size={15} aria-hidden="true" />
+              Daaras
+              <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+                {daaras.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="ax-tabs__tab"
+              aria-selected={tab === "zones"}
+              onClick={() => setTab("zones")}
+            >
+              <Layers className="ax-tabs__icon" size={15} aria-hidden="true" />
+              Zones LDD
+              <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+                {ldds.length}
+              </span>
+            </button>
+          </div>
         </div>
+
+        <button
+          type="button"
+          className="ax-btn ax-btn--outline"
+          onClick={() => {
+            setEditingZone(null);
+            setIsZoneModalOpen(true);
+          }}
+        >
+          <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
+          <span className="ax-btn__label">Nouvelle zone</span>
+        </button>
       </div>
 
-      <TabsContent value="daaras" className="m-0">
-        <div className="grid grid-cols-3 gap-8">
-          {/* LISTE DES DAARAS */}
-          <div className="col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="relative w-64">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                  size={16}
-                />
-                <Input
-                  placeholder="Rechercher un Daara..."
-                  className="pl-9 h-10 bg-card border"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div className="text-xs text-muted-foreground font-medium">
-                {filteredAndSortedDaaras.length}{" "}
-                {filteredAndSortedDaaras.length > 1
-                  ? "Daaras trouvés"
-                  : "Daara trouvé"}
-              </div>
+      {importMsg && (
+        <div className="ax-alert ax-alert--success" role="status">
+          <CheckCircle className="ax-alert__icon" aria-hidden="true" />
+          <div className="ax-alert__content">
+            <p className="ax-alert__message">{importMsg}</p>
+          </div>
+          <button
+            type="button"
+            className="ax-alert__dismiss"
+            aria-label="Masquer"
+            onClick={() => setImportMsg("")}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* ══ Daaras ══ */}
+      {tab === "daaras" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3" role="tabpanel">
+          <div className="flex flex-col gap-4 lg:col-span-2">
+            <FilterBar
+              searchValue={c.search}
+              onSearchChange={c.setSearch}
+              searchPlaceholder="Nom du Daara, zone ou code…"
+              resultCount={c.total}
+              itemLabel="Daara"
+              filters={[
+                {
+                  label: "Statut",
+                  value: c.filter("status"),
+                  onChange: (v) => c.setFilter("status", v),
+                  options: [
+                    { value: ALL, label: "Tous les statuts" },
+                    { value: "active", label: "Actifs" },
+                    { value: "inactive", label: "Inactifs" },
+                  ],
+                },
+                ...(ldds.length > 1
+                  ? [
+                      {
+                        label: "Zone LDD",
+                        value: c.filter("zone"),
+                        onChange: (v: string) => c.setFilter("zone", v),
+                        options: [
+                          { value: ALL, label: "Toutes les zones" },
+                          ...ldds.map((l) => ({
+                            value: String(l.id),
+                            label: `${l.code ?? ""} — ${l.name ?? ""}`,
+                          })),
+                        ],
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+
+            <div className="ax-card">
+              <DataTable
+                rows={c.rows}
+                columns={columns}
+                getRowKey={(d) => d.id}
+                rowHref={(d) => `/dashboard/admin/daara/${d.id}`}
+                sort={c.sort}
+                onSort={c.toggleSort}
+                caption="Daaras enregistrés"
+                empty={
+                  <div className="ax-card__body">
+                    <EmptyState
+                      icon={Building2}
+                      tone={c.isFiltered ? "search" : "neutral"}
+                      title={
+                        c.isFiltered
+                          ? "Aucun Daara ne correspond"
+                          : "Aucun Daara enregistré"
+                      }
+                      description={
+                        c.isFiltered
+                          ? "Élargissez la recherche ou remettez les filtres à zéro."
+                          : "Importez un fichier Excel, ou créez un Daara depuis le formulaire ci-contre."
+                      }
+                      action={
+                        c.isFiltered ? (
+                          <button
+                            type="button"
+                            className="ax-btn ax-btn--outline"
+                            onClick={c.resetFilters}
+                          >
+                            <span className="ax-btn__label">
+                              Réinitialiser les filtres
+                            </span>
+                          </button>
+                        ) : undefined
+                      }
+                    />
+                  </div>
+                }
+              />
             </div>
 
-            <div
-              className="bg-card rounded-2xl border shadow-sm overflow-hidden"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead
-                      className="font-bold uppercase text-[10px] tracking-widest pl-6 cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort("ldd_code")}
-                    >
-                      <div className="flex items-center gap-1">
-                        Zone / Code <ArrowUpDown size={12} />
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="font-bold uppercase text-[10px] tracking-widest cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort("name")}
-                    >
-                      <div className="flex items-center gap-1">
-                        Nom du Daara <ArrowUpDown size={12} />
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="font-bold uppercase text-[10px] tracking-widest cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort("members_count")}
-                    >
-                      <div className="flex items-center gap-1">
-                        Membres <ArrowUpDown size={12} />
-                      </div>
-                    </TableHead>
-                    <TableHead
-                      className="font-bold uppercase text-[10px] tracking-widest cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleSort("is_active")}
-                    >
-                      <div className="flex items-center gap-1">
-                        Statut <ArrowUpDown size={12} />
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-right font-bold uppercase text-[10px] tracking-widest pr-6">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedDaaras.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="text-center py-16 text-muted-foreground italic text-sm"
-                      >
-                        {daaras.length === 0
-                          ? "Aucun Daara enregistré. Importez un fichier Excel ou créez-en un manuellement."
-                          : "Aucun résultat trouvé pour votre recherche."}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedDaaras.map((daara: any) => (
-                      <TableRow key={daara.id}>
-                        <TableCell className="pl-6">
-                          <div className="flex flex-col">
-                            <span className="font-bold text-yessal-violet text-xs">
-                              {daara.ldd?.code ?? "—"}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {daara.ldd?.name ?? ""}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <Link
-                            href={`/dashboard/admin/daara/${daara.id}`}
-                            className="font-medium hover:underline hover:text-yessal-violet transition-colors"
-                          >
-                            {daara.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-xs">
-                            {daara.members_count ?? daara.memberCount ?? "—"}{" "}
-                            membres
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              daara.is_active
-                                ? "bg-green-50 text-green-600 border-green-100"
-                                : "bg-red-50 text-red-500 border-red-100"
-                            }
-                          >
-                            {daara.is_active ? "Actif" : "Inactif"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right pr-6">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                            className="text-blue-400 hover:text-blue-600 hover:bg-blue-50"
-                          >
-                            <Link href={`/dashboard/admin/daara/${daara.id}`}>
-                              <Eye size={16} />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                            className="text-grey-400 hover:text-grey-600 hover:bg-green-50"
-                          >
-                            <Link href={`/dashboard/admin/daara/${daara.id}`}>
-                              <Edit size={16} />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(daara.id)}
-                            className="text-red-400 hover:text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between bg-card p-4 rounded-2xl border shadow-sm">
-                <span className="text-xs text-muted-foreground">
-                  Page <span className="font-bold">{currentPage}</span> sur{" "}
-                  <span className="font-bold">{totalPages}</span>
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft size={16} /> Précédent
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
-                    }
-                    disabled={currentPage === totalPages}
-                  >
-                    Suivant <ChevronRight size={16} />
-                  </Button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              page={c.page}
+              totalPages={c.totalPages}
+              onPageChange={c.setPage}
+              totalItems={c.total}
+              pageSize={c.pageSize}
+              itemLabel="Daaras"
+            />
           </div>
 
-          {/* FORMULAIRE D'AJOUT */}
-          <div className="col-span-1">
-            <div
-              className="bg-card p-6 rounded-2xl border shadow-sm sticky top-8"
-              style={{ borderColor: "var(--border)" }}
-            >
-              {importSuccessMsg && (
-                <div className="mb-4 p-3 bg-green-50 text-green-600 rounded-lg text-xs flex items-center gap-2">
-                  <CheckCircle size={14} /> {importSuccessMsg}
-                </div>
-              )}
-
-              <div className="flex items-center gap-2 mb-6 justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-yessal-violet/10 text-yessal-violet">
-                    <Building2 size={20} />
-                  </div>
-                  <h3 className="text-lg font-bold">Nouveau Daara</h3>
+          {/* Formulaire de création */}
+          <aside className="lg:col-span-1">
+            <section className="ax-card lg:sticky lg:top-6">
+              <div className="ax-card__header">
+                <span className="ax-card__kpi-icon ax-card__kpi-icon--c1" aria-hidden="true">
+                  <Building2 />
+                </span>
+                <div className="ax-card__titles">
+                  <h2 className="ax-card__title">Nouveau Daara</h2>
                 </div>
 
                 <label
-                  className="cursor-pointer flex items-center justify-center p-2 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground transition-all"
-                  title="Importer fichier Excel"
+                  className="ax-btn ax-btn--ghost ax-btn--icon cursor-pointer"
+                  title="Importer un fichier Excel"
                 >
                   {isImporting ? (
-                    <div className="h-4 w-4 rounded-full border-2 border-yessal-violet border-t-transparent animate-spin" />
+                    <span className="ax-spinner ax-spinner--sm" aria-label="Import en cours" />
                   ) : (
-                    <Upload size={16} />
+                    <Upload size={16} aria-hidden="true" />
                   )}
+                  <span className="ax-visually-hidden">
+                    Importer un fichier Excel
+                  </span>
                   <input
                     type="file"
-                    className="hidden"
-                    accept=".xlsx, .xls"
+                    accept=".xlsx,.xls"
+                    className="ax-visually-hidden"
                     onChange={handleImport}
                     disabled={isImporting}
                   />
                 </label>
               </div>
 
-              <form
-                id="daara-create-form"
-                action={handleSubmit}
-                className="space-y-4"
-              >
-                {/* Sélecteur LDD — champ obligatoire */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1">
-                    <Layers size={11} /> Zone LDD
-                    <span className="text-red-500">*</span>
-                  </label>
-                  {lddsLoading ? (
-                    <div className="h-10 rounded-md bg-muted animate-pulse" />
-                  ) : ldds.length === 0 ? (
-                    <div className="text-xs text-orange-600 p-2 bg-orange-50 rounded-md">
-                      Aucun LDD trouvé. Importez d'abord un fichier Excel.
-                    </div>
-                  ) : (
-                    <select
-                      name="ldd_id"
-                      required
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yessal-violet/50"
-                    >
-                      <option value="">Choisir une Zone...</option>
-                      {ldds.map((ldd: any) => (
-                        <option key={ldd.id} value={ldd.id}>
-                          [{ldd.code}] {ldd.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
-                    Nom du Daara <span className="text-red-500">*</span>
-                  </label>
-                  <Input
-                    name="name"
-                    placeholder="Ex: Daara de Dakar Plateau"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1">
-                    Description (Optionnel)
-                  </label>
-                  <textarea
-                    name="description"
-                    className="w-full rounded-md border bg-background px-3 py-2 text-sm min-h-[80px] outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="Précisions géographiques ou historiques..."
-                  />
-                </div>
-
-                {errorMsg && (
-                  <div className="p-3 bg-red-50 text-red-600 rounded-lg text-xs flex items-center gap-2">
-                    <AlertCircle size={14} /> {errorMsg}
-                  </div>
-                )}
-
-                <Button
-                  type="submit"
-                  className="w-full h-11 gap-2 mt-4"
-                  disabled={isPending || ldds.length === 0}
-                  style={{ background: "var(--primary)", color: "white" }}
+              <div className="ax-card__body">
+                <form
+                  id="daara-create-form"
+                  action={handleCreateDaara}
+                  className="flex flex-col gap-4"
                 >
-                  <Plus size={18} />{" "}
-                  {isPending ? "Création..." : "Ajouter le Daara"}
-                </Button>
-              </form>
+                  <div className="ax-field">
+                    <label className="ax-field__label" htmlFor="ldd_id">
+                      Zone LDD
+                      <span className="ax-field__required" aria-hidden="true"> *</span>
+                    </label>
+
+                    {lddsLoading ? (
+                      <span className="ax-skeleton ax-skeleton--rect h-10 w-full" />
+                    ) : ldds.length === 0 ? (
+                      <div className="ax-alert ax-alert--warning ax-alert--inline">
+                        <AlertCircle className="ax-alert__icon" aria-hidden="true" />
+                        <div className="ax-alert__content">
+                          <p className="ax-alert__message">
+                            Aucune zone enregistrée. Créez-en une, ou importez un
+                            fichier Excel.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <select
+                        id="ldd_id"
+                        name="ldd_id"
+                        className="ax-select"
+                        required
+                        defaultValue=""
+                      >
+                        <option value="" disabled>
+                          Choisir une zone…
+                        </option>
+                        {ldds.map((ldd) => (
+                          <option key={ldd.id} value={ldd.id}>
+                            [{ldd.code}] {ldd.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="ax-field">
+                    <label className="ax-field__label" htmlFor="daara-name">
+                      Nom du Daara
+                      <span className="ax-field__required" aria-hidden="true"> *</span>
+                    </label>
+                    <input
+                      id="daara-name"
+                      name="name"
+                      className="ax-input"
+                      placeholder="Ex. Daara de Dakar Plateau"
+                      required
+                    />
+                  </div>
+
+                  <div className="ax-field">
+                    <label className="ax-field__label" htmlFor="daara-description">
+                      Description
+                    </label>
+                    <textarea
+                      id="daara-description"
+                      name="description"
+                      rows={3}
+                      className="ax-textarea"
+                      placeholder="Précisions géographiques ou historiques…"
+                    />
+                  </div>
+
+                  {errorMsg && (
+                    <p className="ax-field__message ax-field__message--error">
+                      {errorMsg}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="ax-btn ax-btn--primary ax-btn--block"
+                    disabled={isPending || ldds.length === 0}
+                  >
+                    <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
+                    <span className="ax-btn__label">
+                      {isPending ? "Création…" : "Ajouter le Daara"}
+                    </span>
+                  </button>
+                </form>
+              </div>
+            </section>
+          </aside>
+        </div>
+      )}
+
+      {/* ══ Zones LDD ══ */}
+      {tab === "zones" && (
+        <div role="tabpanel">
+          {ldds.length === 0 ? (
+            <div className="ax-card">
+              <div className="ax-card__body">
+                <EmptyState
+                  icon={Layers}
+                  title="Aucune zone enregistrée"
+                  description="Les zones LDD regroupent les Daaras par territoire."
+                  action={
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--primary"
+                      onClick={() => {
+                        setEditingZone(null);
+                        setIsZoneModalOpen(true);
+                      }}
+                    >
+                      <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
+                      <span className="ax-btn__label">Nouvelle zone</span>
+                    </button>
+                  }
+                />
+              </div>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {ldds.map((ldd) => {
+                const count = daaras.filter((d) => d.ldd?.id === ldd.id).length;
+                return (
+                  <article key={ldd.id} className="ax-card">
+                    <div className="ax-card__header">
+                      <span
+                        className="ax-card__kpi-icon ax-card__kpi-icon--c3"
+                        aria-hidden="true"
+                      >
+                        <Layers />
+                      </span>
+                      <div className="ax-card__titles">
+                        <h3 className="ax-card__title">{ldd.name}</h3>
+                        <p className="ax-card__subtitle">
+                          {count} Daara{count > 1 ? "s" : ""} rattaché
+                          {count > 1 ? "s" : ""}
+                        </p>
+                      </div>
+
+                      {/* Actions toujours visibles : le survol n'existe pas au doigt. */}
+                      <Menu
+                        label={`Actions pour la zone ${ldd.name}`}
+                        items={[
+                          {
+                            label: "Modifier",
+                            icon: Pencil,
+                            onSelect: () => {
+                              setEditingZone(ldd);
+                              setIsZoneModalOpen(true);
+                            },
+                          },
+                          {
+                            label: "Supprimer",
+                            icon: Trash2,
+                            danger: true,
+                            separatorBefore: true,
+                            onSelect: () => handleZoneDelete(ldd),
+                          },
+                        ]}
+                      />
+                    </div>
+
+                    <div className="ax-card__body">
+                      <span className="ax-badge ax-badge--accent ax-badge--sm font-mono">
+                        {ldd.code}
+                      </span>
+                      <span className="ax-text-subtle ms-2 text-xs">Code LDD</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Zone : création / édition ── */}
+      <Modal
+        open={isZoneModalOpen}
+        onOpenChange={(o) => {
+          setIsZoneModalOpen(o);
+          if (!o) setEditingZone(null);
+        }}
+        title={editingZone ? "Modifier la zone" : "Nouvelle zone LDD"}
+        description="Les zones regroupent les Daaras par territoire."
+        size="sm"
+      >
+        {/* `key` force la remise à zéro des valeurs par défaut quand on passe
+            d'une zone à une autre, ou de l'édition à la création. */}
+        <form
+          key={editingZone?.id ?? "new"}
+          onSubmit={handleZoneSubmit}
+          className="flex flex-col gap-4"
+        >
+          <div className="ax-field">
+            <label className="ax-field__label" htmlFor="zone-name">
+              Nom de la zone
+              <span className="ax-field__required" aria-hidden="true"> *</span>
+            </label>
+            <input
+              id="zone-name"
+              name="name"
+              className="ax-input"
+              defaultValue={editingZone?.name ?? ""}
+              placeholder="Ex. Zone Dakar Nord"
+              required
+            />
           </div>
-        </div>
-      </TabsContent>
 
-      <TabsContent value="zones" className="m-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {ldds.map((ldd: any) => (
-            <div
-              key={ldd.id}
-              className="bg-card border rounded-2xl p-5 shadow-sm group"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-3 rounded-xl bg-yessal-violet/10 text-yessal-violet">
-                  <Layers size={24} />
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-blue-600"
-                    onClick={() => {
-                      setEditingZone(ldd);
-                      setIsZoneModalOpen(true);
-                    }}
-                  >
-                    <Edit size={14} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-red-600"
-                    onClick={() => handleZoneDelete(ldd.id)}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              </div>
-              <h4 className="font-black text-lg mb-1">{ldd.name}</h4>
-              <div className="flex items-center gap-2">
-                <Badge className="bg-yessal-violet text-white border-none uppercase text-[10px] font-black">
-                  {ldd.code}
-                </Badge>
-                <span className="text-xs text-muted-foreground font-medium">
-                  Code LDD
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </TabsContent>
+          <div className="ax-field">
+            <label className="ax-field__label" htmlFor="zone-code">
+              Code
+              <span className="ax-field__required" aria-hidden="true"> *</span>
+            </label>
+            <input
+              id="zone-code"
+              name="code"
+              className="ax-input font-mono uppercase"
+              defaultValue={editingZone?.code ?? ""}
+              placeholder="DKR"
+              required
+            />
+            <p className="ax-field__hint">Trois à quatre lettres.</p>
+          </div>
 
-      {/* ZONE MODAL */}
-      <Dialog open={isZoneModalOpen} onOpenChange={setIsZoneModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingZone ? "Modifier la Zone" : "Nouvelle Zone LDD"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleZoneSubmit} className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                Nom du LDD
-              </label>
-              <Input
-                name="name"
-                defaultValue={editingZone?.name}
-                placeholder="Ex: Zone Dakar Nord"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                Code (3-4 lettres)
-              </label>
-              <Input
-                name="code"
-                defaultValue={editingZone?.code}
-                placeholder="Ex: DKR"
-                required
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                type="submit"
-                disabled={isPending}
-                className="w-full bg-yessal-violet text-white h-11 font-bold"
-              >
-                {editingZone ? "Mettre à jour" : "Créer la Zone"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </Tabs>
+          <button
+            type="submit"
+            className="ax-btn ax-btn--primary ax-btn--block"
+            disabled={isPending}
+          >
+            <span className="ax-btn__label">
+              {isPending
+                ? "Enregistrement…"
+                : editingZone
+                  ? "Mettre à jour"
+                  : "Créer la zone"}
+            </span>
+          </button>
+        </form>
+      </Modal>
+    </div>
   );
 }

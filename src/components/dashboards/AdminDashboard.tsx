@@ -24,12 +24,14 @@ import {
   HandCoins,
   Landmark,
   Megaphone,
-  TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import CardList, { type CardListItem } from "@/components/CardList";
+import { KpiDelta } from "@/components/vireo/KpiDelta";
+import { KpiValue } from "@/components/vireo/Amount";
+import { PageHead } from "@/components/vireo/PageHead";
 import {
   AreaTrend,
   BarCompare,
@@ -69,6 +71,8 @@ interface BarRow {
 interface PieRow {
   method: string;
   dons: number;
+  /** Somme collectée par ce moyen de paiement. Absent des API antérieures. */
+  amount?: number;
 }
 
 interface AreaRow {
@@ -102,7 +106,20 @@ export default function AdminDashboard({ stats }: { stats: AdminStats | null }) 
 
   const barRows = stats?.bar_chart ?? stats?.donations_by_month ?? [];
   const pieRows = stats?.pie_chart ?? stats?.donations_by_method ?? [];
-  const areaRows = stats?.area_chart ?? stats?.members_evolution ?? [];
+  /*
+   * `members_evolution` EN PREMIER, et c'est tout le correctif.
+   *
+   * Le repli était inversé : `area_chart` est prioritaire dans la charge, et
+   * porte les DONS des sept derniers jours. La carte « Évolution des membres /
+   * Inscriptions cumulées » traçait donc l'argent collecté jour par jour — une
+   * courbe en dents de scie, qui montait puis redescendait à zéro. Un cumul
+   * d'inscriptions ne peut pas décroître : c'était le signe.
+   *
+   * Les deux séries existent bel et bien et sont justes ; c'est le choix entre
+   * elles qui était faux. `area_chart` reste le repli pour les rôles autres
+   * qu'admin, à qui le backend ne calcule pas d'évolution de membres.
+   */
+  const areaRows = stats?.members_evolution ?? stats?.area_chart ?? [];
 
   /* Le backend sépare en ligne / manuel ; on somme pour la courbe mensuelle,
      la ventilation par méthode étant déjà l'objet de l'anneau ci-dessous. */
@@ -111,9 +128,19 @@ export default function AdminDashboard({ stats }: { stats: AdminStats | null }) 
     value: Number(r.online ?? 0) + Number(r.manual ?? 0),
   }));
 
+  /*
+   * On ventile l'ARGENT, pas le nombre de transactions. L'anneau affichait
+   * `dons` — un compte — sous le libellé « Collecté », d'où un centre où l'on
+   * lisait « Collecté 43 » pour 1 113 000 FCFA réellement collectés.
+   *
+   * `amount` vient d'être ajouté côté backend ; `dons` sert de repli pour une
+   * API pas encore à jour, auquel cas le libellé change avec la donnée.
+   */
+  const hasAmounts = pieRows.some((r) => r.amount !== undefined);
+
   const parMethode: Point[] = pieRows.map((r) => ({
     label: r.method,
-    value: Number(r.dons ?? 0),
+    value: Number((hasAmounts ? r.amount : r.dons) ?? 0),
   }));
 
   const membres: Point[] = areaRows.map((r) => ({
@@ -123,6 +150,23 @@ export default function AdminDashboard({ stats }: { stats: AdminStats | null }) 
 
   return (
     <div className="flex flex-col gap-6">
+      <PageHead
+        role="admin"
+        title="Pilotage général"
+        subtitle="Collecte, adhésions et santé du réseau, tous Daaras confondus."
+        crumbs={[{ label: "Application" }]}
+        actions={
+          <>
+            <Link href="/dashboard/admin/campaign-metrics" className="ax-btn ax-btn--outline">
+              <span className="ax-btn__label">Performance des Ndiguels</span>
+            </Link>
+            <Link href="/dashboard/admin/pilotage" className="ax-btn ax-btn--primary">
+              <span className="ax-btn__label">Pilotage du système</span>
+            </Link>
+          </>
+        }
+      />
+
       {/* ── Annonces épinglées ── */}
       {announcements.length > 0 && (
         <div className="flex flex-col gap-2">
@@ -174,16 +218,15 @@ export default function AdminDashboard({ stats }: { stats: AdminStats | null }) 
                       >
                         <Icon />
                       </span>
-                      {kpi.change && (
-                        <span className="ax-kpi__delta ax-kpi__delta--up">
-                          <TrendingUp aria-hidden="true" />
-                          {kpi.change}
-                        </span>
-                      )}
+                      {/* La flèche suit le signe, et disparaît quand `change`
+                          n'est pas une variation. Voir KpiDelta.tsx. */}
+                      <KpiDelta change={kpi.change} />
                     </div>
                     <div>
                       <p className="ax-kpi__label">{kpi.title}</p>
-                      <p className="ax-kpi__value font-mono tabular">{kpi.value}</p>
+                      <p className="ax-kpi__value font-mono tabular">
+                        <KpiValue value={kpi.value} />
+                      </p>
                     </div>
                   </div>
                   <ArrowUpRight
@@ -230,7 +273,8 @@ export default function AdminDashboard({ stats }: { stats: AdminStats | null }) 
           <div className="ax-card__body pt-0">
             <DonutBreakdown
               data={parMethode}
-              totalLabel="Collecté"
+              totalLabel={hasAmounts ? "Collecté" : "Jëfs"}
+              currency={hasAmounts}
               height={300}
               emptyMessage="Aucun paiement à ventiler pour l'instant."
             />

@@ -61,6 +61,7 @@ export async function createLDD(payload: { name: string; code: string }) {
     revalidatePath("/dashboard/admin/daara");
     return { data: await res.json() };
   } catch (err) {
+    console.error("createLDD:", err);
     return { error: "Erreur serveur." };
   }
 }
@@ -79,6 +80,7 @@ export async function updateLDD(id: number, payload: { name?: string; code?: str
     revalidatePath("/dashboard/admin/daara");
     return { data: await res.json() };
   } catch (err) {
+    console.error("updateLDD:", err);
     return { error: "Erreur serveur." };
   }
 }
@@ -93,6 +95,7 @@ export async function deleteLDD(id: number) {
     revalidatePath("/dashboard/admin/daara");
     return { success: true };
   } catch (err) {
+    console.error("deleteLDD:", err);
     return { error: "Erreur réseau." };
   }
 }

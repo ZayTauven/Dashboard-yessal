@@ -3,6 +3,7 @@ import { getProfile, getAllUsers } from "@/app/actions/users";
 import { getEvents } from "@/app/actions/events";
 import { NewCampaignClient } from "./NewCampaignClient";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { PageHead } from "@/components/vireo/PageHead";
 
 export default async function NewCampaignPage() {
   const { data: profile, error: profileError } = await getProfile();
@@ -17,19 +18,18 @@ export default async function NewCampaignPage() {
   const { data: members } = await getAllUsers();
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6">
-      <div>
-        <h1
-          className="text-3xl font-semibold tracking-tight"
-          style={{ color: "var(--foreground)" }}
-        >
-          Nouvelle campagne
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-          Réservé aux administrateurs. Les membres voient les Ndiguels sur la
-          liste principale.
-        </p>
-      </div>
+    <div className="flex flex-col gap-6">
+      {/* Le titre disait « Nouvelle campagne » sur un ecran qui parle de
+          Ndiguels partout ailleurs. */}
+      <PageHead
+        role="admin"
+        title="Nouveau Ndiguel"
+        subtitle="Réservé aux administrateurs."
+        crumbs={[
+          { label: "Gestion" },
+          { label: "Les Ndiguels", href: "/dashboard/campaigns" },
+        ]}
+      />
 
       {fetesError ? (
         <ErrorAlert message={fetesError} />

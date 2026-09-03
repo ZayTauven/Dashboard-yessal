@@ -168,7 +168,7 @@ function StatusPill({ status }: { status?: string | null }) {
     active: { cls: "ax-badge--soft ax-badge--success", icon: ShieldCheck },
     pending: { cls: "ax-badge--soft ax-badge--warning", icon: Clock },
     blocked: { cls: "ax-badge--soft ax-badge--danger", icon: CircleAlert },
-    suspended: { cls: "ax-badge--soft ax-badge--danger", icon: CircleAlert },
+    inactive: { cls: "ax-badge--soft ax-badge--neutral", icon: CircleAlert },
   };
   const cfg = map[s] ?? { cls: "ax-badge--soft ax-badge--neutral", icon: CircleAlert };
   const Icon = cfg.icon;
@@ -242,7 +242,7 @@ export function MemberProfileCard({
   const lastSeen = formatRelative(member.last_active_at);
   const { pct, missing } = completeness(member);
 
-  const approvedDocs = documents.filter((d) => d.status === "approved").length;
+  const validatedDocs = documents.filter((d) => d.status === "validated").length;
   const pendingDocs = documents.filter((d) => d.status === "pending").length;
 
   const location = [member.city, member.residence_country].filter(Boolean).join(", ");
@@ -276,7 +276,16 @@ export function MemberProfileCard({
         </span>
       </div>
 
-      <div className="ax-card__body pt-0">
+      {/*
+        `relative` n'est pas décoratif ici. La bannière au-dessus est
+        `position: relative` ; en CSS, un élément positionné est peint APRÈS les
+        éléments `static` qui le suivent dans le flux. Ce corps remontant sous la
+        bannière par une marge négative, le nom du membre passait donc DERRIÈRE
+        elle et se retrouvait tronqué.
+        L'avatar y échappait par accident : le composant <Avatar> porte
+        lui-même `relative`, ce qui masquait le défaut sur la moitié du bloc.
+      */}
+      <div className="ax-card__body relative pt-0">
         {/* ── Identité ── */}
         <div className="-mt-12 flex flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end">
           <Avatar
@@ -360,7 +369,7 @@ export function MemberProfileCard({
             )}
             <MiniStat
               label="Pièces validées"
-              value={approvedDocs}
+              value={validatedDocs}
               hint={
                 pendingDocs > 0
                   ? `${pendingDocs} en attente de validation`
@@ -501,13 +510,13 @@ export function MemberProfileCard({
             <ul className="flex flex-wrap gap-2">
               {documents.map((d) => {
                 const cls =
-                  d.status === "approved"
+                  d.status === "validated"
                     ? "ax-badge--success"
                     : d.status === "rejected"
                       ? "ax-badge--danger"
                       : "ax-badge--warning";
                 const label =
-                  d.status === "approved"
+                  d.status === "validated"
                     ? "validée"
                     : d.status === "rejected"
                       ? "refusée"

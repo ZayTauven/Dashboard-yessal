@@ -1,34 +1,67 @@
-/* ── react-phone-input-2 · Yessal design override ─────────────────────────── */
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * react-phone-input-2 — habillage Aurora
+ * ═══════════════════════════════════════════════════════════════════════════
+ * ⚠️ Cette feuille ne fonctionnait PAS. Elle écrivait ses couleurs en
+ * `hsl(var(--muted) / 0.2)`, `hsl(var(--border))`, `hsl(var(--ring))` — la
+ * convention shadcn, où les jetons sont des TRIPLETS HSL sans fonction.
+ *
+ * Or le pont Aurora de `globals.css` a redéfini ces variables comme de simples
+ * alias de jetons `--ax-*`, qui sont des couleurs COMPLÈTES : `--muted` résout
+ * vers `#F0F3F9`. `hsl(#F0F3F9 / 0.2)` n'est pas une couleur valide, donc le
+ * navigateur jetait la déclaration.
+ *
+ * Les 22 règles concernées étaient donc mortes, et le champ affichait les
+ * styles par défaut de la bibliothèque — d'où son aspect étranger au reste des
+ * formulaires. Tout est réécrit sur les jetons `--ax-*` directement.
+ *
+ * Les `!important` restent nécessaires : la feuille de la bibliothèque est
+ * importée après celle-ci par le composant, et cible les mêmes sélecteurs.
+ */
 
-/* Container */
+/* ── Conteneur : reproduit le contrat `.ax-input` ───────────────────────── */
 .react-tel-input {
-  font-family: inherit !important;
+  font-family: var(--ax-font-sans) !important;
   width: 100% !important;
-  background: hsl(var(--muted) / 0.2) !important;
-  border: 1px solid hsl(var(--border)) !important;
-  border-radius: 12px !important;
+  background: var(--ax-surface) !important;
+  border: 1px solid var(--ax-border) !important;
+  border-radius: var(--ax-radius-sm) !important;
+  transition:
+    border-color var(--ax-motion-instant) var(--ax-ease-standard),
+    box-shadow var(--ax-motion-fast) var(--ax-ease-standard) !important;
 }
 
-/* Input field */
-.react-tel-input .form-control {
-  height: 44px !important;
-  width: 100% !important;
-  padding-left: 52px !important;
-  padding-right: 16px !important;
-  border: none !important;
-  border-radius: 12px !important;
-  background: transparent !important;
-  color: hsl(var(--foreground)) !important;
-  font-size: 14px !important;
-  font-family: inherit !important;
-  outline: none !important;
-  transition: background 0.15s ease !important;
-  box-shadow: none !important;
+.react-tel-input:hover {
+  border-color: var(--ax-border-strong) !important;
 }
 
+/* Focus : même anneau que tous les autres champs du produit. */
 .react-tel-input:focus-within {
-  border-color: hsl(var(--ring)) !important;
-  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2) !important;
+  border-color: var(--ax-accent) !important;
+  box-shadow: var(--ax-focus-shadow) !important;
+}
+
+/* Champ invalide — la classe est posée par le composant. */
+.react-tel-input.is-invalid {
+  border-color: var(--ax-danger-500) !important;
+}
+
+/* ── Champ de saisie ────────────────────────────────────────────────────── */
+.react-tel-input .form-control {
+  height: var(--ax-control-h) !important;
+  width: 100% !important;
+  padding-left: 56px !important;
+  padding-right: var(--ax-space-3) !important;
+  border: none !important;
+  border-radius: var(--ax-radius-sm) !important;
+  background: transparent !important;
+  color: var(--ax-text) !important;
+  font-size: var(--ax-text-sm) !important;
+  font-family: var(--ax-font-sans) !important;
+  /* Un numéro se relit chiffre par chiffre : chiffres à chasse fixe. */
+  font-variant-numeric: tabular-nums !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .react-tel-input .form-control:focus {
@@ -38,113 +71,130 @@
 }
 
 .react-tel-input .form-control::placeholder {
-  color: hsl(var(--muted-foreground)) !important;
-  opacity: 0.6 !important;
+  color: var(--ax-text-disabled) !important;
 }
 
-/* Flag dropdown container */
-.react-tel-input .flag-dropdown {
-  background: transparent !important;
-  border: none !important;
-  border-right: 1px solid hsl(var(--border) / 0.5) !important;
-  border-radius: 12px 0 0 12px !important;
-}
-
+/* ── Bouton drapeau ─────────────────────────────────────────────────────── */
+.react-tel-input .flag-dropdown,
 .react-tel-input .flag-dropdown.open {
   background: transparent !important;
-  border-radius: 12px 0 0 12px !important;
+  border: none !important;
+  border-right: 1px solid var(--ax-border) !important;
+  border-radius: var(--ax-radius-sm) 0 0 var(--ax-radius-sm) !important;
 }
 
-/* Selected flag button */
 .react-tel-input .selected-flag {
   background: transparent !important;
-  border-radius: 12px 0 0 12px !important;
-  padding: 0 10px !important;
-  width: 48px !important;
+  border-radius: var(--ax-radius-sm) 0 0 var(--ax-radius-sm) !important;
+  padding: 0 var(--ax-space-3) !important;
+  width: 52px !important;
 }
 
 .react-tel-input .selected-flag:hover,
 .react-tel-input .selected-flag:focus,
 .react-tel-input .flag-dropdown.open .selected-flag {
-  background: hsl(var(--muted) / 0.3) !important;
+  background: var(--ax-fill-hover) !important;
 }
 
-/* Dropdown list */
+.react-tel-input .selected-flag:focus-visible {
+  outline: 2px solid var(--ax-focus-ring) !important;
+  outline-offset: -2px !important;
+}
+
+/* ── Liste des pays — calquée sur `.ax-menu` ────────────────────────────── */
 .react-tel-input .country-list {
-  background: hsl(var(--popover)) !important;
-  color: hsl(var(--popover-foreground)) !important;
-  border: 1px solid hsl(var(--border)) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.15) !important;
-  padding: 4px !important;
-  margin-top: 4px !important;
-  width: 300px !important;
-  max-height: 260px !important;
+  background: var(--ax-surface-solid) !important;
+  color: var(--ax-text) !important;
+  border: 1px solid var(--ax-border) !important;
+  border-radius: var(--ax-radius-lg) !important;
+  box-shadow: var(--ax-shadow-lg) !important;
+  padding: var(--ax-space-2) !important;
+  margin-top: var(--ax-space-1) !important;
+  width: 320px !important;
+  max-height: 280px !important;
   overflow-y: auto !important;
 }
 
 .react-tel-input .country-list .country {
-  padding: 8px 12px !important;
-  border-radius: 8px !important;
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
-  font-size: 13px !important;
-  color: hsl(var(--foreground)) !important;
+  gap: var(--ax-space-2) !important;
+  padding: var(--ax-space-2) var(--ax-space-3) !important;
+  border-radius: var(--ax-radius-md) !important;
+  font-size: var(--ax-text-sm) !important;
+  color: var(--ax-text) !important;
 }
 
 .react-tel-input .country-list .country:hover,
 .react-tel-input .country-list .country.highlight {
-  background: hsl(var(--accent)) !important;
-  color: hsl(var(--accent-foreground)) !important;
+  background: var(--ax-fill-hover) !important;
+  color: var(--ax-text-strong) !important;
 }
 
 .react-tel-input .country-list .country-name {
-  font-size: 13px !important;
+  font-size: var(--ax-text-sm) !important;
 }
 
 .react-tel-input .country-list .dial-code {
-  color: hsl(var(--muted-foreground)) !important;
-  font-size: 12px !important;
+  color: var(--ax-text-subtle) !important;
+  font-family: var(--ax-font-mono) !important;
+  font-size: var(--ax-text-xs) !important;
 }
 
-/* Search box */
+/* Séparateur avant la liste complète, après les pays préférés. */
+.react-tel-input .country-list .divider {
+  border-bottom: 1px solid var(--ax-border) !important;
+  margin: var(--ax-space-1) 0 !important;
+}
+
+/* ── Recherche dans la liste ────────────────────────────────────────────── */
 .react-tel-input .search {
-  background: hsl(var(--popover)) !important;
-  padding: 8px !important;
-  border-bottom: 1px solid hsl(var(--border)) !important;
+  background: var(--ax-surface-solid) !important;
+  padding: var(--ax-space-2) !important;
+  border-bottom: 1px solid var(--ax-border) !important;
   position: sticky !important;
   top: 0 !important;
+  z-index: 1 !important;
 }
 
 .react-tel-input .search-box {
-  background: hsl(var(--muted) / 0.2) !important;
-  border: none !important;
-  border-radius: 8px !important;
-  padding: 7px 12px !important;
+  background: var(--ax-surface) !important;
+  border: 1px solid var(--ax-border) !important;
+  border-radius: var(--ax-radius-sm) !important;
+  padding: var(--ax-space-2) var(--ax-space-3) !important;
   width: 100% !important;
-  color: hsl(var(--foreground)) !important;
-  font-size: 13px !important;
-  font-family: inherit !important;
+  margin: 0 !important;
+  color: var(--ax-text) !important;
+  font-size: var(--ax-text-sm) !important;
+  font-family: var(--ax-font-sans) !important;
   outline: none !important;
 }
 
 .react-tel-input .search-box:focus {
-  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.3) !important;
+  border-color: var(--ax-accent) !important;
+  box-shadow: var(--ax-focus-shadow) !important;
 }
 
 .react-tel-input .search-box::placeholder {
-  color: hsl(var(--muted-foreground)) !important;
+  color: var(--ax-text-disabled) !important;
 }
 
-/* Scrollbar */
-.react-tel-input .country-list::-webkit-scrollbar {
-  width: 4px;
+.react-tel-input .no-entries-message {
+  padding: var(--ax-space-4) !important;
+  color: var(--ax-text-subtle) !important;
+  font-size: var(--ax-text-sm) !important;
 }
+
+/* ── Barre de défilement ────────────────────────────────────────────────── */
+.react-tel-input .country-list::-webkit-scrollbar {
+  width: 6px;
+}
+
 .react-tel-input .country-list::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .react-tel-input .country-list::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.3);
-  border-radius: 4px;
+  background: var(--ax-border-strong);
+  border-radius: var(--ax-radius-pill);
 }

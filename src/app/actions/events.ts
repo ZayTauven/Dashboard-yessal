@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { messageForStatus } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -20,7 +21,7 @@ export async function getEvents() {
     });
 
     if (!res.ok) {
-      return { error: "Erreur lors de la récupération des fÃªtes.", data: [] };
+      return { error: "Erreur lors de la récupération des fêtes.", data: [] };
     }
 
     const data = await res.json();
@@ -56,7 +57,7 @@ export async function addEvent(formData: FormData) {
       return {
         error:
           (data as { detail?: string }).detail ||
-          "Erreur lors de la création de la fÃªte.",
+          "Erreur lors de la création de la fête.",
       };
     }
 
@@ -116,12 +117,28 @@ export async function deleteEvent(id: number) {
     revalidatePath("/dashboard/events");
     return { success: true };
   } catch (err) {
+    console.error("deleteEvent:", err);
     return { error: "Erreur réseau." };
   }
 }
 
-export async function notifyMembersAboutEvent(id: number) {
-  // Simulation d'une notification aux membres
+/*
+ * SIMULATION — aucun envoi reel n'a lieu.
+ *
+ * Cette action attend 1,5 s puis repond « Les membres ont ete notifies via
+ * mobile et email », ce qui est faux : rien n'est envoye. Le backend n'expose
+ * aucune route de notification sur les fetes (`events/views.py` ne notifie que
+ * l'organisateur d'un Ndiguel).
+ *
+ * Le branchement reel passerait par `POST /api/comms/announcements/`, qui
+ * existe deja et declenche le push FCM via le signal `post_save` sur
+ * Notification. Le type de retour est desormais explicite : l'ancien `any`
+ * cote appelant masquait completement le caractere factice de la reponse.
+ */
+export async function notifyMembersAboutEvent(
+  id: number,
+): Promise<{ success: boolean; message: string; error?: string }> {
+  void id;
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve({ success: true, message: "Les membres ont été notifiés via mobile et email." });
@@ -153,10 +170,16 @@ export async function getFeteEtat(id: number) {
       cache: "no-store",
       headers: await getAuthHeader(),
     });
-    if (!res.ok) return { error: "Données introuvables.", data: null };
-    return { data: await res.json() };
+    if (!res.ok) {
+      return {
+        data: null,
+        status: res.status,
+        error: messageForStatus(res.status, "Données introuvables."),
+      };
+    }
+    return { data: await res.json(), status: res.status };
   } catch (err) {
     console.error(err);
-    return { error: "Erreur de connexion.", data: null };
+    return { data: null, status: 0, error: messageForStatus(0, "") };
   }
 }

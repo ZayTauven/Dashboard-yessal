@@ -1,7 +1,8 @@
-import { getProfile } from "@/app/actions/users";
-import { getTitles, getUserDocuments } from "@/app/actions/users";
-import { ProfileClient } from "./ProfileClient";
+import { getProfile, getTitles, getUserDocuments } from "@/app/actions/users";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { PageHead } from "@/components/vireo/PageHead";
+import type { Role } from "@/lib/nav";
+import { ProfileClient, type ProfilePayload } from "./ProfileClient";
 
 export default async function ProfilePage() {
   const { data: profile, error } = await getProfile();
@@ -10,21 +11,29 @@ export default async function ProfilePage() {
     profile?.id ? getUserDocuments(profile.id) : Promise.resolve({ data: [] }),
   ]);
 
+  const role = (profile?.role ?? "member") as Role;
+
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight" style={{ color: "var(--foreground)" }}>
-          Mon Profil
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-          Gérez vos informations personnelles et votre sécurité.
-        </p>
-      </div>
+    <div className="flex flex-col gap-6">
+      {/*
+        L'ancien sous-titre annonçait « et votre sécurité » : l'écran ne propose
+        aucun réglage de sécurité — ni mot de passe, ni sessions, ni double
+        authentification. Il promettait donc une section inexistante.
+      */}
+      <PageHead
+        role={role}
+        title="Mon profil"
+        subtitle="Vos informations personnelles et vos pièces d'identité."
+      />
 
       {error ? (
         <ErrorAlert message={error} />
       ) : (
-        <ProfileClient profile={profile} titles={titles || []} initialDocuments={documents || []} />
+        <ProfileClient
+          profile={(profile ?? null) as ProfilePayload | null}
+          titles={titles || []}
+          initialDocuments={documents || []}
+        />
       )}
     </div>
   );

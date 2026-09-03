@@ -5,6 +5,8 @@ import { getTutelles } from "@/app/actions/tutelles";
 import { getBankAccountConfig } from "@/app/actions/donations";
 import { NewDonationClient } from "./NewDonationClient";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { PageHead } from "@/components/vireo/PageHead";
+import type { Role } from "@/lib/nav";
 
 const DONATE_ROLES = new Set(["member", "collector", "chef_daara"]);
 
@@ -35,18 +37,17 @@ export default async function NewDonationPage({
       : undefined;
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6">
-      <div>
-        <h1
-          className="text-3xl font-semibold tracking-tight"
-          style={{ color: "var(--foreground)" }}
-        >
-          Nouveau don
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-          Enregistrez un don en ligne pour une campagne active.
-        </p>
-      </div>
+    <div className="flex flex-col gap-6">
+      {/* « campagne » -> « Ndiguel » : c'est le nom du produit. */}
+      <PageHead
+        role={(profile.role ?? "member") as Role}
+        title="Nouveau Jëf"
+        subtitle="Enregistrez une contribution en ligne pour un Ndiguel en cours."
+        crumbs={[
+          { label: "Gestion" },
+          { label: "Mes contributions", href: "/dashboard/donations" },
+        ]}
+      />
 
       {campError ? (
         <ErrorAlert message={campError} />

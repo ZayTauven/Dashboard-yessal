@@ -1,181 +1,305 @@
 "use client";
 
-import AppBarChart from "@/components/AppBarChart";
-import {
-  Wallet,
-  HandCoins,
-  Landmark,
-  TrendingUp,
-  Plus,
-  History,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Tableau de bord — Collecteur
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Le collecteur travaille sur le terrain, souvent debout, souvent sur
+ * téléphone. Sa page n'est pas un rapport : c'est un poste de travail. Deux
+ * questions seulement, et dans cet ordre : « j'enregistre un don » puis « mes
+ * dernières saisies sont-elles bien passées ? ».
+ *
+ * D'où trois partis pris :
+ *
+ *   · L'action d'enregistrement est la première chose de la page, en pleine
+ *     largeur sur mobile — pas un bouton perdu à droite d'un titre.
+ *
+ *   · Le journal récent affiche le STATUT de validation en évidence. Un don
+ *     saisi mais rejeté est le seul incident qui compte vraiment pour un
+ *     collecteur, et l'ancienne version le noyait dans un badge minuscule.
+ *
+ *   · Le total du jour est mis en tête. C'est le chiffre qu'on lui demande le
+ *     soir, et il ne se lisait nulle part.
+ */
+
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock,
+  HandCoins,
+  History,
+  Landmark,
+  Plus,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { BarCompare, formatFCFA, type Point } from "@/components/charts/YessalCharts";
+import { KpiDelta } from "@/components/vireo/KpiDelta";
+import { KpiValue } from "@/components/vireo/Amount";
+import { PageHead } from "@/components/vireo/PageHead";
+import { EmptyState } from "@/components/ui/empty-state";
 
-const ICON_MAP: Record<string, React.ElementType> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   Wallet,
   HandCoins,
   Landmark,
   TrendingUp,
 };
 
-const statusConfig: Record<string, { label: string; cls: string; icon: React.ElementType }> = {
-  pending: { label: "En attente", cls: "bg-orange-50 text-orange-600 dark:bg-orange-900/30", icon: Clock },
-  validated: { label: "Validé", cls: "bg-green-50 text-green-700 dark:bg-green-900/30", icon: CheckCircle2 },
-  rejected: { label: "Rejeté", cls: "bg-red-50 text-red-600 dark:bg-red-900/30", icon: AlertCircle },
+/* Le statut pilote la classe de badge Aurora — plus de couleurs Tailwind
+   brutes qui ne suivaient pas le mode sombre. */
+const STATUS: Record<
+  string,
+  { label: string; cls: string; icon: LucideIcon }
+> = {
+  pending: { label: "En attente", cls: "ax-badge--warning", icon: Clock },
+  validated: { label: "Validé", cls: "ax-badge--success", icon: CheckCircle2 },
+  rejected: { label: "Rejeté", cls: "ax-badge--danger", icon: AlertCircle },
 };
 
-export default function CollectorDashboard({ stats }: { stats: any }) {
-  const kpis = stats?.kpis || [];
-  const recentCollects = stats?.recent_collects || stats?.recent_donations || [];
-  const barChartData = stats?.bar_chart || stats?.weekly_chart || undefined;
+interface Kpi {
+  title: string;
+  value: string | number;
+  icon?: string;
+  change?: string;
+}
+
+interface Collecte {
+  id?: number;
+  donor_name?: string | null;
+  campaign_name?: string | null;
+  amount?: number | string | null;
+  status?: string | null;
+  created_at?: string | null;
+}
+
+interface BarRow {
+  month: string;
+  online?: number;
+  manual?: number;
+}
+
+interface CollectorStats {
+  kpis?: Kpi[];
+  recent_collects?: Collecte[];
+  recent_donations?: Collecte[];
+  bar_chart?: BarRow[];
+  weekly_chart?: BarRow[];
+}
+
+const dateFmt = new Intl.DateTimeFormat("fr-SN", {
+  hour: "2-digit",
+  minute: "2-digit",
+  day: "numeric",
+  month: "short",
+});
+
+function formatMoment(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "—" : dateFmt.format(d);
+}
+
+export default function CollectorDashboard({ stats }: { stats: CollectorStats | null }) {
+  const kpis = stats?.kpis ?? [];
+  const recents = stats?.recent_collects ?? stats?.recent_donations ?? [];
+  const barRows = stats?.bar_chart ?? stats?.weekly_chart ?? [];
+
+  const semaine: Point[] = barRows.map((r) => ({
+    label: r.month,
+    value: Number(r.online ?? 0) + Number(r.manual ?? 0),
+  }));
+
+  /* Total des saisies affichées — le chiffre qu'on lui demande le soir.
+     `amount` arrive en chaîne depuis DRF : Number() avant de sommer. */
+  const totalRecent = recents.reduce((s, c) => s + Number(c.amount ?? 0), 0);
+  const rejetes = recents.filter((c) => c.status === "rejected").length;
 
   return (
-    <div className="space-y-8">
-      {/* QUICK ACTIONS */}
-      <div
-        className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card p-6 rounded-2xl border shadow-sm"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <div>
-          <h3 className="text-xl font-bold">Collecteur en service</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Enregistrez les dons physiques et suivez votre performance journalière.
-          </p>
-        </div>
-        <Button
-          asChild
-          className="h-12 px-8 gap-2 font-bold rounded-xl transition-all shadow-lg active:scale-95 border-none text-white"
-          style={{ background: "var(--primary)" }}
-        >
-          <Link href="/dashboard/collect">
-            <Plus size={20} /> Nouvelle Collecte
+    <div className="flex flex-col gap-6">
+      <PageHead
+        role="collector"
+        title="Collecte en service"
+        subtitle="Enregistrez les dons physiques et suivez vos saisies de la journée."
+        crumbs={[{ label: "Application" }]}
+        actions={
+          <Link
+            href="/dashboard/collect"
+            className="ax-btn ax-btn--primary ax-btn--lg"
+          >
+            <Plus className="ax-btn__icon" size={19} aria-hidden="true" />
+            <span className="ax-btn__label">Nouvelle collecte</span>
           </Link>
-        </Button>
-      </div>
+        }
+      />
 
-      {/* KPI GRID */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi: any, idx: number) => {
-          const Icon = ICON_MAP[kpi.icon] || TrendingUp;
-          return (
-            <div
-              key={idx}
-              className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2 group hover:shadow-md transition-all ease-out"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <div className="flex justify-between items-start">
-                <div className="p-2 rounded-lg" style={{ background: "rgba(145,110,231,0.1)", color: "var(--primary)" }}>
-                  <Icon size={20} />
-                </div>
-                {kpi.change && (
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                    <TrendingUp size={10} /> {kpi.change}
-                  </div>
-                )}
-              </div>
-              <div className="mt-2">
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{kpi.title}</p>
-                <h3 className="text-2xl font-bold mt-1 tracking-tight">{kpi.value}</h3>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Weekly Chart */}
-        <div
-          className="bg-card p-6 rounded-2xl border shadow-sm"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold">Mes collectes de la semaine</h3>
-            <span className="text-xs text-muted-foreground">Volume hebdomadaire</span>
+      {/*
+        Alerte de rejet — remonte en haut de page parce que c'est la seule
+        chose qui demande une action corrective immédiate de la part du
+        collecteur. Elle disparaît dès qu'il n'y a plus de rejet.
+      */}
+      {rejetes > 0 && (
+        <div className="ax-alert ax-alert--danger ax-alert--accent-edge" role="alert">
+          <span className="ax-alert__icon" aria-hidden="true">
+            <AlertCircle size={18} />
+          </span>
+          <div className="ax-alert__content">
+            <p className="ax-alert__title">
+              {rejetes} {rejetes > 1 ? "saisies rejetées" : "saisie rejetée"}
+            </p>
+            <p className="ax-alert__message">
+              Vérifiez le montant et le bénéficiaire, puis saisissez à nouveau.
+            </p>
           </div>
-          <AppBarChart data={barChartData} title="" />
         </div>
+      )}
 
-        {/* Activité Récente — vraies données */}
-        <div
-          className="bg-card p-6 rounded-2xl border shadow-sm"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold flex gap-2 items-center">
-              <History size={18} /> Activité Récente
-            </h3>
-            <Link
-              href="/dashboard/donations"
-              className="text-xs font-bold hover:underline"
-              style={{ color: "var(--primary)" }}
-            >
+      {/* ── KPI ── */}
+      {kpis.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {kpis.map((kpi, idx) => {
+            const Icon = ICON_MAP[kpi.icon ?? ""] ?? TrendingUp;
+            return (
+              <article key={idx} className="ax-card ax-card--stat">
+                <div className="ax-card__body">
+                  <div className="ax-kpi">
+                    <div className="ax-kpi__top">
+                      <span
+                        className={`ax-kpi__icon ax-kpi__icon--c${(idx % 4) + 1}`}
+                        aria-hidden="true"
+                      >
+                        <Icon />
+                      </span>
+                      {/* La flèche suit le signe, et disparaît quand `change`
+                          n'est pas une variation. Voir KpiDelta.tsx. */}
+                      <KpiDelta change={kpi.change} />
+                    </div>
+                    <div>
+                      <p className="ax-kpi__label">{kpi.title}</p>
+                      <p className="ax-kpi__value font-mono tabular">
+                        <KpiValue value={kpi.value} />
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* ── Volume hebdomadaire ── */}
+        <section className="ax-card" aria-label="Collectes de la semaine">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">Mes collectes de la semaine</h2>
+              <p className="ax-card__subtitle">Montants collectés par jour</p>
+            </div>
+          </div>
+          <div className="ax-card__body pt-0">
+            <BarCompare
+              data={semaine}
+              name="Collecté"
+              horizontal={false}
+              height={300}
+              emptyMessage="Aucune collecte enregistrée cette semaine."
+            />
+          </div>
+        </section>
+
+        {/* ── Journal récent ── */}
+        <section className="ax-card" aria-label="Activité récente">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">
+                <History
+                  size={16}
+                  className="me-1.5 inline align-[-2px]"
+                  aria-hidden="true"
+                />
+                Activité récente
+              </h2>
+              <p className="ax-card__subtitle">
+                {recents.length > 0
+                  ? `${formatFCFA(totalRecent)} sur les ${recents.length} dernières saisies`
+                  : "Vos dernières saisies apparaîtront ici"}
+              </p>
+            </div>
+            <Link href="/dashboard/donations" className="ax-btn ax-btn--link ax-btn--sm">
               Tout voir
             </Link>
           </div>
 
-          {recentCollects.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-center">
-              <HandCoins size={32} className="text-muted-foreground/20" />
-              <p className="text-xs text-muted-foreground italic">
-                Aucune collecte enregistrée aujourd'hui.
-              </p>
-              <Button asChild size="sm" className="border-none text-white" style={{ background: "var(--primary)" }}>
-                <Link href="/dashboard/collect">
-                  <Plus size={14} className="mr-1" /> Première collecte
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-              {recentCollects.slice(0, 5).map((collecte: any, i: number) => {
-                const status = collecte.status || "pending";
-                const cfg = statusConfig[status] || statusConfig.pending;
-                const StatusIcon = cfg.icon;
-                return (
-                  <div key={collecte.id || i} className="py-4 flex justify-between items-center group">
-                    <div className="flex gap-4 items-center">
-                      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                        <HandCoins size={16} className="text-muted-foreground" />
+          <div className="ax-card__body pt-0">
+            {recents.length === 0 ? (
+              <EmptyState
+                icon={HandCoins}
+                size="sm"
+                title="Aucune collecte aujourd'hui"
+                description="Enregistrez un don physique pour démarrer votre journée."
+                action={
+                  <Link href="/dashboard/collect" className="ax-btn ax-btn--primary ax-btn--sm">
+                    <Plus className="ax-btn__icon" size={15} aria-hidden="true" />
+                    <span className="ax-btn__label">Première collecte</span>
+                  </Link>
+                }
+              />
+            ) : (
+              <ul
+                className="divide-y"
+                style={{ borderColor: "var(--ax-border)" }}
+              >
+                {recents.slice(0, 6).map((c, i) => {
+                  const cfg = STATUS[c.status ?? "pending"] ?? STATUS.pending;
+                  const StatusIcon = cfg.icon;
+                  return (
+                    <li
+                      key={c.id ?? i}
+                      className="flex items-center justify-between gap-4 py-3"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          className="grid size-10 shrink-0 place-items-center rounded-pill"
+                          style={{
+                            background: "var(--ax-fill-hover)",
+                            color: "var(--ax-text-subtle)",
+                          }}
+                          aria-hidden="true"
+                        >
+                          <HandCoins size={16} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-text-strong">
+                            {c.donor_name || `Don #${c.id ?? "—"}`}
+                          </p>
+                          <p className="truncate text-xs text-text-subtle">
+                            {formatMoment(c.created_at)}
+                            {c.campaign_name && ` · ${c.campaign_name}`}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold">
-                          {collecte.donor_name || `Don #${collecte.id}`}
+
+                      <div className="shrink-0 text-end">
+                        <p className="font-mono text-sm font-semibold tabular text-montant">
+                          {formatFCFA(Number(c.amount ?? 0))}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {collecte.created_at
-                            ? new Date(collecte.created_at).toLocaleString("fr-FR", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                day: "numeric",
-                                month: "short",
-                              })
-                            : "—"}
-                          {collecte.campaign_name && ` · ${collecte.campaign_name}`}
-                        </p>
+                        <span
+                          className={`ax-badge ax-badge--sm ax-badge--soft ax-badge--pill ${cfg.cls} mt-1`}
+                        >
+                          <StatusIcon size={11} aria-hidden="true" />
+                          {cfg.label}
+                        </span>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold">
-                        {collecte.amount?.toLocaleString("fr-FR") ?? "—"} FCFA
-                      </p>
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] gap-1 border-none mt-0.5 ${cfg.cls}`}
-                      >
-                        <StatusIcon size={10} /> {cfg.label}
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

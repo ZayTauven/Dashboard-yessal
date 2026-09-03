@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { jwtDecode } from "jwt-decode";
 import { getProfile, getUserDocuments } from "@/app/actions/users";
 import { getNotificationsPreview } from "@/app/actions/notifications";
 import ProfileCompletionBanner from "@/components/ProfileCompletionBanner";
+import { PasswordChangeBanner } from "@/components/vireo/PasswordChangeBanner";
 import { FCMProvider } from "@/components/FCMProvider";
 import { AppShell } from "@/components/vireo/AppShell";
 
@@ -51,12 +53,22 @@ export default async function DashboardLayout({
     }
   }
 
-  const [{ data: profileData }, previewRes] = await Promise.all([
+  const [profileRes, previewRes] = await Promise.all([
     getProfile(),
     getNotificationsPreview(3),
   ]);
 
-  const profile = profileData;
+  /*
+   * Session fermée à distance — mot de passe changé sur un autre appareil, ou
+   * réinitialisé par un administrateur qui soupçonnait une intrusion. Le cookie
+   * est encore là, et le middleware ne regarde que sa présence : sans cette
+   * sortie, on afficherait un tableau de bord dont chaque appel répond 401.
+   */
+  if (profileRes.unauthorized) {
+    redirect("/logout?reason=revoked");
+  }
+
+  const profile = profileRes.data;
   if (profile?.id) {
     const { data: documents } = await getUserDocuments(profile.id);
     profile.documents = documents || [];
@@ -69,7 +81,19 @@ export default async function DashboardLayout({
       <AppShell
         user={profile || user}
         notificationPreview={notificationPreview}
-        banner={<ProfileCompletionBanner profile={profile} />}
+        /*
+          Deux bandeaux possibles, et un seul emplacement. Le mot de passe
+          passe devant : un profil incomplet est une gêne, un mot de passe
+          que d'autres connaissent est un compte ouvert à tous. Tant qu'il
+          n'est pas changé, c'est le seul message affiché.
+        */
+        banner={
+          profile?.must_change_password ? (
+            <PasswordChangeBanner mustChange />
+          ) : (
+            <ProfileCompletionBanner profile={profile} />
+          )
+        }
       >
         {children}
       </AppShell>

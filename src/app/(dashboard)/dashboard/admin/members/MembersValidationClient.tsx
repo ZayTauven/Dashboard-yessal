@@ -1,137 +1,295 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { updateUserStatus } from "@/app/actions/users";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UserCheck, UserX, Clock, Search, ShieldCheck } from "lucide-react";
-import { Input } from "@/components/ui/input";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Validation des comptes
+ * ═══════════════════════════════════════════════════════════════════════════
+ * File d'attente d'administration : on y vient pour TRAITER, pas pour
+ * consulter. La reprise suit ce que fait l'écran, pas ce qu'il montrait.
+ *
+ *   · Le filtre par défaut est « En attente ». C'est la seule raison d'ouvrir
+ *     cette page ; l'ancienne version affichait tout le monde, comptes déjà
+ *     validés compris, et il fallait chercher les demandes au milieu.
+ *
+ *   · Les compteurs deviennent des onglets cliquables. Ils étaient déjà
+ *     calculés et affichés — mais purement décoratifs, alors qu'ils désignent
+ *     exactement les trois sous-ensembles qu'on veut voir.
+ *
+ *   · Les boutons d'action étaient peints en `bg-green-50 text-green-600` et
+ *     `bg-red-50 text-red-600` : invisibles en thème sombre. Ils passent sur
+ *     `.ax-btn--soft-success` / `.ax-btn--soft-danger`.
+ *
+ *   · Le statut avait son propre vocabulaire (« Activé », « Bloqué ») ; il
+ *     passe par <StatusBadge domain="user">, comme partout ailleurs.
+ *
+ * L'action reste optimiste — la ligne change d'état sans attendre le serveur —
+ * mais elle REVIENT en arrière si l'appel échoue, ce que l'ancienne version ne
+ * faisait pas : en cas d'erreur réseau, l'écran affirmait une validation qui
+ * n'avait pas eu lieu.
+ */
 
-export function MembersValidationClient({ initialUsers }: { initialUsers: any[] }) {
+import { useMemo, useState, useTransition } from "react";
+import { Search, UserCheck, UserX, Users } from "lucide-react";
+import { toast } from "sonner";
+import { updateUserStatus } from "@/app/actions/users";
+import { EmptyState } from "@/components/ui/empty-state";
+import { roleLabel } from "@/lib/roles";
+import { Avatar } from "@/components/vireo/Avatar";
+import { DataTable, type Column } from "@/components/vireo/DataTable";
+import { FilterBar } from "@/components/vireo/FilterBar";
+import { Pagination } from "@/components/vireo/Pagination";
+import { StatusBadge } from "@/components/vireo/StatusBadge";
+import { ALL, useCollection } from "@/hooks/useCollection";
+
+export interface PendingUser {
+  id: number;
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  role?: string | null;
+  status?: string | null;
+  avatar?: string | null;
+  avatar_url?: string | null;
+  daara?: { name?: string | null } | null;
+}
+
+type SortKey = "name" | "role" | "status";
+
+const TABS = [
+  { value: "pending", label: "En attente" },
+  { value: "active", label: "Validés" },
+  { value: ALL, label: "Tous" },
+];
+
+const fullName = (u: PendingUser) =>
+  `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim();
+
+export function MembersValidationClient({
+  initialUsers,
+}: {
+  initialUsers: PendingUser[];
+}) {
   const [users, setUsers] = useState(initialUsers);
   const [isPending, startTransition] = useTransition();
-  const [filter, setFilter] = useState("");
 
-  const handleAction = async (userId: number, action: 'validate' | 'block') => {
+  const handleAction = (user: PendingUser, action: "validate" | "block") => {
+    const previous = user.status;
+    const next = action === "validate" ? "active" : "blocked";
+
+    /* Optimiste, mais réversible : une erreur réseau remet la ligne dans son
+       état d'origine au lieu de laisser croire à une validation. */
+    setUsers((prev) =>
+      prev.map((u) => (u.id === user.id ? { ...u, status: next } : u)),
+    );
+
     startTransition(async () => {
-        const res = await updateUserStatus(userId, action);
-        if (!res.error) {
-            setUsers(prev => prev.map(u => 
-                u.id === userId 
-                ? { ...u, status: action === 'validate' ? 'active' : 'blocked' } 
-                : u
-            ));
-        }
+      const res = await updateUserStatus(user.id, action);
+      if (res.error) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === user.id ? { ...u, status: previous } : u)),
+        );
+        toast.error(res.error);
+        return;
+      }
+      toast.success(
+        action === "validate"
+          ? `Compte de ${fullName(user)} validé.`
+          : `Accès de ${fullName(user)} bloqué.`,
+      );
     });
   };
 
-  const filtered = users.filter(u => 
-      (u.email?.toLowerCase().includes(filter.toLowerCase()) ?? false) || 
-      (u.first_name?.toLowerCase().includes(filter.toLowerCase()) ?? false)
+  const searchable = useMemo(
+    () => (u: PendingUser) => [u.first_name, u.last_name, u.email, u.daara?.name],
+    [],
+  );
+
+  const filters = useMemo(
+    () => ({ status: (u: PendingUser, v: string) => u.status === v }),
+    [],
+  );
+
+  const sorters = useMemo(
+    () => ({
+      name: (u: PendingUser) => fullName(u),
+      role: (u: PendingUser) => u.role ?? "",
+      status: (u: PendingUser) => u.status ?? "",
+    }),
+    [],
+  );
+
+  const c = useCollection(users, {
+    searchable,
+    filters,
+    sorters,
+    initialSort: { key: "name", dir: "asc" },
+    /* On ouvre sur la file d'attente : c'est la raison d'être de l'écran. */
+    initialFilters: { status: "pending" },
+    pageSize: 15,
+  });
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { [ALL]: users.length };
+    for (const u of users) {
+      const s = u.status ?? "unknown";
+      counts[s] = (counts[s] ?? 0) + 1;
+    }
+    return counts;
+  }, [users]);
+
+  const columns = useMemo<Column<PendingUser, SortKey>[]>(
+    () => [
+      {
+        key: "user",
+        header: "Utilisateur",
+        sortKey: "name",
+        cell: (u) => (
+          <div className="flex items-center gap-3">
+            <Avatar src={u.avatar || u.avatar_url} name={fullName(u)} size="sm" />
+            <div className="min-w-0">
+              <div className="ax-truncate font-medium">{fullName(u)}</div>
+              <div className="ax-truncate ax-text-subtle text-xs">{u.email}</div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: "daara",
+        header: "Daara",
+        hideBelow: "md",
+        cell: (u) =>
+          u.daara?.name || <span className="ax-text-subtle">Sans Daara</span>,
+      },
+      {
+        key: "role",
+        header: "Rôle",
+        sortKey: "role",
+        hideBelow: "sm",
+        cell: (u) => (
+          <span className="ax-badge ax-badge--outline ax-badge--sm">
+            {roleLabel(u.role ?? "")}
+          </span>
+        ),
+      },
+      {
+        key: "status",
+        header: "Statut",
+        sortKey: "status",
+        cell: (u) => <StatusBadge domain="user" value={u.status} size="sm" />,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        headerHidden: true,
+        numeric: true,
+        cell: (u) => (
+          <div className="flex justify-end gap-2">
+            {u.status !== "active" && (
+              <button
+                type="button"
+                className="ax-btn ax-btn--soft-success ax-btn--sm"
+                disabled={isPending}
+                onClick={() => handleAction(u, "validate")}
+              >
+                <UserCheck className="ax-btn__icon" size={14} aria-hidden="true" />
+                <span className="ax-btn__label">Valider</span>
+              </button>
+            )}
+            {u.status !== "blocked" && (
+              <button
+                type="button"
+                className="ax-btn ax-btn--soft-danger ax-btn--sm"
+                disabled={isPending}
+                onClick={() => handleAction(u, "block")}
+              >
+                <UserX className="ax-btn__icon" size={14} aria-hidden="true" />
+                <span className="ax-btn__label">Bloquer</span>
+              </button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isPending],
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center bg-card p-4 rounded-xl border border-dashed shadow-sm" style={{ borderColor: "var(--border)" }}>
-           <div className="flex gap-2 items-center">
-                <Search size={18} className="text-muted-foreground" />
-                <Input 
-                    placeholder="Filtrer par nom ou email..." 
-                    className="border-none bg-transparent focus-visible:ring-0 min-w-[300px]"
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                />
-           </div>
-           <div className="flex gap-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                <span className="flex items-center gap-1"><Clock size={14} className="text-orange-500" /> {users.filter(u => u.status === 'pending').length} En attente</span>
-                <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-green-500" /> {users.filter(u => u.status === 'active').length} Approuvés</span>
-           </div>
+    <div className="flex flex-col gap-4">
+      <div className="ax-segment ax-scroll-x max-w-full" role="group" aria-label="Filtrer par statut">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            className="ax-segment__option"
+            aria-pressed={c.filter("status") === t.value}
+            onClick={() => c.setFilter("status", t.value)}
+          >
+            {t.label}
+            <span className="ax-badge ax-badge--count ax-badge--sm">
+              {statusCounts[t.value] ?? 0}
+            </span>
+          </button>
+        ))}
       </div>
 
-      <div className="bg-card rounded-2xl border shadow-lg overflow-hidden" style={{ borderColor: "var(--border)" }}>
-        <Table>
-          <TableHeader className="bg-muted/30">
-            <TableRow>
-              <TableHead className="font-bold uppercase text-[10px] tracking-widest">Utilisateur</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-widest">Daara</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-widest">Rôle</TableHead>
-              <TableHead className="font-bold uppercase text-[10px] tracking-widest">Statut</TableHead>
-              <TableHead className="text-right font-bold uppercase text-[10px] tracking-widest">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-                <TableRow>
-                    <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">
-                        Aucun utilisateur trouvé.
-                    </TableCell>
-                </TableRow>
-            ) : (
-                filtered.map((user: any) => (
-                <TableRow key={user.id} className="hover:bg-muted/10">
-                    <TableCell>
-                        <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9">
-                                <AvatarImage src={user.avatar || user.avatar_url || undefined} className="object-cover" />
-                                <AvatarFallback className="bg-yessal-violet text-white" style={{ background: "var(--primary)" }}>
-                                    {user.first_name?.[0]}{user.last_name?.[0]}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <div className="font-bold text-sm">{user.first_name} {user.last_name}</div>
-                                <div className="text-[10px] text-muted-foreground">{user.email}</div>
-                            </div>
-                        </div>
-                    </TableCell>
-                    <TableCell>
-                        <span className="text-xs font-medium">{user.daara?.name || "Sans Daara"}</span>
-                    </TableCell>
-                    <TableCell>
-                        <Badge variant="outline" className="capitalize text-[10px]">{user.role}</Badge>
-                    </TableCell>
-                    <TableCell>
-                        <Badge variant={
-                            user.status === 'pending' ? 'pending' :
-                            user.status === 'active' ? 'active' : 'failed'
-                        } className="capitalize text-[10px]">
-                            {user.status === 'pending' ? 'En attente' :
-                             user.status === 'active' ? 'Activé' : 'Bloqué'}
-                        </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                            {user.status !== 'active' && (
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-8 gap-1 text-green-600 border-green-200 bg-green-50 shadow-none hover:bg-green-100 hover:text-green-700" 
-                                    onClick={() => handleAction(user.id, 'validate')}
-                                    disabled={isPending}
-                                >
-                                    <UserCheck size={14} /> Valider
-                                </Button>
-                            )}
-                            {user.status !== 'blocked' && (
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-8 gap-1 text-red-600 border-red-200 bg-red-50 shadow-none hover:bg-red-100 hover:text-red-700" 
-                                    onClick={() => handleAction(user.id, 'block')}
-                                    disabled={isPending}
-                                >
-                                    <UserX size={14} /> Bloquer
-                                </Button>
-                            )}
-                        </div>
-                    </TableCell>
-                </TableRow>
-                ))
-            )}
-          </TableBody>
-        </Table>
+      <FilterBar
+        searchValue={c.search}
+        onSearchChange={c.setSearch}
+        searchPlaceholder="Nom, e-mail ou Daara…"
+        resultCount={c.total}
+        itemLabel="compte"
+      />
+
+      <div className="ax-card">
+        <DataTable
+          rows={c.rows}
+          columns={columns}
+          getRowKey={(u) => u.id}
+          sort={c.sort}
+          onSort={c.toggleSort}
+          caption="Comptes à valider"
+          rowTone={(u) => (u.status === "pending" ? "warning" : undefined)}
+          empty={
+            <div className="ax-card__body">
+              <EmptyState
+                icon={c.search ? Search : Users}
+                tone={c.filter("status") === "pending" ? "success" : "neutral"}
+                title={
+                  c.filter("status") === "pending" && !c.search
+                    ? "Aucune demande en attente"
+                    : "Aucun compte ne correspond"
+                }
+                description={
+                  c.filter("status") === "pending" && !c.search
+                    ? "Toutes les inscriptions ont été traitées."
+                    : "Changez d'onglet ou élargissez la recherche."
+                }
+                action={
+                  c.filter("status") !== ALL ? (
+                    <button
+                      type="button"
+                      className="ax-btn ax-btn--outline"
+                      onClick={() => c.setFilter("status", ALL)}
+                    >
+                      <span className="ax-btn__label">Voir tous les comptes</span>
+                    </button>
+                  ) : undefined
+                }
+              />
+            </div>
+          }
+        />
       </div>
+
+      <Pagination
+        page={c.page}
+        totalPages={c.totalPages}
+        onPageChange={c.setPage}
+        totalItems={c.total}
+        pageSize={c.pageSize}
+        itemLabel="comptes"
+      />
     </div>
   );
 }

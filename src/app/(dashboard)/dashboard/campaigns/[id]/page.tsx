@@ -4,6 +4,7 @@ import { getEvents } from "@/app/actions/events";
 import { getCampaignById } from "@/app/actions/campaigns";
 import { NewCampaignClient } from "../new/NewCampaignClient";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { PageHead } from "@/components/vireo/PageHead";
 
 export default async function EditCampaignPage({
   params,
@@ -21,30 +22,39 @@ export default async function EditCampaignPage({
     redirect("/dashboard/campaigns");
   }
 
-  const [{ data: campaign, error: campaignError }, { data: fetes, error: fetesError }, { data: members }] =
-    await Promise.all([
+  const [
+    { data: campaign, error: campaignError, status: campaignStatus },
+    { data: fetes, error: fetesError },
+    { data: members },
+  ] = await Promise.all([
       getCampaignById(campaignId),
       getEvents(),
       getAllUsers(),
     ]);
 
+  /*
+   * `notFound()` est réservé au vrai 404. Une session expirée (401), un droit
+   * manquant (403) ou un backend à terre (500 / 0) ne sont pas des absences :
+   * les confondre affichait « cette page n'existe pas » sur des écrans
+   * parfaitement existants. On relaie donc l'incident à la frontière
+   * d'erreur du segment, qui propose de réessayer.
+   */
+  if (campaignStatus === 404) notFound();
   if (campaignError || !campaign) {
-    notFound();
+    throw new Error(campaignError ?? "Ndiguel indisponible.");
   }
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-6">
-      <div>
-        <h1
-          className="text-3xl font-semibold tracking-tight"
-          style={{ color: "var(--foreground)" }}
-        >
-          Modifier la campagne
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-          Réservé aux administrateurs. Les modifications s&apos;appliquent immédiatement.
-        </p>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHead
+        role="admin"
+        title={campaign.name}
+        subtitle="Les modifications s'appliquent immédiatement."
+        crumbs={[
+          { label: "Gestion" },
+          { label: "Les Ndiguels", href: "/dashboard/campaigns" },
+        ]}
+      />
 
       {fetesError ? (
         <ErrorAlert message={fetesError} />

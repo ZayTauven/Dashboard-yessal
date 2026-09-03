@@ -1,18 +1,54 @@
-﻿import { getMyDaara } from "@/app/actions/daara";
-import { getProfile, getDirectoryUsers, getPilotageSettings } from "@/app/actions/users";
+import Link from "next/link";
 import {
-  Activity,
   Building2,
-  MapPin,
   Hash,
-  UserCircle,
+  MapPin,
   MessageSquare,
+  UserCircle,
   Users2,
 } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getMyDaara } from "@/app/actions/daara";
+import {
+  getDirectoryUsers,
+  getPilotageSettings,
+  getProfile,
+} from "@/app/actions/users";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar } from "@/components/vireo/Avatar";
+import { CoverBand } from "@/components/vireo/CoverBand";
+import { PageHead } from "@/components/vireo/PageHead";
+import { StatusBadge } from "@/components/vireo/StatusBadge";
+import type { Role } from "@/lib/nav";
+import { roleLabelLong } from "@/lib/roles";
 import { CollectorList } from "./CollectorList";
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Mon Daara
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Fiche d'entité, bâtie sur le patron `pages/Profile` de Vireo : bandeau de
+ * couverture, identité posée dessus, bandeau de statistiques, puis les
+ * sections.
+ *
+ * Ce que la version précédente peignait à la main, et pourquoi ça posait
+ * problème :
+ *
+ *   · La bannière fondait `var(--primary)` vers `#2D7A4F`, un vert écrit en
+ *     dur. La moitié du dégradé suivait l'accent du Customizer, l'autre non :
+ *     changer d'accent produisait un fondu vers une couleur sans rapport.
+ *     <CoverBand> dérive tout de jetons.
+ *
+ *   · Le statut actif/inactif était un point coloré en `bg-green-100
+ *     text-green-700` — invisible en thème sombre, et un vocabulaire de plus
+ *     pour dire ce que <StatusBadge> dit partout ailleurs.
+ *
+ *   · Le tableau des membres était typé `any` et n'affichait ni Daara ni
+ *     statut ; l'en-tête était en `font-black uppercase tracking-widest
+ *     text-[10px]`, une graisse qu'on ne trouve nulle part ailleurs.
+ *
+ * Le type `DaaraMember` remplace les `any` de la boucle : la forme vient de
+ * `getDirectoryUsers`, la même que celle de l'annuaire.
+ */
 
 type DaaraPayload = {
   name: string;
@@ -37,12 +73,22 @@ type DaaraPayload = {
   };
 };
 
+type DaaraMember = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role?: string | null;
+  avatar?: string | null;
+  avatar_url?: string | null;
+};
+
 export default async function DaaraPage() {
   const [
     { data: daara, error },
     { data: profile },
     { data: directory },
-    { data: pilotage }
+    { data: pilotage },
   ] = await Promise.all([
     getMyDaara(),
     getProfile(),
@@ -50,48 +96,35 @@ export default async function DaaraPage() {
     getPilotageSettings(),
   ]);
 
-  const showMembersLink =
-    profile?.role === "chef_daara" || profile?.role === "collector";
+  const role = (profile?.role ?? "member") as Role;
+  const showMembersLink = role === "chef_daara" || role === "collector";
 
-  if (error) {
+  /* Les deux sorties d'erreur partagent la même coque : seul le message change,
+     et l'issue proposée reste la même. */
+  if (error || !daara) {
     return (
-      <div className="max-w-5xl mx-auto">
-        <div className="flex flex-col items-center gap-4 py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
-            <Building2 size={28} className="text-red-400" />
+      <div className="flex flex-col gap-6">
+        <PageHead role={role} title="Mon Daara" />
+        <div className="ax-card">
+          <div className="ax-card__body">
+            <EmptyState
+              icon={Building2}
+              title={
+                error
+                  ? "Impossible de charger le Daara"
+                  : "Vous n'êtes pas encore affilié à un Daara"
+              }
+              description={
+                error ??
+                "Contactez votre Chef Daara ou l'administrateur pour être rattaché à une communauté."
+              }
+              action={
+                <Link href="/dashboard" className="ax-btn ax-btn--primary">
+                  <span className="ax-btn__label">Retour au tableau de bord</span>
+                </Link>
+              }
+            />
           </div>
-          <h2 className="text-lg font-bold text-foreground">
-            Impossible de charger le Daara
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-sm">{error}</p>
-          <Button variant="outline" asChild>
-            <Link href="/dashboard">Retour au tableau de bord</Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!daara) {
-    return (
-      <div className="max-w-5xl mx-auto">
-        <div className="flex flex-col items-center gap-4 py-20 text-center">
-          <div className="w-20 h-20 rounded-3xl bg-muted/40 flex items-center justify-center">
-            <Building2 size={36} className="text-muted-foreground/30" />
-          </div>
-          <h2 className="text-xl font-bold">
-            Vous n&apos;êtes pas encore affilié à un Daara
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            Contactez votre Chef Daara ou l&apos;administrateur pour être
-            rattaché à une communauté.
-          </p>
-          <Button
-            asChild
-            style={{ background: "var(--primary)", color: "white" }}
-          >
-            <Link href="/dashboard">Retour au tableau de bord</Link>
-          </Button>
         </div>
       </div>
     );
@@ -101,199 +134,217 @@ export default async function DaaraPage() {
   const membersCount = d.members_count ?? null;
   const collectors = d.collectors ?? [];
 
-  return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-8">
-      <div
-        className="relative overflow-hidden rounded-3xl p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
-        style={{
-          background:
-            "linear-gradient(135deg, var(--primary) 0%, #2D7A4F 100%)",
-        }}
-      >
-        <div className="relative z-10 text-white">
-          <div className="flex items-center gap-2 text-white/70 text-xs uppercase font-black tracking-widest mb-3">
-            <Building2 size={14} /> Mon Daara
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight">{d.name}</h1>
-          <div className="flex items-center gap-4 mt-3 text-white/80 text-sm flex-wrap">
-            {d.code && (
-              <span className="flex items-center gap-1.5">
-                <Hash size={13} /> Code : <strong>{d.code}</strong>
-              </span>
-            )}
-            {d.ldd && (
-              <span className="flex items-center gap-1.5">
-                <Building2 size={13} /> LDD : <strong>{d.ldd.name} ({d.ldd.code})</strong>
-              </span>
-            )}
-            {d.location && (
-              <span className="flex items-center gap-1.5">
-                <MapPin size={13} /> {d.location}
-              </span>
-            )}
-          </div>
-        </div>
-        <div
-          className="flex-shrink-0 h-20 w-20 rounded-2xl flex items-center justify-center shadow-xl"
-          style={{
-            background: "rgba(255,255,255,0.15)",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          <Building2 size={36} className="text-white" />
-        </div>
-        <div
-          className="absolute -right-12 -top-12 w-48 h-48 rounded-full opacity-10"
-          style={{ background: "white" }}
-        />
-        <div
-          className="absolute -left-8 -bottom-8 w-32 h-32 rounded-full opacity-10"
-          style={{ background: "white" }}
-        />
-      </div>
+  const others: DaaraMember[] = ((directory as DaaraMember[]) ?? []).filter(
+    (u) => u.id !== profile?.id,
+  );
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div
-          className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-3"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Statut
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHead
+        role={role}
+        title="Mon Daara"
+        subtitle="La communauté à laquelle vous êtes rattaché."
+        actions={
+          showMembersLink && (
+            <Link href="/dashboard/members" className="ax-btn ax-btn--tonal">
+              <Users2 className="ax-btn__icon" size={16} aria-hidden="true" />
+              <span className="ax-btn__label">Gérer les membres</span>
+            </Link>
+          )
+        }
+      />
+
+      {/* ── Identité ── */}
+      <section className="ax-card overflow-hidden">
+        <CoverBand height={120} />
+
+        <div className="ax-card__body -mt-12 flex flex-col gap-4">
+          <span
+            className="ax-avatar ax-avatar--2xl ax-avatar--squircle ax-avatar--ringed"
+            aria-hidden="true"
+          >
+            <Building2 className="ax-avatar__icon" />
+          </span>
+
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="ax-card__title text-2xl">{d.name}</h2>
+
+              <div className="ax-cluster ax-text-muted mt-2 flex-wrap gap-4 text-sm">
+                {d.code && (
+                  <span className="ax-cluster gap-1">
+                    <Hash size={14} aria-hidden="true" />
+                    <span className="font-mono tabular">{d.code}</span>
+                  </span>
+                )}
+                {d.ldd && (
+                  <span className="ax-cluster gap-1">
+                    <Building2 size={14} aria-hidden="true" />
+                    {d.ldd.name} ({d.ldd.code})
+                  </span>
+                )}
+                {d.location && (
+                  <span className="ax-cluster gap-1">
+                    <MapPin size={14} aria-hidden="true" />
+                    {d.location}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <StatusBadge
+              domain="user"
+              value={d.is_active === false ? "inactive" : "active"}
+            />
+          </div>
+
+          <p className="ax-text-muted text-sm">
+            {d.description || "Aucune description renseignée pour ce Daara."}
+          </p>
+        </div>
+      </section>
+
+      {/* ── Encadrement ── */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="ax-card">
+          <div className="ax-card__header">
+            <span className="ax-card__kpi-icon ax-card__kpi-icon--c1" aria-hidden="true">
+              <UserCircle />
             </span>
-            <div
-              className={`flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${
-                d.is_active
-                  ? "bg-green-100 text-green-700 dark:bg-green-900/40"
-                  : "bg-red-100 text-red-700 dark:bg-red-900/40"
-              }`}
-            >
-              <div
-                className={`w-1.5 h-1.5 rounded-full ${d.is_active ? "bg-green-500" : "bg-red-500"}`}
-              />
-              {d.is_active ? "Actif" : "Inactif"}
+            <div className="ax-card__titles">
+              <h3 className="ax-card__title">Chef de Daara</h3>
+              <p className="ax-card__subtitle">
+                {d.chef_full_name || "Non renseigné"}
+              </p>
             </div>
           </div>
-          <div className="flex items-start gap-2">
-            <Activity size={32} className="text-muted-foreground/20 shrink-0" />
-            <p className="text-sm text-muted-foreground">
-              {d.description ||
-                "Aucune description renseignée pour ce Daara."}
+          {membersCount != null && (
+            <div className="ax-card__body">
+              <p className="ax-kpi__label">Effectif sur la plateforme</p>
+              <p className="ax-kpi__value font-mono tabular">
+                {membersCount}
+                <span className="ax-text-muted ms-2 text-base font-normal">
+                  membre{membersCount !== 1 ? "s" : ""}
+                </span>
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section className="ax-card">
+          <div className="ax-card__header">
+            <span className="ax-card__kpi-icon ax-card__kpi-icon--c2" aria-hidden="true">
+              <Users2 />
+            </span>
+            <div className="ax-card__titles">
+              <h3 className="ax-card__title">Collecteurs</h3>
+              <p className="ax-card__subtitle">
+                {collectors.length === 0
+                  ? "Aucun collecteur désigné"
+                  : `${collectors.length} désigné${collectors.length > 1 ? "s" : ""}`}
+              </p>
+            </div>
+          </div>
+          {collectors.length > 0 && (
+            <div className="ax-card__body">
+              <CollectorList collectors={collectors} role={role} />
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* ── Les autres membres ── */}
+      <section className="ax-card">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h3 className="ax-card__title">Les autres membres de mon Daara</h3>
+          </div>
+          <span className="ax-badge ax-badge--neutral ax-badge--sm">
+            {others.length}
+          </span>
+        </div>
+
+        {others.length === 0 ? (
+          <div className="ax-card__body">
+            <p className="ax-text-subtle text-center text-sm italic">
+              Aucun autre membre trouvé dans ce Daara.
             </p>
           </div>
-        </div>
-
-        <div
-          className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-            <UserCircle size={12} /> Chef de Daara
-          </span>
-          <p className="text-lg font-bold mt-1" style={{ color: "var(--foreground)" }}>
-            {d.chef_full_name || "Non renseigné"}
-          </p>
-          {membersCount != null && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Effectif : <strong>{membersCount}</strong> membre
-              {membersCount !== 1 ? "s" : ""} sur la plateforme
-            </p>
-          )}
-        </div>
-
-        <div
-          className="bg-card p-6 rounded-2xl border shadow-sm flex flex-col gap-2"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-            Collecteurs
-          </span>
-          {collectors.length === 0 ? (
-            <p className="text-sm text-muted-foreground mt-2">
-              Aucun collecteur désigné pour ce Daara.
-            </p>
-          ) : (
-            <CollectorList collectors={collectors} role={profile?.role} />
-          )}
-        </div>
-      </div>
-
-      {showMembersLink && (
-        <div className="flex justify-end">
-          <Button variant="outline" asChild>
-            <Link href="/dashboard/members">Gérer les membres du Daara</Link>
-          </Button>
-        </div>
-      )}
-
-      {/* AUTRES MEMBRES DU DAARA */}
-      <div className="space-y-4">
-        <h3 className="text-xl font-bold flex items-center gap-2">
-            <Users2 size={20} className="text-yessal-violet" /> Les autres membres de mon Daara
-        </h3>
-        
-        <div className="bg-card rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--border)" }}>
-            <table className="w-full text-sm">
-                <thead>
-                    <tr className="bg-muted/30 border-b" style={{ borderColor: "var(--border)" }}>
-                        <th className="px-6 py-4 text-left font-black uppercase tracking-widest text-[10px] text-muted-foreground">Membre</th>
-                        <th className="px-6 py-4 text-left font-black uppercase tracking-widest text-[10px] text-muted-foreground">Rôle</th>
-                        <th className="px-6 py-4 text-right font-black uppercase tracking-widest text-[10px] text-muted-foreground">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y" style={{ borderColor: "var(--border)" }}>
-                    {directory?.length > 0 ? (
-                        directory.filter((u: any) => u.id !== profile.id).map((member: any) => (
-                            <tr key={member.id} className="hover:bg-muted/10 transition-colors">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage src={member.avatar || member.avatar_url || undefined} className="object-cover" />
-                                            <AvatarFallback className="bg-yessal-violet/10 text-yessal-violet font-bold text-xs">
-                                                {member.first_name?.[0]}{member.last_name?.[0]}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex flex-col">
-                                            <span className="font-bold">{member.first_name} {member.last_name}</span>
-                                            <span className="text-xs text-muted-foreground">{member.email}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className="text-[10px] font-black uppercase tracking-widest bg-muted px-2 py-1 rounded text-muted-foreground">
-                                        {member.role === 'member' ? 'Talibé' : member.role?.replace('_', ' ')}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    {pilotage?.enable_salons ? (
-                                        <Button 
-                                            variant="ghost" 
-                                            size="sm" 
-                                            asChild
-                                            className="text-yessal-violet hover:bg-yessal-violet/10 font-bold gap-2"
-                                        >
-                                            <Link href={`/dashboard/chat/nouveau?with=${member.id}`}>
-                                                <MessageSquare size={14} /> 
-                                                <span className="hidden sm:inline">Inviter dans un salon</span>
-                                            </Link>
-                                        </Button>
-                                    ) : (
-                                        <span className="text-[10px] text-muted-foreground italic">Salons désactivés</span>
-                                    )}
-                                </td>
-                            </tr>
-                        ))
-                    ) : (
-                        <tr>
-                            <td colSpan={3} className="px-6 py-12 text-center text-muted-foreground italic">
-                                Aucun autre membre trouvé dans ce Daara.
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
+        ) : (
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover">
+              <caption className="ax-visually-hidden">
+                Membres rattachés à {d.name}
+              </caption>
+              <thead className="ax-table__head">
+                <tr>
+                  <th scope="col" className="ax-table__th">
+                    Membre
+                  </th>
+                  <th scope="col" className="ax-table__th hidden sm:table-cell">
+                    Rôle
+                  </th>
+                  <th scope="col" className="ax-table__th ax-table__th--num">
+                    <span className="ax-visually-hidden">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {others.map((member) => (
+                  <tr key={member.id} className="ax-table__row">
+                    <td className="ax-table__td">
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          src={member.avatar || member.avatar_url}
+                          name={`${member.first_name} ${member.last_name}`}
+                          size="sm"
+                        />
+                        <div className="flex flex-col">
+                          <Link
+                            href={`/dashboard/users/${member.id}`}
+                            className="ax-link font-medium"
+                          >
+                            {member.first_name} {member.last_name}
+                          </Link>
+                          <span className="ax-text-subtle text-xs">
+                            {member.email}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="ax-table__td hidden sm:table-cell">
+                      <span className="ax-badge ax-badge--neutral ax-badge--sm">
+                        {roleLabelLong(member.role ?? "")}
+                      </span>
+                    </td>
+                    <td className="ax-table__td ax-table__td--num">
+                      {pilotage?.enable_salons ? (
+                        <Link
+                          href={`/dashboard/chat?with=${member.id}`}
+                          className="ax-btn ax-btn--ghost ax-btn--sm"
+                        >
+                          <MessageSquare
+                            className="ax-btn__icon"
+                            size={14}
+                            aria-hidden="true"
+                          />
+                          <span className="ax-btn__label hidden sm:inline">
+                            Inviter dans un salon
+                          </span>
+                        </Link>
+                      ) : (
+                        <span className="ax-text-subtle text-xs italic">
+                          Salons désactivés
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
-        </div>
-      </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

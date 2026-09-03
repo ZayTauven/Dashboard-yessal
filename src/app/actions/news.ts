@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { messageForStatus } from "@/lib/api-result";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
@@ -38,12 +39,16 @@ export async function getNewsPost(slug: string) {
     });
 
     if (!res.ok) {
-      return { error: "Actualité introuvable." };
+      return {
+        status: res.status,
+        error: messageForStatus(res.status, "Actualité introuvable."),
+      };
     }
 
-    return { data: await res.json() };
+    return { data: await res.json(), status: res.status };
   } catch (err) {
-    return { error: "Erreur de connexion." };
+    console.error("getNewsPost:", err);
+    return { status: 0, error: messageForStatus(0, "") };
   }
 }
 
@@ -86,6 +91,7 @@ export async function deleteNewsPost(slug: string) {
     revalidatePath("/dashboard/news");
     return { success: true };
   } catch (err) {
+    console.error("deleteNewsPost:", err);
     return { error: "Erreur réseau." };
   }
 }
@@ -107,6 +113,7 @@ export async function updateNewsPost(idOrSlug: string | number, formData: FormDa
     revalidatePath("/dashboard/news");
     return { success: true, data: await res.json() };
   } catch (err) {
+    console.error("updateNewsPost:", err);
     return { error: "Erreur de connexion." };
   }
 }
@@ -125,6 +132,7 @@ export async function addGalleryImage(slug: string, formData: FormData) {
     revalidatePath("/dashboard/news");
     return { success: true };
   } catch (err) {
+    console.error("addGalleryImage:", err);
     return { error: "Erreur réseau." };
   }
 }
@@ -139,6 +147,7 @@ export async function deleteGalleryImage(id: number) {
     revalidatePath("/dashboard/news");
     return { success: true };
   } catch (err) {
+    console.error("deleteGalleryImage:", err);
     return { error: "Erreur réseau." };
   }
 }

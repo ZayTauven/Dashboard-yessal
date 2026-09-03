@@ -1,19 +1,47 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getFeteEtat } from "@/app/actions/events";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   ArrowLeft,
-  Calendar,
+  BookOpen,
+  CalendarDays,
+  Target,
   TrendingUp,
   Users,
-  BookOpen,
-  CheckCircle2,
-  Clock,
-  XCircle,
 } from "lucide-react";
+import { getFeteEtat } from "@/app/actions/events";
+import { formatFCFA } from "@/lib/format";
+import { Avatar } from "@/components/vireo/Avatar";
+import { DateTile } from "@/components/vireo/DateTile";
+import { PageHead } from "@/components/vireo/PageHead";
+import { StatCard } from "@/components/vireo/StatCard";
+import {
+  PaymentMethodBadge,
+  StatusBadge,
+} from "@/components/vireo/StatusBadge";
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * État d'une fête
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Page de lecture pure, donc composant serveur : les tableaux utilisent
+ * directement le contrat `.ax-table` plutôt que <DataTable>, qui est client.
+ * Même parti que l'état d'un Ndiguel, avec lequel cet écran doit se lire de la
+ * même façon.
+ *
+ * Ce que la reprise corrige :
+ *
+ *   · Trois tables de correspondance locales — `METHOD_LABELS`,
+ *     `METHOD_COLORS`, `STATUS_CONFIG` — recopiaient un vocabulaire déjà
+ *     centralisé, avec des couleurs en dur (`bg-orange-100 text-orange-700`)
+ *     invisibles en thème sombre. Elles laissent la place à <StatusBadge> et
+ *     <PaymentMethodBadge>.
+ *
+ *   · Le statut de la fête s'affichait « Active »/« Inactive » en vert/rouge
+ *     codés en dur.
+ *
+ *   · Les quatre tuiles de tête étaient dessinées à la main : elles passent
+ *     sur <StatCard>, comme partout ailleurs.
+ */
 
 type Contribution = {
   member_name: string;
@@ -38,41 +66,36 @@ type CampaignRow = {
   organizer_name: string | null;
 };
 
-const METHOD_LABELS: Record<string, string> = {
-  orange_money: "Orange Money",
-  wave: "Wave",
-  bictorys: "Bictorys",
-  virement: "Virement",
-  manual: "Manuel",
-  paypal: "PayPal",
-  collector: "Collecteur",
-  visa: "Visa",
-  mastercard: "Mastercard",
+/** `events.Fete.Recurrence` */
+const RECURRENCE_LABELS: Record<string, string> = {
+  annual: "Annuelle",
+  quarterly: "Trimestrielle",
+  weekly: "Hebdomadaire",
+  none: "Ponctuelle",
 };
 
-const METHOD_COLORS: Record<string, string> = {
-  orange_money: "bg-orange-100 text-orange-700",
-  wave: "bg-blue-100 text-blue-700",
-  bictorys: "bg-purple-100 text-purple-700",
-  virement: "bg-gray-100 text-gray-700",
-  manual: "bg-yellow-100 text-yellow-700",
-};
+const longDate = new Intl.DateTimeFormat("fr-SN", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
-const STATUS_CONFIG: Record<string, { label: string; icon: React.ElementType; className: string }> = {
-  active: { label: "Actif", icon: CheckCircle2, className: "bg-green-100 text-green-700" },
-  pending: { label: "En attente", icon: Clock, className: "bg-yellow-100 text-yellow-700" },
-  completed: { label: "Terminé", icon: CheckCircle2, className: "bg-gray-100 text-gray-600" },
-  inactive: { label: "Inactif", icon: XCircle, className: "bg-red-100 text-red-600" },
-};
+const shortDate = new Intl.DateTimeFormat("fr-SN", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+});
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
+function fmt(iso?: string | null, long = false): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return long ? longDate.format(d) : shortDate.format(d);
 }
+
+/** Un don anonyme ne porte ni nom ni initiales. */
+const displayName = (c: Contribution) =>
+  c.is_anonymous ? "Contributeur anonyme" : c.member_name || "—";
 
 export default async function FeteDetailPage({
   params,
@@ -82,8 +105,17 @@ export default async function FeteDetailPage({
   const { id } = await params;
   const feteId = Number(id);
 
-  const { data: etat, error } = await getFeteEtat(feteId);
-  if (error || !etat) notFound();
+  const { data: etat, error, status } = await getFeteEtat(feteId);
+
+  /*
+   * `notFound()` est réservé au vrai 404. Une session expirée (401), un droit
+   * manquant (403) ou un backend à terre (500 / 0) ne sont pas des absences :
+   * les confondre affichait « cette page n'existe pas » sur des écrans
+   * parfaitement existants. On relaie donc l'incident à la frontière
+   * d'erreur du segment, qui propose de réessayer.
+   */
+  if (status === 404) notFound();
+  if (error || !etat) throw new Error(error ?? "Fête indisponible.");
 
   const contributions: Contribution[] = etat.contributions || [];
   const campaigns: CampaignRow[] = etat.campaigns || [];
@@ -93,252 +125,272 @@ export default async function FeteDetailPage({
     .slice(0, 3);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
-      {/* Back */}
-      <Button variant="ghost" className="w-fit gap-2 -ml-2" asChild>
-        <Link href="/dashboard/events">
-          <ArrowLeft size={16} />
-          Retour aux fêtes
-        </Link>
-      </Button>
-
-      {/* Header */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight" style={{ color: "var(--foreground)" }}>
-            {etat.name}
-          </h1>
-          <Badge
-            className={`text-[10px] uppercase font-bold ${etat.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
-          >
-            {etat.is_active ? "Active" : "Inactive"}
-          </Badge>
-        </div>
-        {etat.description && (
-          <p className="text-sm max-w-2xl" style={{ color: "var(--muted-foreground)" }}>
-            {etat.description}
-          </p>
-        )}
-        <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
+    <div className="flex flex-col gap-6">
+      <PageHead
+        title={etat.name}
+        subtitle={etat.description || undefined}
+        crumbs={[
+          { label: "Gestion" },
+          { label: "Les Fêtes", href: "/dashboard/events" },
+        ]}
+        actions={
+          <Link href="/dashboard/events" className="ax-btn ax-btn--ghost">
+            <ArrowLeft className="ax-btn__icon" size={16} aria-hidden="true" />
+            <span className="ax-btn__label">Retour aux fêtes</span>
+          </Link>
+        }
+      >
+        <div className="ax-cluster ax-text-muted mt-3 flex-wrap gap-4 text-sm">
+          <StatusBadge
+            domain="user"
+            value={etat.is_active === false ? "inactive" : "active"}
+            size="sm"
+          />
           {etat.date && (
-            <span className="flex items-center gap-1">
-              <Calendar size={12} />
-              {new Date(etat.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+            <span className="ax-cluster gap-1">
+              <CalendarDays size={14} aria-hidden="true" />
+              {fmt(etat.date, true)}
             </span>
           )}
-          <span className="flex items-center gap-1">
-            <BookOpen size={12} />
-            {etat.recurrence}
+          <span className="ax-cluster gap-1">
+            <BookOpen size={14} aria-hidden="true" />
+            {RECURRENCE_LABELS[etat.recurrence] ?? etat.recurrence}
           </span>
         </div>
+      </PageHead>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Total collecté"
+          value={totalCollected}
+          currency
+          icon={TrendingUp}
+          tone="montant"
+        />
+        <StatCard
+          label="Donateurs"
+          value={Number(etat.donation_count ?? 0)}
+          icon={Users}
+          tone="info"
+        />
+        <StatCard
+          label="Ndiguels rattachés"
+          value={Number(etat.campaigns_count ?? 0)}
+          icon={Target}
+          tone="accent"
+        />
+
+        {/* La date mérite sa pastille plutôt qu'un KPI : ce n'est pas une
+            quantité, et c'est le repère visuel de tout l'écran des fêtes. */}
+        <article className="ax-card ax-card--stat">
+          <div className="ax-card__body flex items-center gap-4">
+            <DateTile date={etat.date} />
+            <div>
+              <p className="ax-kpi__label">Date</p>
+              <p className="text-sm font-medium">{fmt(etat.date)}</p>
+            </div>
+          </div>
+        </article>
       </div>
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl border p-4 flex flex-col gap-2" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            <TrendingUp size={14} className="text-yessal-green" />
-            Total collecté
-          </div>
-          <span className="text-2xl font-bold text-yessal-green">
-            {totalCollected.toLocaleString("fr-FR")} <span className="text-sm font-normal">FCFA</span>
-          </span>
-        </div>
-
-        <div className="bg-card rounded-xl border p-4 flex flex-col gap-2" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            <Users size={14} />
-            Donateurs
-          </div>
-          <span className="text-2xl font-bold">{etat.donation_count}</span>
-        </div>
-
-        <div className="bg-card rounded-xl border p-4 flex flex-col gap-2" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            <BookOpen size={14} />
-            Ndiguels
-          </div>
-          <span className="text-2xl font-bold">{etat.campaigns_count}</span>
-        </div>
-
-        <div className="bg-card rounded-xl border p-4 flex flex-col gap-2" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            <Calendar size={14} />
-            Date
-          </div>
-          <span className="text-lg font-bold">
-            {etat.date
-              ? new Date(etat.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
-              : "—"}
-          </span>
-        </div>
-      </div>
-
-      {/* Top donors */}
       {topDonors.length > 0 && (
-        <div className="bg-card rounded-xl border p-5 flex flex-col gap-3" style={{ borderColor: "var(--border)" }}>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Top contributeurs</h2>
-          <div className="flex flex-wrap gap-3">
+        <section className="ax-card">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">Top contributeurs</h2>
+            </div>
+          </div>
+          <div className="ax-card__body flex flex-wrap gap-3">
             {topDonors.map((d, i) => (
-              <div key={i} className="flex items-center gap-2 bg-muted/30 rounded-lg px-3 py-2">
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback className="text-[10px]" style={{ background: "var(--primary)", color: "white" }}>
-                    {d.is_anonymous ? "?" : getInitials(d.member_name || "?")}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="text-xs font-semibold">{d.is_anonymous ? "Anonyme" : d.member_name}</div>
-                  <div className="text-[10px] text-yessal-green font-bold">
-                    {Number(d.amount).toLocaleString("fr-FR")} FCFA
-                  </div>
-                  {d.campaign_name && (
-                    <div className="text-[10px] text-muted-foreground">{d.campaign_name}</div>
-                  )}
+              <div
+                key={`${d.member_id}-${i}`}
+                className="ax-card ax-card--compact flex items-center gap-3 px-3 py-2"
+              >
+                <Avatar
+                  name={d.is_anonymous ? undefined : d.member_name}
+                  size="sm"
+                />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{displayName(d)}</span>
+                  <span className="text-montant font-mono tabular text-xs font-semibold">
+                    {formatFCFA(Number(d.amount))}
+                  </span>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Campaigns list */}
       {campaigns.length > 0 && (
-        <div className="bg-card rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--border)" }}>
-          <div className="px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
-            <h2 className="font-bold text-sm">Ndiguels associés</h2>
+        <section className="ax-card">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">Ndiguels rattachés</h2>
+            </div>
+            <span className="ax-badge ax-badge--neutral ax-badge--sm">
+              {campaigns.length}
+            </span>
           </div>
-          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+
+          <ul className="ax-list ax-list--comfortable">
             {campaigns.map((c) => {
-              const statusCfg = STATUS_CONFIG[c.status] || STATUS_CONFIG.pending;
-              const StatusIcon = statusCfg.icon;
               const goal = Number(c.goal_amount || 0);
               const collected = Number(c.collected_amount || 0);
+
               return (
-                <div key={c.id} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/10 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                <li key={c.id} className="ax-list__row items-start">
+                  <span className="ax-list__content gap-2">
+                    <span className="ax-cluster gap-2">
                       <Link
                         href={`/dashboard/campaigns/${c.id}/etat`}
-                        className="font-semibold text-sm hover:underline"
-                        style={{ color: "var(--primary)" }}
+                        className="ax-link font-medium"
                       >
                         {c.name}
                       </Link>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${statusCfg.className}`}>
-                        <StatusIcon size={10} />
-                        {statusCfg.label}
-                      </span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground flex gap-3">
+                      <StatusBadge domain="campaign" value={c.status} size="sm" />
+                    </span>
+
+                    <span className="ax-list__meta ax-cluster flex-wrap gap-3 text-xs">
                       {c.daara_name && <span>{c.daara_name}</span>}
-                      {c.organizer_name && <span>Organisateur : {c.organizer_name}</span>}
-                      <span>Échéance : {new Date(c.deadline).toLocaleDateString("fr-FR")}</span>
-                    </div>
+                      {c.organizer_name && (
+                        <span>Responsable : {c.organizer_name}</span>
+                      )}
+                      <span>Échéance : {fmt(c.deadline)}</span>
+                    </span>
+
                     {goal > 0 && (
-                      <div className="mt-2 flex items-center gap-3">
-                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-yessal-green rounded-full"
+                      <span
+                        className="ax-progress ax-progress--xs mt-1"
+                        role="progressbar"
+                        aria-valuenow={Math.round(c.progress_pct)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`Progression de ${c.name}`}
+                      >
+                        <span className="ax-progress__track">
+                          <span
+                            className="ax-progress__fill block"
                             style={{ width: `${Math.min(c.progress_pct, 100)}%` }}
                           />
-                        </div>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {c.progress_pct}%
                         </span>
-                      </div>
+                        <span className="ax-progress__value">
+                          {c.progress_pct} %
+                        </span>
+                      </span>
                     )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm font-bold text-yessal-green">
-                      {collected.toLocaleString("fr-FR")} <span className="text-xs font-normal text-muted-foreground">FCFA</span>
-                    </div>
+                  </span>
+
+                  <span className="ax-list__trailing flex-col items-end">
+                    <span className="text-montant font-mono tabular text-sm font-semibold">
+                      {formatFCFA(collected)}
+                    </span>
                     {goal > 0 && (
-                      <div className="text-[10px] text-muted-foreground">
-                        sur {goal.toLocaleString("fr-FR")} FCFA
-                      </div>
+                      <span className="ax-text-subtle font-mono tabular text-xs">
+                        sur {formatFCFA(goal)}
+                      </span>
                     )}
-                  </div>
-                </div>
+                  </span>
+                </li>
               );
             })}
-          </div>
-        </div>
+          </ul>
+        </section>
       )}
 
-      {/* Full contributors table */}
-      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden" style={{ borderColor: "var(--border)" }}>
-        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "var(--border)" }}>
-          <h2 className="font-bold text-sm">Liste des contributeurs</h2>
-          <Badge variant="outline" className="text-[10px]">
-            {contributions.length} don{contributions.length > 1 ? "s" : ""}
-          </Badge>
+      <section className="ax-card">
+        <div className="ax-card__header">
+          <div className="ax-card__titles">
+            <h2 className="ax-card__title">Liste des contributeurs</h2>
+          </div>
+          <span className="ax-badge ax-badge--neutral ax-badge--sm">
+            {contributions.length} Jëf{contributions.length > 1 ? "s" : ""}
+          </span>
         </div>
 
         {contributions.length === 0 ? (
-          <div className="p-12 text-center text-sm text-muted-foreground italic">
-            Aucune contribution confirmée pour cette fête.
+          <div className="ax-card__body">
+            <p className="ax-text-subtle text-center text-sm italic">
+              Aucune contribution confirmée pour cette fête.
+            </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/30">
+          <div className="ax-table-wrap">
+            <table className="ax-table ax-table--hover">
+              <caption className="ax-visually-hidden">
+                Contributions confirmées pour {etat.name}
+              </caption>
+              <thead className="ax-table__head">
                 <tr>
-                  <th className="px-5 py-3 text-left font-bold uppercase text-[10px] tracking-widest">Contributeur</th>
-                  <th className="px-5 py-3 text-left font-bold uppercase text-[10px] tracking-widest">Daara</th>
-                  <th className="px-5 py-3 text-left font-bold uppercase text-[10px] tracking-widest">Ndiguel</th>
-                  <th className="px-5 py-3 text-left font-bold uppercase text-[10px] tracking-widest">Méthode</th>
-                  <th className="px-5 py-3 text-right font-bold uppercase text-[10px] tracking-widest">Montant</th>
-                  <th className="px-5 py-3 text-right font-bold uppercase text-[10px] tracking-widest">Date</th>
+                  <th scope="col" className="ax-table__th">
+                    Contributeur
+                  </th>
+                  <th scope="col" className="ax-table__th hidden lg:table-cell">
+                    Daara
+                  </th>
+                  <th scope="col" className="ax-table__th hidden md:table-cell">
+                    Ndiguel
+                  </th>
+                  <th scope="col" className="ax-table__th hidden sm:table-cell">
+                    Méthode
+                  </th>
+                  <th scope="col" className="ax-table__th ax-table__th--num">
+                    Montant
+                  </th>
+                  <th scope="col" className="ax-table__th ax-table__th--num">
+                    Date
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {contributions.map((row, idx) => (
-                  <tr
-                    key={`${row.member_id}-${idx}`}
-                    className="border-t hover:bg-muted/10"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <td className="px-5 py-3">
+                  <tr key={`${row.member_id}-${idx}`} className="ax-table__row">
+                    <td className="ax-table__td">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-[10px]" style={{ background: "var(--primary)", color: "white" }}>
-                            {row.is_anonymous ? "?" : getInitials(row.member_name || "?")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">
-                          {row.is_anonymous ? "Contributeur anonyme" : (row.member_name || "—")}
-                        </span>
+                        <Avatar
+                          name={row.is_anonymous ? undefined : row.member_name}
+                          size="sm"
+                        />
+                        <span className="font-medium">{displayName(row)}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-muted-foreground text-xs">{row.daara_name || "—"}</td>
-                    <td className="px-5 py-3 text-xs text-muted-foreground">{row.campaign_name || "—"}</td>
-                    <td className="px-5 py-3">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          METHOD_COLORS[row.payment_method] || "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {METHOD_LABELS[row.payment_method] || row.payment_method}
-                      </span>
+                    <td className="ax-table__td ax-text-muted hidden lg:table-cell">
+                      {row.daara_name || "—"}
                     </td>
-                    <td className="px-5 py-3 text-right font-bold text-yessal-green">
-                      {Number(row.amount).toLocaleString("fr-FR")}{" "}
-                      <span className="text-xs font-normal text-muted-foreground">FCFA</span>
+                    <td className="ax-table__td ax-text-muted hidden md:table-cell">
+                      {row.campaign_name || "—"}
                     </td>
-                    <td className="px-5 py-3 text-right text-xs text-muted-foreground">
-                      {new Date(row.date).toLocaleDateString("fr-FR", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                    <td className="ax-table__td hidden sm:table-cell">
+                      <PaymentMethodBadge value={row.payment_method} />
+                    </td>
+                    <td className="ax-table__td ax-table__td--num text-montant font-semibold">
+                      {formatFCFA(Number(row.amount))}
+                    </td>
+                    <td className="ax-table__td ax-table__td--num ax-text-muted text-xs">
+                      {fmt(row.date)}
                     </td>
                   </tr>
                 ))}
               </tbody>
+
+              <tfoot className="ax-table__foot">
+                <tr>
+                  <td colSpan={4}>Total des contributions listées</td>
+                  <td className="ax-table__td--num text-montant">
+                    {formatFCFA(
+                      contributions.reduce(
+                        (s, r) => s + Number(r.amount || 0),
+                        0,
+                      ),
+                    )}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

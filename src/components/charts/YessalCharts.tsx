@@ -27,26 +27,28 @@ import { cn } from "@/lib/utils";
 
 /* ── Formatage ─────────────────────────────────────────────────────────── */
 
-const nf = new Intl.NumberFormat("fr-SN", { maximumFractionDigits: 0 });
-const nfCompact = new Intl.NumberFormat("fr-SN", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
+/*
+ * Les formateurs vivent desormais dans `@/lib/format`, un module SANS
+ * directive : ce fichier-ci est `"use client"`, et un composant serveur ne peut
+ * pas appeler une fonction exportee par un module client. Ils sont reexportes
+ * ici pour ne casser aucun import existant.
+ */
+export {
+  formatCompact,
+  formatFCFA,
+  formatNumber,
+  formatPercent,
+} from "@/lib/format";
 
-/** 1250000 → « 1 250 000 FCFA ». */
-export function formatFCFA(value: number): string {
-  return `${nf.format(Math.round(value))} FCFA`;
-}
+import {
+  formatCompact,
+  formatFCFA,
+  formatNumber,
+  formatPercent,
+} from "@/lib/format";
 
-/** 1250000 → « 1,3 M » — pour les axes, où la place manque. */
-export function formatCompact(value: number): string {
-  return nfCompact.format(value);
-}
-
-/** 0.734 → « 73 % ». */
-export function formatPercent(value: number): string {
-  return `${nf.format(Math.round(value * 100))} %`;
-}
+/* Formateur local des libelles d'axes et d'infobulles. */
+const nf = { format: (v: number) => formatNumber(Number(v)) };
 
 /* ── Primitives de série ───────────────────────────────────────────────── */
 

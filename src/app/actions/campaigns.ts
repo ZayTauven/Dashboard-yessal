@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { messageForStatus } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -45,13 +46,16 @@ export async function getCampaignById(campaignId: number) {
     );
 
     if (!res.ok) {
-      return { error: "Impossible de charger la campagne." };
+      return {
+        status: res.status,
+        error: messageForStatus(res.status, "Impossible de charger la campagne."),
+      };
     }
 
-    return { data: await res.json() };
+    return { data: await res.json(), status: res.status };
   } catch (err) {
     console.error(err);
-    return { error: "Erreur de connexion au serveur backend." };
+    return { status: 0, error: messageForStatus(0, "") };
   }
 }
 
@@ -66,13 +70,16 @@ export async function getCampaignEtat(campaignId: number) {
     );
 
     if (!res.ok) {
-      return { error: "Impossible de charger l'état du Ndiguel." };
+      return {
+        status: res.status,
+        error: messageForStatus(res.status, "Impossible de charger l'état du Ndiguel."),
+      };
     }
 
-    return { data: await res.json() };
+    return { data: await res.json(), status: res.status };
   } catch (err) {
     console.error(err);
-    return { error: "Erreur de connexion au serveur backend." };
+    return { status: 0, error: messageForStatus(0, "") };
   }
 }
 
@@ -208,7 +215,7 @@ export async function updateCampaign(campaignId: number, formData: FormData) {
       return {
         error:
           (data as { detail?: string }).detail ||
-          "Erreur lors de la mise Ã  jour de la campagne.",
+          "Erreur lors de la mise à jour de la campagne.",
       };
     }
 
@@ -263,7 +270,7 @@ export async function addCampaignTodo(campaignId: number, title: string) {
         is_completed: false,
       }),
     });
-    if (!res.ok) return { error: "Erreur lors de l'ajout de la tÃ¢che." };
+    if (!res.ok) return { error: "Erreur lors de l'ajout de la tâche." };
     revalidatePath("/dashboard/campaigns");
     return { success: true };
   } catch (err) {
@@ -286,7 +293,7 @@ export async function toggleCampaignTodo(todoId: number, isCompleted: boolean) {
       },
     );
     if (!res.ok)
-      return { error: "Erreur lors de la mise Ã  jour de la tÃ¢che." };
+      return { error: "Erreur lors de la mise à jour de la tâche." };
     revalidatePath("/dashboard/campaigns");
     return { success: true };
   } catch (err) {

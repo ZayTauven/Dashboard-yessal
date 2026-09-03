@@ -1,121 +1,180 @@
-﻿import { getNewsPost } from "@/app/actions/news";
-import { Newspaper, Calendar, User, ArrowLeft, Youtube, Image as ImageIcon } from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { notFound } from "next/navigation";
+import { ArrowLeft, Calendar, Image as ImageIcon, Youtube } from "lucide-react";
+import { getNewsPost } from "@/app/actions/news";
+import { Avatar } from "@/components/vireo/Avatar";
+import { Gallery } from "@/components/vireo/Gallery";
+import { PageHead } from "@/components/vireo/PageHead";
+import { CoverImage } from "@/components/vireo/CoverImage";
 
-export default async function NewsDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Article d'actualité
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Repris du patron `blog/BlogDetails` de Vireo : en-tête d'article, bannière,
+ * corps en colonne de lecture, rail latéral pour la galerie.
+ *
+ * Deux corrections :
+ *
+ *   · `getEmbedUrl` faisait `url.split("v=")[1]` sans vérifier que le motif
+ *     existe. Une URL YouTube au format `/embed/…` ou `/shorts/…` produisait
+ *     donc un `undefined` propagé dans l'URL de l'iframe. Le découpage est
+ *     désormais fait par expression régulière, et couvre les trois formes.
+ *
+ *   · Le titre s'affichait en `text-5xl font-black`, une graisse qu'on ne
+ *     trouve nulle part ailleurs. Il passe sur l'échelle typographique Aurora
+ *     via <PageHead>, comme les vingt-sept autres écrans.
+ */
+
+type GalleryImage = { id: number; image: string; caption?: string };
+
+const dateFmt = new Intl.DateTimeFormat("fr-SN", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+/**
+ * Extrait l'identifiant d'une vidéo YouTube, quelle que soit la forme de l'URL
+ * (`watch?v=`, `youtu.be/`, `/embed/`, `/shorts/`). Renvoie `null` si aucune
+ * ne correspond, plutôt qu'une URL contenant `undefined`.
+ */
+function getEmbedUrl(url?: string | null): string | null {
+  if (!url) return null;
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+  );
+  return match ? `https://www.youtube-nocookie.com/embed/${match[1]}` : null;
+}
+
+export default async function NewsDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
   const { slug } = await params;
-  const { data: post, error } = await getNewsPost(slug);
+  const { data: post, error, status } = await getNewsPost(slug);
 
+  /*
+   * `notFound()` est réservé au vrai 404. Une session expirée (401), un droit
+   * manquant (403) ou un backend à terre (500 / 0) ne sont pas des absences :
+   * les confondre affichait « cette page n'existe pas » sur des écrans
+   * parfaitement existants. On relaie donc l'incident à la frontière
+   * d'erreur du segment, qui propose de réessayer.
+   */
+  if (status === 404) notFound();
   if (error || !post) {
-    notFound();
+    throw new Error(error ?? "Actualité indisponible.");
   }
 
-  // Helper to format youtube embed URL and handle potential issues
-  const getEmbedUrl = (url: string) => {
-    if (!url) return null;
-    let videoId = "";
-    if (url.includes("v=")) {
-      videoId = url.split("v=")[1].split("&")[0];
-    } else if (url.includes("youtu.be/")) {
-      videoId = url.split("youtu.be/")[1].split("?")[0];
-    }
-    return videoId ? `https://www.youtube-nocookie.com/embed/${videoId}` : null;
-  };
-
   const embedUrl = getEmbedUrl(post.youtube_url);
+  const publishedOn = post.created_at
+    ? dateFmt.format(new Date(post.created_at))
+    : null;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-20">
-      <div className="flex items-center gap-4">
-        <Link href="/dashboard/news">
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <ArrowLeft size={20} />
-          </Button>
-        </Link>
-        <Badge variant="outline" className="bg-yessal-violet/10 text-yessal-violet border-none uppercase font-black px-3 py-1">
-          Actualité
-        </Badge>
-      </div>
-
-      <header className="space-y-6">
-        <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">
-          {post.title}
-        </h1>
-        
-        <div className="flex flex-wrap items-center gap-6 text-sm font-bold text-muted-foreground border-b pb-6">
-          <div className="flex items-center gap-2">
-            <Calendar size={18} className="text-yessal-violet" />
-            {new Date(post.created_at).toLocaleDateString("fr-FR", {
-              day: "numeric",
-              month: "long",
-              year: "numeric"
-            })}
-          </div>
-          <div className="flex items-center gap-2">
-            <User size={18} className="text-yessal-violet" />
+    <article className="flex flex-col gap-6">
+      <PageHead
+        title={post.title}
+        crumbs={[
+          { label: "Application" },
+          { label: "Actualités", href: "/dashboard/news" },
+        ]}
+        actions={
+          <Link href="/dashboard/news" className="ax-btn ax-btn--ghost">
+            <ArrowLeft className="ax-btn__icon" size={16} aria-hidden="true" />
+            <span className="ax-btn__label">Retour aux actualités</span>
+          </Link>
+        }
+      >
+        <div className="ax-cluster ax-text-muted mt-3 gap-4 text-sm">
+          <span className="ax-cluster gap-2">
+            <Avatar name={post.created_by_name} size="xs" />
             {post.created_by_name || "Confrérie Yessal"}
-          </div>
+          </span>
+          {publishedOn && (
+            <span className="ax-cluster gap-1">
+              <Calendar size={14} aria-hidden="true" />
+              {publishedOn}
+            </span>
+          )}
         </div>
-      </header>
+      </PageHead>
 
       {post.cover_image && (
-        <div className="w-full aspect-[21/9] rounded-2xl overflow-hidden shadow-2xl border bg-muted">
-          <img 
-            src={post.cover_image} 
-            alt={post.title} 
-            className="w-full h-full object-cover"
+        <div className="ax-card ax-card--media overflow-hidden">
+          <CoverImage
+            src={post.cover_image}
+            icon={ImageIcon}
+            className="aspect-21/9 w-full object-cover"
+            fallbackClassName="aspect-21/9 w-full"
           />
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-        <div className="lg:col-span-2 space-y-12">
-          <div className="prose prose-lg max-w-none dark:prose-invert">
-            <div className="text-lg leading-relaxed whitespace-pre-wrap font-medium text-foreground/90">
-              {post.content}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          <section className="ax-card">
+            <div className="ax-card__body">
+              {/*
+                `max-w-[68ch]` : au-delà d'environ 70 caractères par ligne,
+                l'œil perd le début de la ligne suivante. La colonne de lecture
+                s'arrête donc avant la largeur de la carte.
+              */}
+              <div className="max-w-[68ch] text-base leading-relaxed whitespace-pre-wrap">
+                {post.content}
+              </div>
             </div>
-          </div>
+          </section>
 
           {embedUrl && (
-            <div className="space-y-4">
-              <h3 className="text-xl font-black flex items-center gap-2">
-                <Youtube className="text-red-600" /> Vidéo de l'événement
-              </h3>
-              <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-xl border bg-black">
-                <iframe
-                  width="100%"
-                  height="100%"
-                  src={embedUrl}
-                  title={post.title}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
+            <section className="ax-card">
+              <div className="ax-card__header">
+                <span className="ax-card__kpi-icon ax-card__kpi-icon--c4" aria-hidden="true">
+                  <Youtube />
+                </span>
+                <div className="ax-card__titles">
+                  <h2 className="ax-card__title">Vidéo</h2>
+                </div>
               </div>
-            </div>
+              <div className="ax-card__body">
+                <div className="ax-ratio aspect-video w-full overflow-hidden rounded-(--ax-radius-sm)">
+                  <iframe
+                    className="h-full w-full"
+                    src={embedUrl}
+                    title={`Vidéo — ${post.title}`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            </section>
           )}
         </div>
 
-        <div className="space-y-8">
-          {post.gallery && post.gallery.length > 0 && (
-            <div className="space-y-4 p-6 rounded-2xl bg-muted/30 border">
-              <h3 className="text-lg font-black flex items-center gap-2 uppercase tracking-widest text-muted-foreground">
-                <ImageIcon size={20} /> Galerie Média
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {post.gallery.map((img: any) => (
-                  <div key={img.id} className="aspect-square rounded-2xl overflow-hidden border bg-muted shadow-sm hover:scale-105 transition-transform cursor-zoom-in">
-                    <img src={img.image} alt="" className="w-full h-full object-cover" />
-                  </div>
-                ))}
+        {post.gallery && post.gallery.length > 0 && (
+          <aside className="flex flex-col gap-4">
+            <section className="ax-card">
+              <div className="ax-card__header">
+                <span className="ax-card__kpi-icon ax-card__kpi-icon--c3" aria-hidden="true">
+                  <ImageIcon />
+                </span>
+                <div className="ax-card__titles">
+                  <h2 className="ax-card__title">Galerie</h2>
+                </div>
+                <span className="ax-badge ax-badge--neutral ax-badge--sm">
+                  {post.gallery.length}
+                </span>
               </div>
-            </div>
-          )}
-        </div>
+
+              <div className="ax-card__body">
+                {/* Visionneuse en place de huit allers-retours vers un onglet. */}
+                <Gallery images={post.gallery as GalleryImage[]} columns={2} />
+              </div>
+            </section>
+          </aside>
+        )}
       </div>
-    </div>
+    </article>
   );
 }

@@ -51,6 +51,7 @@ export async function getAuditLogs() {
       if (!res.ok) return { error: "Impossible de lire les logs." };
       return { data: await res.json() };
     } catch (err) {
+      console.error("getAuditLogs:", err);
       return { error: "Erreur de connexion." };
     }
 }
@@ -64,6 +65,7 @@ export async function getCampaignMetrics() {
       if (!res.ok) return { error: "Impossible de lire les métriques." };
       return { data: await res.json() };
     } catch (err) {
+      console.error("getCampaignMetrics:", err);
       return { error: "Erreur de connexion." };
     }
 }

@@ -39,6 +39,7 @@ export async function getAnnouncements() {
     const raw = await res.json();
     return { data: normalizeAnnouncementList(raw) };
   } catch (err) {
+    console.error("getAnnouncements:", err);
     return { error: "Erreur de connexion." };
   }
 }
@@ -68,6 +69,7 @@ export async function createAnnouncement(payload: any) {
     revalidatePath("/dashboard");
     return { data: await res.json() };
   } catch (err) {
+    console.error("createAnnouncement:", err);
     return { error: "Erreur réseau." };
   }
 }
@@ -82,6 +84,7 @@ export async function deleteAnnouncement(id: number) {
         revalidatePath("/dashboard");
         return { success: true };
     } catch (err) {
+        console.error("deleteAnnouncement:", err);
         return { error: "Erreur réseau." };
     }
 }

@@ -1,97 +1,159 @@
-﻿"use client"
+"use client";
 
-import { useState, useTransition } from "react"
-import { forgotPasswordAction } from "@/app/actions/auth"
-import Link from "next/link"
-import { Mail, ChevronLeft, CheckCircle2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Mot de passe oublié
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Repris du patron `auth/ResetPasswordBasic` de Vireo : une carte centrée, un
+ * seul champ, et un état de confirmation qui remplace le formulaire.
+ *
+ * Corrections de fond :
+ *
+ *   · Le disque de confirmation était peint en `bg-yessal-violet/10` AVEC une
+ *     bordure `border-green-100` — deux teintes sans rapport l'une avec
+ *     l'autre, et un vert qui n'apparaît nulle part ailleurs sur cet écran.
+ *
+ *   · Le sous-titre était en `uppercase tracking-widest opacity-80` : une
+ *     phrase entière en capitales espacées, difficile à lire et inutilement
+ *     criarde pour une simple consigne.
+ *
+ *   · Le message d'erreur portait `animate-shake` — une secousse à chaque
+ *     échec, que `prefers-reduced-motion` devrait supprimer et qui n'apporte
+ *     rien qu'un texte d'alerte ne dise mieux.
+ *
+ *   · Le lien de bas de page menait vers « Maintenance Centrale », un libellé
+ *     interne qui ne veut rien dire pour un membre de la confrérie.
+ */
+
+import { useState, useTransition } from "react";
+import Link from "next/link";
+import { CheckCircle2, ChevronLeft, Mail } from "lucide-react";
+import { forgotPasswordAction } from "@/app/actions/auth";
+import { BrandMark } from "@/components/BrandMark";
 
 export default function ForgotPasswordPage() {
-  const [isPending, startTransition] = useTransition()
-  const [errorMsg, setErrorMsg] = useState("")
-  const [isSuccess, setIsSuccess] = useState(false)
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setErrorMsg("")
-    const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErrorMsg("");
+    const email = String(new FormData(e.currentTarget).get("email") ?? "");
 
     startTransition(async () => {
-      const res = await forgotPasswordAction(email)
+      const res = await forgotPasswordAction(email);
       if (res.error) {
-        setErrorMsg(res.error)
-      } else {
-        setIsSuccess(true)
+        setErrorMsg(res.error);
+        return;
       }
-    })
-  }
-
-  if (isSuccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-background">
-        <div className="w-full max-w-sm text-center space-y-6">
-          <div className="h-20 w-20 bg-yessal-violet/10 text-yessal-violet rounded-full flex items-center justify-center mx-auto shadow-sm border border-green-100">
-            <CheckCircle2 size={32} />
-          </div>
-          <h1 className="text-2xl font-black tracking-tight">Email Envoyé !</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Consultez votre boîte mail. Si un compte existe avec cet email, un lien de réinitialisation vous a été envoyé.
-          </p>
-          <Button asChild className="w-full bg-yessal-violet hover:bg-violet-700 text-white rounded-xl h-12 shadow-xl shadow-yessal-violet/10">
-            <Link href="/login">Retour à la connexion</Link>
-          </Button>
-        </div>
-      </div>
-    )
-  }
+      setIsSuccess(true);
+    });
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
-      <div className="w-full max-w-sm">
-        <Link href="/login" className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-yessal-violet transition-colors mb-8 uppercase tracking-widest">
-            <ChevronLeft size={14} /> Retour
-        </Link>
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-black tracking-tighter text-foreground">Récupération</h1>
-          <p className="mt-2 text-sm text-muted-foreground font-medium uppercase tracking-widest opacity-80 leading-relaxed max-w-[280px] mx-auto">Saisissez l'email lié à votre compte membre</p>
+    <div className="flex min-h-dvh items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <BrandMark href="/" size="md" className="justify-center" />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-1.5 px-1">
-            <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Adresse Email</Label>
-            <div className="relative">
-              <Input
-                name="email"
-                type="email"
-                placeholder="nom@exemple.com"
-                required
-                className="h-11 rounded-xl bg-muted/20 border-none px-4 pl-12 focus-visible:ring-1 focus-visible:ring-yessal-violet"
-              />
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground/60 h-4 w-4" />
+        {isSuccess ? (
+          <div className="ax-card">
+            <div className="ax-card__body flex flex-col items-center gap-4 text-center">
+              <span
+                className="ax-modal__status ax-modal__status--success"
+                aria-hidden="true"
+              >
+                <CheckCircle2 />
+              </span>
+
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">
+                  Message envoyé
+                </h1>
+                <p className="ax-text-muted mt-2 text-sm leading-relaxed">
+                  Si un compte existe avec cette adresse, un lien de
+                  réinitialisation vient d&apos;y être envoyé. Pensez à
+                  vérifier vos indésirables.
+                </p>
+              </div>
+
+              <Link href="/login" className="ax-btn ax-btn--primary ax-btn--block">
+                <span className="ax-btn__label">Retour à la connexion</span>
+              </Link>
             </div>
           </div>
+        ) : (
+          <>
+            <Link href="/login" className="ax-btn ax-btn--ghost ax-btn--sm mb-4">
+              <ChevronLeft className="ax-btn__icon" size={14} aria-hidden="true" />
+              <span className="ax-btn__label">Retour à la connexion</span>
+            </Link>
 
-          {errorMsg && (
-            <p className="text-destructive text-xs font-bold text-center animate-shake">{errorMsg}</p>
-          )}
+            <div className="mb-8 text-center">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Mot de passe oublié
+              </h1>
+              <p className="ax-text-muted mt-1.5 text-sm">
+                Saisissez l&apos;adresse liée à votre compte membre.
+              </p>
+            </div>
 
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="w-full bg-yessal-violet hover:bg-violet-700 text-white rounded-xl h-12 font-black uppercase tracking-widest text-xs shadow-xl shadow-yessal-violet/10 border-none transition-all hover:scale-[1.02] active:scale-95"
-          >
-            {isPending ? "Traitement..." : "Envoyer le lien"}
-          </Button>
-        </form>
+            <div className="ax-card">
+              <div className="ax-card__body">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                  <div className="ax-field">
+                    <label className="ax-field__label" htmlFor="email">
+                      Adresse e-mail
+                    </label>
+                    <div className="ax-field__control">
+                      <span className="ax-field__affix ax-field__affix--leading">
+                        <Mail aria-hidden="true" />
+                      </span>
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        className="ax-input ax-input--lg ax-input--with-leading-icon"
+                        placeholder="nom@exemple.com"
+                        required
+                      />
+                    </div>
+                  </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-8 font-medium">
-          Besoin d'aide supplémentaire ?{" "}
-          <Link href="/contact" className="text-yessal-violet font-bold">Maintenance Centrale</Link>
-        </p>
+                  {errorMsg && (
+                    <p
+                      className="ax-field__message ax-field__message--error"
+                      role="alert"
+                    >
+                      {errorMsg}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="ax-btn ax-btn--primary ax-btn--lg ax-btn--block"
+                    disabled={isPending}
+                  >
+                    <span className="ax-btn__label">
+                      {isPending ? "Envoi…" : "Envoyer le lien"}
+                    </span>
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <p className="ax-text-muted mt-5 text-center text-sm">
+              Besoin d&apos;aide ?{" "}
+              <Link href="/contact" className="ax-link font-medium">
+                Contactez-nous
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
-  )
+  );
 }

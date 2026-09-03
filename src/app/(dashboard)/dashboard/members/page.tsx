@@ -1,12 +1,14 @@
 import { redirect } from "next/navigation";
 import { getDirectoryUsers } from "@/app/actions/directory";
 import { getProfile } from "@/app/actions/users";
-import { MembersClient } from "./MembersClient";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { PageHead } from "@/components/vireo/PageHead";
+import type { Role } from "@/lib/nav";
+import { MembersClient } from "./MembersClient";
 
 export default async function MembersPage() {
   const { data: profile } = await getProfile();
-  const role = profile?.role;
+  const role = (profile?.role ?? "member") as Role;
 
   if (role === "member") {
     redirect("/dashboard");
@@ -15,23 +17,16 @@ export default async function MembersPage() {
   const { data: members, error } = await getDirectoryUsers();
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-8">
-      <div>
-        <h1
-          className="text-3xl font-semibold tracking-tight"
-          style={{ color: "var(--foreground)" }}
-        >
-          {role === "admin" ? "Liste des membres" : "Membres du Daara"}
-        </h1>
-        <p
-          className="text-sm mt-1"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          {role === "admin"
+    <div className="flex flex-col gap-6">
+      <PageHead
+        role={role}
+        title={role === "admin" ? "Liste des membres" : "Membres du Daara"}
+        subtitle={
+          role === "admin"
             ? "Membres, chefs de Daara et collecteurs (hors comptes administrateurs)."
-            : "Personnes rattachées à votre Daara : membres, chef et collecteurs."}
-        </p>
-      </div>
+            : "Personnes rattachées à votre Daara : membres, chef et collecteurs."
+        }
+      />
 
       {error ? (
         <ErrorAlert message={error} />

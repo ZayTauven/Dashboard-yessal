@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect, useRef, useMemo } from "react";
 import Pusher from "pusher-js";
 import { toast } from "sonner";
+import { checkFileSize } from "@/components/vireo/FileDrop";
 import {
   getChats,
   sendChatMessage,
@@ -22,8 +23,6 @@ import {
   getPusherAuthSignature,
   type ChatInviteMode,
 } from "@/app/actions/comms";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -33,7 +32,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Send,
@@ -162,6 +160,7 @@ export function ChatInterface({
   initialChats,
   currentUserId,
   initialSelectedChatId,
+  inviteUserId = null,
   daaraId,
   viewerRole = "member",
   directoryUsers = [],
@@ -170,6 +169,8 @@ export function ChatInterface({
   initialChats: any[];
   currentUserId: number;
   initialSelectedChatId?: number | null;
+  /** Membre à pré-cocher dans la fenêtre de création (lien « Inviter »). */
+  inviteUserId?: number | null;
   daaraId?: number | null;
   viewerRole?: string;
   directoryUsers?: ManualPickUser[];
@@ -283,7 +284,7 @@ export function ChatInterface({
         prev.map((msg) => {
           if (msg.id !== data.message_id) return msg;
           const currentReactions = msg.reactions || [];
-          let updatedReactions = [...currentReactions];
+          const updatedReactions = [...currentReactions];
           const isMe = data.user_id === currentUserId;
           const existingEmojiIdx = updatedReactions.findIndex((r) => r.emoji === data.emoji);
           if (data.action === "add") {
@@ -474,6 +475,23 @@ export function ChatInterface({
     if (res.error) { toast.error(res.error); loadPilotage(); }
   };
 
+  /*
+   * Arrivée depuis « Inviter dans un salon » : on ouvre la fenêtre de création
+   * avec le membre déjà sélectionné, plutôt que de laisser l'utilisateur le
+   * rechercher lui-même dans une liste qu'il vient de quitter.
+   *
+   * Une seule fois : rouvrir la fenêtre à chaque rendu empêcherait de la
+   * fermer. Les non-créateurs de salon ne voient rien s'ouvrir.
+   */
+  const inviteHandled = useRef(false);
+  useEffect(() => {
+    if (inviteHandled.current || !inviteUserId || !canCreateSalon) return;
+    inviteHandled.current = true;
+    setInviteMode("manual");
+    setManualIds([inviteUserId]);
+    setNewOpen(true);
+  }, [inviteUserId, canCreateSalon]);
+
   const resetCreateForm = () => { setNewName(""); setInviteMode("manual"); setPresetDaaraId(""); setManualIds([]); setManualSearch(""); setCreateError(""); };
 
   const handleCreateChat = () => {
@@ -546,7 +564,7 @@ export function ChatInterface({
             >
               {icon}
               {badge ? (
-                <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 flex items-center justify-center text-[9px] font-black bg-red-500 text-white rounded-full">
+                <span className="ax-badge-count absolute top-1.5 right-1.5">
                   {badge > 9 ? "9+" : badge}
                 </span>
               ) : null}
@@ -576,21 +594,24 @@ export function ChatInterface({
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-base tracking-tight">Messages</h2>
                 {canCreateSalon && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs rounded-lg gap-1"
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--outline ax-btn--sm"
                     onClick={() => { resetCreateForm(); setNewOpen(true); }}
                   >
-                    + Salon
-                  </Button>
+                    <span className="ax-btn__label">+ Salon</span>
+                  </button>
                 )}
               </div>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
-                <Input
-                  placeholder="Rechercher..."
-                  className="pl-8 h-9 text-sm bg-muted/40 border-transparent focus-visible:border-border focus-visible:bg-background rounded-xl"
+              <div className="ax-field__control">
+                <span className="ax-field__affix ax-field__affix--leading">
+                  <Search aria-hidden="true" />
+                </span>
+                <input
+                  type="search"
+                  className="ax-input ax-input--sm ax-input--with-leading-icon"
+                  placeholder="Rechercher une conversation…"
+                  aria-label="Rechercher une conversation"
                   value={chatSearch}
                   onChange={(e) => setChatSearch(e.target.value)}
                 />
@@ -622,7 +643,7 @@ export function ChatInterface({
                             </AvatarFallback>
                           </Avatar>
                           {chat.chat_type === "direct" && isUserOnline(Number(chat.id)) && (
-                            <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-card" />
+                            <span className="ax-avatar__status ax-avatar__status--online absolute bottom-0 right-0" />
                           )}
                         </div>
 
@@ -669,11 +690,15 @@ export function ChatInterface({
               <h2 className="font-bold text-base">Trouver des membres</h2>
               <p className="text-xs text-muted-foreground mt-0.5">Invitez des membres à démarrer un chat direct.</p>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
-              <Input
-                placeholder="Nom, email, Daara..."
-                className="pl-8 h-9 text-sm"
+            <div className="ax-field__control">
+              <span className="ax-field__affix ax-field__affix--leading">
+                <Search aria-hidden="true" />
+              </span>
+              <input
+                type="search"
+                className="ax-input ax-input--sm ax-input--with-leading-icon"
+                placeholder="Nom, e-mail, Daara…"
+                aria-label="Rechercher un membre"
                 value={searchTerm}
                 onChange={(e) => handleSearchMembers(e.target.value)}
               />
@@ -694,9 +719,9 @@ export function ChatInterface({
                         <div className="text-[10px] text-muted-foreground truncate">{u.role}{u.daara_name ? ` · ${u.daara_name}` : ""}</div>
                       </div>
                     </div>
-                    <Button size="sm" onClick={() => handleSendInvite(u.id)} className="text-xs h-8 shrink-0 text-white" style={{ background: "var(--primary)" }}>
-                      Inviter
-                    </Button>
+                    <button type="button" className="ax-btn ax-btn--primary ax-btn--sm shrink-0" onClick={() => handleSendInvite(u.id)}>
+                      <span className="ax-btn__label">Inviter</span>
+                    </button>
                   </div>
                 ))}
                 {searchTerm.trim().length >= 2 && searchResult.length === 0 && (
@@ -734,12 +759,12 @@ export function ChatInterface({
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleRespondInvite(invite.id, true)} className="flex-1 text-xs h-8 text-white" style={{ background: "var(--primary)" }}>
-                        Accepter
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleRespondInvite(invite.id, false)} className="flex-1 text-xs h-8">
-                        Décliner
-                      </Button>
+                      <button type="button" className="ax-btn ax-btn--primary ax-btn--sm flex-1" onClick={() => handleRespondInvite(invite.id, true)}>
+                        <span className="ax-btn__label">Accepter</span>
+                      </button>
+                      <button type="button" className="ax-btn ax-btn--outline ax-btn--sm flex-1" onClick={() => handleRespondInvite(invite.id, false)}>
+                        <span className="ax-btn__label">Décliner</span>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -789,7 +814,7 @@ export function ChatInterface({
             <p className="text-xs text-muted-foreground -mt-2">Confidentialité et notifications.</p>
             <div className="space-y-2">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Qui peut vous voir ?</Label>
+                <span className="ax-field__label">Qui peut vous voir ?</span>
                 <select
                   className="flex h-9 w-full rounded-lg border bg-background px-3 text-xs shadow-sm focus:outline-none focus:ring-2"
                   style={{ borderColor: "var(--border)" }}
@@ -855,9 +880,15 @@ export function ChatInterface({
                   </div>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setShowRightPanel(!showRightPanel)} className={`h-8 w-8 rounded-lg ${showRightPanel ? "bg-primary/10" : ""}`} style={showRightPanel ? { color: "var(--primary)" } : {}}>
-                <Info size={17} />
-              </Button>
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost ax-btn--icon"
+                aria-pressed={showRightPanel}
+                aria-label="Informations sur la conversation"
+                onClick={() => setShowRightPanel(!showRightPanel)}
+              >
+                <Info size={17} aria-hidden="true" />
+              </button>
             </div>
 
             {/* ─ MESSAGES ─ */}
@@ -971,7 +1002,7 @@ export function ChatInterface({
                                   <Reply size={12} />
                                 </button>
                                 {(isMe || viewerRole === "admin") && (
-                                  <button onClick={() => handleDeleteMsg(m.id)} className="h-6 w-6 flex items-center justify-center rounded-full bg-card border text-muted-foreground hover:text-red-500 shadow-sm transition-colors" style={{ borderColor: "var(--border)" }} title="Supprimer">
+                                  <button onClick={() => handleDeleteMsg(m.id)} className="h-6 w-6 flex items-center justify-center rounded-full bg-card border text-muted-foreground hover:text-danger shadow-sm transition-colors" style={{ borderColor: "var(--border)" }} title="Supprimer">
                                     <Trash2 size={12} />
                                   </button>
                                 )}
@@ -1034,30 +1065,47 @@ export function ChatInterface({
               <form onSubmit={handleSend} className="flex items-center gap-2 bg-muted/40 rounded-2xl border px-3 py-1.5" style={{ borderColor: "var(--border)" }}>
                 {(!pilotage || pilotage.allow_file_sharing) && (
                   <>
-                    <input type="file" ref={fileInputRef} onChange={(e) => { if (e.target.files?.length) setSelectedFile(e.target.files[0]); }} className="hidden" />
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        /* Refus avant envoi : le fichier part au serveur dès la
+                           soumission du message. */
+                        const tooBig = checkFileSize(f);
+                        if (tooBig) {
+                          toast.error(tooBig);
+                          e.target.value = "";
+                          return;
+                        }
+                        setSelectedFile(f);
+                      }}
+                    />
                     <button type="button" onClick={() => fileInputRef.current?.click()} className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted transition-colors shrink-0">
                       <Paperclip size={17} />
                     </button>
                   </>
                 )}
 
-                <Input
+                <input
                   value={msgContent}
                   onChange={(e) => handleMessageChange(e.target.value)}
-                  placeholder="Tapez un message..."
-                  className="border-none focus-visible:ring-0 bg-transparent flex-1 text-sm h-9 px-0"
+                  placeholder="Tapez un message…"
+                  aria-label="Message"
+                  className="ax-input flex-1 border-none bg-transparent px-0 focus:shadow-none"
                   disabled={isPending}
                 />
 
-                <Button
+                <button
                   type="submit"
-                  size="icon"
-                  className="h-9 w-9 rounded-xl shrink-0 text-white shadow-sm"
-                  style={{ background: "var(--primary)" }}
+                  className="ax-btn ax-btn--primary ax-btn--icon shrink-0"
+                  aria-label="Envoyer le message"
                   disabled={(!msgContent.trim() && !selectedFile) || isPending}
                 >
-                  <Send size={16} />
-                </Button>
+                  <Send size={16} aria-hidden="true" />
+                </button>
               </form>
             </div>
           </>
@@ -1095,7 +1143,7 @@ export function ChatInterface({
               <div className="space-y-2">
                 {Object.values(onlineMembers).map((m: any, idx) => (
                   <div key={idx} className="flex items-center gap-2.5">
-                    <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                    <span className="ax-avatar__status ax-avatar__status--online shrink-0" />
                     <span className="text-xs font-medium truncate">{m.name}</span>
                   </div>
                 ))}
@@ -1113,16 +1161,15 @@ export function ChatInterface({
           </DialogHeader>
           <div className="space-y-4 pt-1">
             <div className="space-y-1.5">
-              <Label htmlFor="salon-name" className="text-xs font-semibold">Nom du salon</Label>
-              <Input id="salon-name" placeholder="Ex: Coordination Ramadan" value={newName} onChange={(e) => setNewName(e.target.value)} className="rounded-xl" />
+              <label htmlFor="salon-name" className="ax-field__label">Nom du salon</label>
+              <input id="salon-name" className="ax-input" placeholder="Ex. Coordination Ramadan" value={newName} onChange={(e) => setNewName(e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="invite-mode" className="text-xs font-semibold">Mode d&apos;invitation</Label>
+              <label htmlFor="invite-mode" className="ax-field__label">Mode d&apos;invitation</label>
               <select
                 id="invite-mode"
-                className="flex h-10 w-full rounded-xl border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none"
-                style={{ borderColor: "var(--border)" }}
+                className="ax-select"
                 value={inviteMode}
                 onChange={(e) => setInviteMode(e.target.value as ChatInviteMode)}
               >
@@ -1132,11 +1179,10 @@ export function ChatInterface({
 
             {isAdmin && needsPresetDaara(inviteMode) && daarasForSelect.length > 0 && (
               <div className="space-y-1.5">
-                <Label htmlFor="preset-daara" className="text-xs font-semibold">Daara cible</Label>
+                <label htmlFor="preset-daara" className="ax-field__label">Daara cible</label>
                 <select
                   id="preset-daara"
-                  className="flex h-10 w-full rounded-xl border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none"
-                  style={{ borderColor: "var(--border)" }}
+                  className="ax-select"
                   value={presetDaaraId}
                   onChange={(e) => setPresetDaaraId(e.target.value)}
                 >
@@ -1148,12 +1194,13 @@ export function ChatInterface({
 
             {inviteMode === "manual" && pickableUsers.length > 0 && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold">Membres à inviter</Label>
-                <Input
+                <span className="ax-field__label">Membres à inviter</span>
+                <input
+                  className="ax-input ax-input--sm"
                   value={manualSearch}
                   onChange={(e) => setManualSearch(e.target.value)}
-                  placeholder="Filtrer les membres..."
-                  className="h-9 rounded-xl text-xs"
+                  placeholder="Filtrer les membres…"
+                  aria-label="Filtrer les membres"
                 />
                 <ScrollArea className="h-36 rounded-xl border p-3" style={{ borderColor: "var(--border)" }}>
                   <div className="space-y-2.5 pr-1">
@@ -1174,14 +1221,16 @@ export function ChatInterface({
               </div>
             )}
 
-            {createError && <p className="text-xs text-red-500 font-semibold">{createError}</p>}
+            {createError && <p className="ax-field__message ax-field__message--error">{createError}</p>}
           </div>
 
           <DialogFooter className="gap-2 pt-2">
-            <Button variant="outline" type="button" onClick={() => setNewOpen(false)} className="rounded-xl text-sm">Annuler</Button>
-            <Button type="button" disabled={isPending} onClick={handleCreateChat} className="rounded-xl text-sm text-white" style={{ background: "var(--primary)" }}>
-              Créer le salon
-            </Button>
+            <button type="button" className="ax-btn ax-btn--ghost" onClick={() => setNewOpen(false)}>
+              <span className="ax-btn__label">Annuler</span>
+            </button>
+            <button type="button" className="ax-btn ax-btn--primary" disabled={isPending} onClick={handleCreateChat}>
+              <span className="ax-btn__label">Créer le salon</span>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

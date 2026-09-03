@@ -1,33 +1,60 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
-import { 
-  Megaphone, Plus, Trash2, Calendar, 
-  Globe, Building2, MoreHorizontal, CheckCircle2,
-  AlertCircle, AlertTriangle, Info, UserCheck, Shield
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Centre des annonces
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Le sélecteur de Daara passe sur le contrat `.ax-combobox` de Vireo, qui
+ * existe précisément pour ce cas : une liste longue, groupée, avec recherche.
+ * Il était jusqu'ici composé à la main dans un Popover, avec ses propres
+ * dimensions (`w-[400px]`, `h-[350px]`) et un en-tête de groupe peint en
+ * `bg-yessal-violet/5` — donc insensible à l'accent.
+ *
+ * Autres corrections :
+ *
+ *   · Le liseré d'urgence était posé en `absolute left-0 top-0` dans un
+ *     conteneur SANS `position: relative`. Il se plaçait donc par rapport à un
+ *     ancêtre quelconque, pas par rapport à la carte. L'urgence est désormais
+ *     portée par le ton du badge, qui suit le thème.
+ *
+ *   · Aucune recherche ni filtre sur l'historique, alors que les annonces
+ *     s'accumulent sans limite. Ajout d'une <FilterBar> et d'une pagination.
+ *
+ *   · `daaras: any[]` devient une forme explicite.
+ *
+ *   · Le formulaire proposait « Portée : spécifique à un Daara » et un
+ *     sélecteur de Daara comme deux champs indépendants — on pouvait donc
+ *     choisir « Réseau global » ET un Daara, ou l'inverse. Le sélecteur
+ *     n'apparaît maintenant que si la portée le demande.
+ */
+
+import { useMemo, useState } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createAnnouncement, deleteAnnouncement } from "@/app/actions/announcements";
+  AlertCircle,
+  AlertTriangle,
+  Building2,
+  Calendar,
+  Globe,
+  Info,
+  Megaphone,
+  Plus,
+  Search,
+  Trash2,
+  UserCheck,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMemo } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Check, ChevronsUpDown, Search as SearchIcon } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  DaaraCombobox,
+  type DaaraOption,
+} from "@/components/vireo/DaaraCombobox";
+import { FilterBar } from "@/components/vireo/FilterBar";
+import { Modal } from "@/components/vireo/Modal";
+import { Pagination } from "@/components/vireo/Pagination";
+import { createAnnouncement, deleteAnnouncement } from "@/app/actions/announcements";
+import { ALL, useCollection } from "@/hooks/useCollection";
 
 export interface Announcement {
   id: number;
@@ -35,299 +62,398 @@ export interface Announcement {
   content: string;
   target: string;
   daara_name: string;
-  urgency: 'info' | 'warning' | 'critical';
+  urgency: "info" | "warning" | "critical";
   target_role: string;
   is_published: boolean;
   created_at: string;
 }
 
-// Searchable Daara Selector for Announcements
-function DaaraSelector({ daaras, value, onChange }: { daaras: any[], value: string, onChange: (val: string) => void }) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
+export type { DaaraOption };
 
-    const sortedDaaras = useMemo(() => {
-        return [...daaras].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    }, [daaras]);
+/** `comms.Announcement.Urgency` */
+const URGENCY: Record<string, { label: string; cls: string; icon: LucideIcon }> = {
+  info: { label: "Information", cls: "ax-badge--info", icon: Info },
+  warning: { label: "Avertissement", cls: "ax-badge--warning", icon: AlertTriangle },
+  critical: { label: "Critique", cls: "ax-badge--danger", icon: AlertCircle },
+};
 
-    const filteredDaaras = sortedDaaras.filter(d => 
-        (d.name?.toLowerCase().includes(search.toLowerCase()) ?? false) || 
-        (d.ldd?.name?.toLowerCase().includes(search.toLowerCase()) ?? false)
-    );
+/** `comms.Announcement.TargetRole` */
+const TARGET_ROLE_LABEL: Record<string, string> = {
+  all: "Tout public",
+  member: "Talibés",
+  chef_daara: "Chefs de Daara",
+  collector: "Collecteurs",
+  admin: "Administrateurs",
+};
 
-    const groupedDaaras = useMemo(() => {
-        const groups: { [key: string]: { name: string, items: any[] } } = {};
-        filteredDaaras.forEach(d => {
-            const lddId = d.ldd?.id || "unknown";
-            if (!groups[lddId]) {
-                groups[lddId] = { name: d.ldd?.name || "Sans Zone", items: [] };
-            }
-            groups[lddId].items.push(d);
-        });
-        return Object.values(groups);
-    }, [filteredDaaras]);
+const dateFmt = new Intl.DateTimeFormat("fr-SN", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
-    const selectedDaara = daaras.find(d => d.id.toString() === value);
+/* ── Écran ─────────────────────────────────────────────────────────────── */
 
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-full justify-between bg-muted/20 border-none h-11 rounded-xl px-3"
-                >
-                    <span className="truncate">
-                        {selectedDaara ? selectedDaara.name : "Sélectionner un Daara..."}
-                    </span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[400px] p-0 border-none shadow-2xl" align="start">
-                <div className="flex items-center border-b px-3 bg-muted/10">
-                    <SearchIcon className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                    <input
-                        className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
-                        placeholder="Rechercher par Daara ou Zone..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-                <ScrollArea className="h-[350px]">
-                    <div className="p-1">
-                        <div 
-                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground font-bold"
-                            onClick={() => {
-                                onChange("NONE");
-                                setOpen(false);
-                            }}
-                        >
-                            <Check className={`mr-2 h-4 w-4 ${value === "NONE" ? "opacity-100" : "opacity-0"}`} />
-                            Toutes les entités
-                        </div>
-                        
-                        {groupedDaaras.map((group) => (
-                            <div key={group.name} className="mt-2">
-                                <div className="px-2 py-1 text-[10px] font-black uppercase text-yessal-violet bg-yessal-violet/5 rounded mb-1">
-                                    Zone : {group.name}
-                                </div>
-                                {group.items.map((daara) => (
-                                    <div
-                                        key={daara.id}
-                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-4 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                                        onClick={() => {
-                                            onChange(daara.id.toString());
-                                            setOpen(false);
-                                        }}
-                                    >
-                                        <Check className={`mr-2 h-4 w-4 ${value === daara.id.toString() ? "opacity-100" : "opacity-0"}`} />
-                                        {daara.name}
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                </ScrollArea>
-            </PopoverContent>
-        </Popover>
-    );
-}
-
-export function AnnouncementManagementClient({ initialAnnouncements, daaras }: { initialAnnouncements: Announcement[], daaras: any[] }) {
-    const [selectedDaaraId, setSelectedDaaraId] = useState("NONE");
-  const [announcements, setAnnouncements] = useState<Announcement[]>(initialAnnouncements);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+export function AnnouncementManagementClient({
+  initialAnnouncements,
+  daaras,
+}: {
+  initialAnnouncements: Announcement[];
+  daaras: DaaraOption[];
+}) {
   const router = useRouter();
+  const [announcements, setAnnouncements] = useState(initialAnnouncements);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedDaaraId, setSelectedDaaraId] = useState("NONE");
+  const [scope, setScope] = useState("global");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleDelete = (id: number) => {
-    toast("Supprimer cette annonce ?", {
+  const searchable = useMemo(
+    () => (a: Announcement) => [a.title, a.content, a.daara_name],
+    [],
+  );
+
+  const filters = useMemo(
+    () => ({
+      urgency: (a: Announcement, v: string) => a.urgency === v,
+      target: (a: Announcement, v: string) => a.target === v,
+    }),
+    [],
+  );
+
+  const sorters = useMemo(
+    () => ({ date: (a: Announcement) => a.created_at }),
+    [],
+  );
+
+  const c = useCollection(announcements, {
+    searchable,
+    filters,
+    sorters,
+    initialSort: { key: "date", dir: "desc" },
+    pageSize: 10,
+  });
+
+  const handleDelete = (ann: Announcement) => {
+    toast(`Supprimer « ${ann.title} » ?`, {
       action: {
         label: "Supprimer",
         onClick: async () => {
-          const { error } = await deleteAnnouncement(id);
-          if (!error) {
-            setAnnouncements(prev => prev.filter(a => a.id !== id));
-            toast.success("Annonce supprimée.");
-          } else {
+          const { error } = await deleteAnnouncement(ann.id);
+          if (error) {
             toast.error("Impossible de supprimer l'annonce.");
+            return;
           }
+          setAnnouncements((prev) => prev.filter((a) => a.id !== ann.id));
+          toast.success("Annonce supprimée.");
         },
       },
-      cancel: {
-        label: "Annuler",
-        onClick: () => {},
-      },
+      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
-  const getUrgencyIcon = (urgency: string) => {
-      switch (urgency) {
-          case 'critical': return <AlertCircle size={14} className="text-red-500" />;
-          case 'warning': return <AlertTriangle size={14} className="text-orange-500" />;
-          default: return <Info size={14} className="text-blue-500" />;
+  const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const data = Object.fromEntries(new FormData(e.currentTarget));
+      const { error, data: created } = await createAnnouncement(data);
+      if (error) {
+        toast.error(error);
+        return;
       }
+      setAnnouncements((prev) => [created as Announcement, ...prev]);
+      setIsAddOpen(false);
+      setSelectedDaaraId("NONE");
+      setScope("global");
+      toast.success("Annonce diffusée.");
+      router.refresh();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="space-y-8">
-      {/* HEADER ACTIONS */}
-      <div className="flex justify-between items-center bg-card p-6 rounded-2xl border shadow-sm">
-        <div className="flex flex-col gap-1">
-            <h2 className="text-2xl font-black flex gap-2 items-center tracking-tight">
-                <Megaphone size={24} className="text-yessal-violet" /> 
-                Centre des Annonces
-            </h2>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Gérez la communication officielle du réseau</p>
+    <div className="flex flex-col gap-4">
+      <FilterBar
+        searchValue={c.search}
+        onSearchChange={c.setSearch}
+        searchPlaceholder="Titre, contenu ou Daara…"
+        resultCount={c.total}
+        itemLabel="annonce"
+        filters={[
+          {
+            label: "Niveau d'urgence",
+            value: c.filter("urgency"),
+            onChange: (v) => c.setFilter("urgency", v),
+            options: [
+              { value: ALL, label: "Toutes les urgences" },
+              { value: "info", label: "Information" },
+              { value: "warning", label: "Avertissement" },
+              { value: "critical", label: "Critique" },
+            ],
+          },
+          {
+            label: "Portée",
+            value: c.filter("target"),
+            onChange: (v) => c.setFilter("target", v),
+            options: [
+              { value: ALL, label: "Toutes les portées" },
+              { value: "global", label: "Réseau global" },
+              { value: "daara_only", label: "Un Daara" },
+            ],
+          },
+        ]}
+        actions={
+          <button
+            type="button"
+            className="ax-btn ax-btn--primary"
+            onClick={() => setIsAddOpen(true)}
+          >
+            <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
+            <span className="ax-btn__label">Nouvelle diffusion</span>
+          </button>
+        }
+      />
+
+      {c.total === 0 ? (
+        <div className="ax-card">
+          <div className="ax-card__body">
+            <EmptyState
+              icon={c.isFiltered ? Search : Megaphone}
+              tone={c.isFiltered ? "search" : "neutral"}
+              title={
+                c.isFiltered
+                  ? "Aucune annonce ne correspond"
+                  : "Aucune annonce diffusée"
+              }
+              description={
+                c.isFiltered
+                  ? "Élargissez la recherche ou remettez les filtres à zéro."
+                  : "Les messages officiels adressés au réseau apparaîtront ici."
+              }
+              action={
+                c.isFiltered ? (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--outline"
+                    onClick={c.resetFilters}
+                  >
+                    <span className="ax-btn__label">Réinitialiser les filtres</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--primary"
+                    onClick={() => setIsAddOpen(true)}
+                  >
+                    <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
+                    <span className="ax-btn__label">Nouvelle diffusion</span>
+                  </button>
+                )
+              }
+            />
+          </div>
         </div>
-        
-        <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-            <DialogTrigger asChild>
-                <Button className="bg-yessal-violet hover:bg-violet-700 text-white gap-2 px-6 h-12 rounded-xl shadow-lg shadow-yessal-violet/20 border-none transition-all hover:scale-105 active:scale-95">
-                    <Plus size={18} /> Nouvelle Diffusion
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-background border-none shadow-2xl">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-black">Diffuser un message</DialogTitle>
-                    <DialogDescription className="font-medium text-muted-foreground">Ciblez précisément les membres devant recevoir cette information.</DialogDescription>
-                </DialogHeader>
-                <form className="space-y-5 py-4" onSubmit={async (e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.currentTarget);
-                    const data = Object.fromEntries(formData);
-                    const { error, data: newAnn } = await createAnnouncement(data);
-                    if (!error) {
-                        setAnnouncements(prev => [newAnn, ...prev]);
-                        setIsAddModalOpen(false);
-                        toast.success("Annonce diffusée avec succès.");
-                    } else {
-                        toast.error(error);
-                    }
-                }}>
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Sujet de l'annonce</label>
-                        <Input name="title" placeholder="Titre accrocheur..." required className="bg-muted/10 h-11 border-none focus-visible:ring-1 focus-visible:ring-yessal-violet" />
-                    </div>
+      ) : (
+        <div className="ax-card">
+          <ul className="ax-list ax-list--comfortable">
+            {c.rows.map((ann) => {
+              const u = URGENCY[ann.urgency] ?? URGENCY.info;
+              const UrgencyIcon = u.icon;
 
-                    <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Message complet</label>
-                        <Textarea name="content" placeholder="Que voulez-vous dire à la communauté ?" className="min-h-[120px] bg-muted/10 border-none focus-visible:ring-1 focus-visible:ring-yessal-violet" required />
-                    </div>
+              return (
+                <li key={ann.id} className="ax-list__row items-start">
+                  <UrgencyIcon
+                    className="ax-list__leading mt-1"
+                    size={18}
+                    aria-hidden="true"
+                  />
 
-                    <input type="hidden" name="daara" value={selectedDaaraId} />
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Niveau d'urgence</label>
-                            <Select name="urgency" defaultValue="info">
-                                <SelectTrigger className="bg-muted/10 border-none h-11">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="info">ℹ️ Information (Standard)</SelectItem>
-                                    <SelectItem value="warning">⚠️ Avertissement (Important)</SelectItem>
-                                    <SelectItem value="critical">🚨 Critique (Urgent)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Cible (Rôle)</label>
-                            <Select name="target_role" defaultValue="all">
-                                <SelectTrigger className="bg-muted/10 border-none h-11">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tout le monde</SelectItem>
-                                    <SelectItem value="member">Membres uniquement</SelectItem>
-                                    <SelectItem value="chef_daara">Responsables Daara</SelectItem>
-                                    <SelectItem value="collector">Collecteurs</SelectItem>
-                                    <SelectItem value="admin">Administrateurs</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
+                  <span className="ax-list__content gap-2">
+                    <span className="ax-list__title">{ann.title}</span>
+                    <span className="ax-list__meta ax-clamp-2 whitespace-pre-wrap">
+                      {ann.content}
+                    </span>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Portée Géographique / Structure</label>
-                            <Select name="target" defaultValue="global">
-                                <SelectTrigger className="bg-muted/10 border-none h-11">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="global">Réseau Global (Tout Yessal)</SelectItem>
-                                    <SelectItem value="daara_only">Spécifique à un Daara</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1 tracking-widest">Entité concernée (Daara)</label>
-                            <DaaraSelector daaras={daaras} value={selectedDaaraId} onChange={setSelectedDaaraId} />
-                        </div>
-                    </div>
-                    
-                    <DialogFooter className="mt-8">
-                        <Button type="submit" className="w-full bg-yessal-violet text-white border-none py-6 font-black uppercase tracking-widest">Lancer la diffusion</Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-      </div>
+                    <span className="ax-cluster flex-wrap gap-2 pt-1">
+                      <span className={`ax-badge ax-badge--sm ${u.cls}`}>
+                        {u.label}
+                      </span>
 
-      {/* LIST OF ANNOUNCEMENTS */}
-      <div className="space-y-4">
-        {announcements.map((ann) => (
-            <div key={ann.id} className="bg-card border-none shadow-sm hover:shadow-md transition-all rounded-2xl overflow-hidden group">
-                <div className="p-1 flex flex-col md:flex-row md:items-center gap-6">
-                    {/* Urgency side indicator */}
-                    <div className={`w-1 md:w-2 h-full absolute left-0 top-0 ${
-                        ann.urgency === 'critical' ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 
-                        ann.urgency === 'warning' ? 'bg-orange-500' : 'bg-blue-400'
-                    }`} />
+                      <span className="ax-badge ax-badge--outline ax-badge--sm">
+                        {ann.target === "global" ? (
+                          <Globe className="ax-badge__icon" aria-hidden="true" />
+                        ) : (
+                          <Building2 className="ax-badge__icon" aria-hidden="true" />
+                        )}
+                        {ann.target === "global"
+                          ? "Réseau global"
+                          : ann.daara_name || "Daara"}
+                      </span>
 
-                    <div className="flex-1 flex flex-col md:flex-row items-start md:items-center gap-6 p-5">
-                        {/* Title & Info */}
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                                {getUrgencyIcon(ann.urgency)}
-                                <h3 className="font-bold truncate text-base tracking-tight">{ann.title}</h3>
-                            </div>
-                            <p className="text-xs text-muted-foreground line-clamp-1 whitespace-pre-wrap">{ann.content}</p>
-                        </div>
+                      <span className="ax-badge ax-badge--neutral ax-badge--sm">
+                        <UserCheck className="ax-badge__icon" aria-hidden="true" />
+                        {TARGET_ROLE_LABEL[ann.target_role] ?? ann.target_role}
+                      </span>
 
-                        {/* Badges / Stats */}
-                        <div className="flex flex-wrap items-center gap-2">
-                             <Badge className={`uppercase text-[9px] font-black tracking-widest border-none px-2 py-1 ${ann.target === 'global' ? 'bg-blue-50 text-blue-600' : 'bg-yessal-violet/10 text-yessal-violet'}`}>
-                                {ann.target === 'global' ? <Globe size={10} className="mr-1" /> : <Building2 size={10} className="mr-1" />}
-                                {ann.target === 'global' ? "Global" : ann.daara_name}
-                            </Badge>
-                            
-                            <Badge className="bg-muted/30 text-muted-foreground uppercase text-[9px] font-black tracking-widest border-none px-2 py-1">
-                                <UserCheck size={10} className="mr-1" />
-                                {ann.target_role === 'all' ? "Tout public" : ann.target_role.replace('_', ' ')}
-                            </Badge>
+                      <span className="ax-text-subtle ax-cluster gap-1 text-xs">
+                        <Calendar size={11} aria-hidden="true" />
+                        {dateFmt.format(new Date(ann.created_at))}
+                      </span>
+                    </span>
+                  </span>
 
-                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-bold px-3 py-1 bg-muted/10 rounded-full">
-                                <Calendar size={10} /> {new Date(ann.created_at).toLocaleDateString("fr-FR")}
-                            </div>
-                        </div>
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--ghost-danger ax-btn--icon ax-list__trailing"
+                    aria-label={`Supprimer « ${ann.title} »`}
+                    onClick={() => handleDelete(ann)}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
-                        {/* Actions */}
-                        <Button variant="ghost" size="icon" className="h-9 w-9 text-red-400 hover:text-red-600 hover:bg-red-50 border-none transition-all" onClick={() => handleDelete(ann.id)}>
-                            <Trash2 size={16} />
-                        </Button>
-                    </div>
-                </div>
+      <Pagination
+        page={c.page}
+        totalPages={c.totalPages}
+        onPageChange={c.setPage}
+        totalItems={c.total}
+        pageSize={c.pageSize}
+        itemLabel="annonces"
+      />
+
+      {/* ── Diffusion ── */}
+      <Modal
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+        title="Diffuser un message"
+        description="Ciblez les membres qui doivent recevoir cette information."
+        size="lg"
+      >
+        <form onSubmit={handleCreate} className="flex flex-col gap-4">
+          <div className="ax-field">
+            <label className="ax-field__label" htmlFor="ann-title">
+              Sujet
+              <span className="ax-field__required" aria-hidden="true"> *</span>
+            </label>
+            <input
+              id="ann-title"
+              name="title"
+              className="ax-input"
+              placeholder="Ex. Report du Magal"
+              required
+            />
+          </div>
+
+          <div className="ax-field">
+            <label className="ax-field__label" htmlFor="ann-content">
+              Message
+              <span className="ax-field__required" aria-hidden="true"> *</span>
+            </label>
+            <textarea
+              id="ann-content"
+              name="content"
+              rows={5}
+              className="ax-textarea"
+              placeholder="Que voulez-vous dire à la communauté ?"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="ax-field">
+              <label className="ax-field__label" htmlFor="ann-urgency">
+                Niveau d&apos;urgence
+              </label>
+              <select
+                id="ann-urgency"
+                name="urgency"
+                className="ax-select"
+                defaultValue="info"
+              >
+                <option value="info">Information</option>
+                <option value="warning">Avertissement</option>
+                <option value="critical">Critique</option>
+              </select>
+              <p className="ax-field__hint">
+                « Critique » déclenche une notification poussée.
+              </p>
             </div>
-        ))}
-        
-        {announcements.length === 0 && (
-            <div className="py-20 text-center bg-card rounded-2xl border border-dashed text-muted-foreground italic text-sm">
-                Aucun historique d'annonce disponible.
+
+            <div className="ax-field">
+              <label className="ax-field__label" htmlFor="ann-role">
+                Destinataires
+              </label>
+              <select
+                id="ann-role"
+                name="target_role"
+                className="ax-select"
+                defaultValue="all"
+              >
+                {Object.entries(TARGET_ROLE_LABEL).map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
             </div>
-        )}
-      </div>
+          </div>
+
+          <div className="ax-field">
+            <label className="ax-field__label" htmlFor="ann-target">
+              Portée
+            </label>
+            <select
+              id="ann-target"
+              name="target"
+              className="ax-select"
+              value={scope}
+              onChange={(e) => setScope(e.target.value)}
+            >
+              <option value="global">Réseau global — tout Yessal</option>
+              <option value="daara_only">Un Daara en particulier</option>
+            </select>
+          </div>
+
+          {/*
+            Le sélecteur de Daara n'apparaît que si la portée l'exige. Les deux
+            champs étaient auparavant indépendants : on pouvait choisir
+            « Réseau global » tout en désignant un Daara, sans savoir lequel
+            l'emportait.
+          */}
+          {scope === "daara_only" && (
+            <div className="ax-field">
+              <span className="ax-field__label">Daara concerné</span>
+              <DaaraCombobox
+                daaras={daaras}
+                value={selectedDaaraId}
+                onChange={setSelectedDaaraId}
+                neutralValue="NONE"
+                neutralLabel="Tous les Daaras"
+              />
+            </div>
+          )}
+
+          <input type="hidden" name="daara" value={selectedDaaraId} />
+
+          <button
+            type="submit"
+            className="ax-btn ax-btn--primary ax-btn--lg ax-btn--block"
+            disabled={isSaving}
+          >
+            <Megaphone className="ax-btn__icon" size={18} aria-hidden="true" />
+            <span className="ax-btn__label">
+              {isSaving ? "Diffusion…" : "Lancer la diffusion"}
+            </span>
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 }

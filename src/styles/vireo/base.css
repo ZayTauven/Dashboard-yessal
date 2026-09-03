@@ -35,64 +35,94 @@
 /* ════════════════════════════════════════════════════════════════════════
    1 · RESET / NORMALIZE  (modern, minimal — Tailwind preflight handles much;
    these rules are token-aware and shell-specific so they live with us)
+   ════════════════════════════════════════════════════════════════════════
+
+   ⚠️ CE RESET DOIT RESTER DANS @layer base. Hors layer, il l'emportait sur
+   TOUTES les classes utilitaires de Tailwind (qui vivent dans @layer
+   utilities), avec deux effets majeurs et invisibles :
+
+     · `* { margin: 0 }` annulait `m-*`, `mt-*`, `mb-*`, `mx-*`, `my-*`
+       PARTOUT dans l'application. Un `mb-8` entre un titre et une carte ne
+       produisait aucun espace. C'est la cause principale des écrans jugés
+       « trop compacts » : les marges demandées n'étaient jamais appliquées.
+
+     · `svg { display: block }` annulait `inline`, `hidden`, `inline-block`
+       sur toute icône. Une flèche `<ArrowLeft className="inline">` passait en
+       bloc et se détachait de son texte (visible sur /contact). Le correctif
+       ad hoc `.ax-table__sort { display: inline-block }` plus bas n'était que
+       le rattrapage d'un cas particulier de ce même problème.
+
+   Dans @layer base, ces règles gardent leur rôle de reset (elles suivent le
+   preflight Tailwind, même layer, déclaré après) mais rendent la main aux
+   utilitaires, comme prévu.
    ════════════════════════════════════════════════════════════════════════ */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  * {
+    margin: 0;
+  }
 }
 
-* {
-  margin: 0;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -moz-tab-size: 4;
+    tab-size: 4;
+    scroll-behavior: smooth;
+  }
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-  -moz-tab-size: 4;
-  tab-size: 4;
-  scroll-behavior: smooth;
-}
-
-body {
-  min-height: 100vh;
-  font-family: var(--ax-font-sans);
-  font-size: 14px; /* Aurora chrome/dense UI base (spec 01 §7) */
-  line-height: 1.5;
-  color: var(--ax-text);
-  background-color: var(--ax-canvas);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  font-feature-settings: 'cv05', 'ss01'; /* Inter stylistic sets */
-  letter-spacing: -0.006em;
-  /* color/background follow theme-token transitions, not element fades */
-  transition:
-    background-color var(--ax-motion-fast) var(--ax-ease-standard),
-    color var(--ax-motion-fast) var(--ax-ease-standard);
+@layer base {
+  body {
+    min-height: 100vh;
+    font-family: var(--ax-font-sans);
+    font-size: 14px; /* Aurora chrome/dense UI base (spec 01 §7) */
+    line-height: 1.5;
+    color: var(--ax-text);
+    background-color: var(--ax-canvas);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv05', 'ss01'; /* Inter stylistic sets */
+    letter-spacing: -0.006em;
+    /* color/background follow theme-token transitions, not element fades */
+    transition:
+      background-color var(--ax-motion-fast) var(--ax-ease-standard),
+      color var(--ax-motion-fast) var(--ax-ease-standard);
+  }
 }
 
 /* media defaults */
-img,
-picture,
-video,
-canvas,
-svg {
-  display: block;
-  max-width: 100%;
-}
-/* Reset only SVGs that don't declare their own fill. Outline icons set fill="none"
-   explicitly; filled icons set fill="currentColor" (and dynamic :fill bindings set
-   tokens). A blanket `svg { fill: none }` overrides those presentation attributes
-   (CSS beats presentation attributes), which renders every filled glyph invisible. */
-svg:not([fill]) {
-  fill: none;
-}
-/* Sort-chevron glyphs sit inline within table-heading text, so they must opt out of
-   the svg{display:block} media reset above. This override must also be UNLAYERED —
-   a layered @layer components rule can't beat an unlayered one (unlayered > layered). */
-.ax-table__sort {
-  display: inline-block;
+@layer base {
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+  /* Reset only SVGs that don't declare their own fill. Outline icons set fill="none"
+     explicitly; filled icons set fill="currentColor" (and dynamic :fill bindings set
+     tokens). A blanket `svg { fill: none }` overrides those presentation attributes
+     (CSS beats presentation attributes), which renders every filled glyph invisible. */
+  svg:not([fill]) {
+    fill: none;
+  }
+  /* Sort-chevron glyphs sit inline within table-heading text, so they must opt out of
+     the svg{display:block} media reset above. Une classe l'emporte sur un sélecteur
+     d'élément à l'intérieur d'un même layer : ce correctif fonctionne donc ici, et
+     `display: inline` / `hidden` posés dans le JSX reprennent enfin la main sur les
+     icônes (ce qui n'était pas le cas quand ce bloc vivait hors layer). */
+  .ax-table__sort {
+    display: inline-block;
+  }
 }
 
 /* form inheritance — MUST be in @layer base so it sits BELOW @layer components.
@@ -109,40 +139,42 @@ svg:not([fill]) {
     letter-spacing: inherit;
   }
 }
-button {
-  cursor: pointer;
-}
-/* Reset UA chrome only on UNCLASSED buttons so classed .ax-btn components
-   (in @layer components) keep their background/border and remain override-able
-   by Tailwind utilities. */
-button:not([class]) {
-  background: none;
-  border: 0;
-}
+@layer base {
+  button {
+    cursor: pointer;
+  }
+  /* Reset UA chrome only on UNCLASSED buttons so classed .ax-btn components
+     (in @layer components) keep their background/border and remain override-able
+     by Tailwind utilities. */
+  button:not([class]) {
+    background: none;
+    border: 0;
+  }
 
-/* text wrapping */
-p,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  overflow-wrap: break-word;
-}
+  /* text wrapping */
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    overflow-wrap: break-word;
+  }
 
-/* lists used as nav/menus reset their list affordances */
-:where(ul, ol)[role='list'],
-:where(ul, ol)[role='tree'],
-:where(ul, ol)[role='menu'] {
-  list-style: none;
-  padding: 0;
-}
+  /* lists used as nav/menus reset their list affordances */
+  :where(ul, ol)[role='list'],
+  :where(ul, ol)[role='tree'],
+  :where(ul, ol)[role='menu'] {
+    list-style: none;
+    padding: 0;
+  }
 
-/* tables collapse by default */
-table {
-  border-collapse: collapse;
-  border-spacing: 0;
+  /* tables collapse by default */
+  table {
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
 }
 
 /* hidden attribute always wins (used by sidebar filter) */
@@ -153,82 +185,106 @@ table {
 /* ════════════════════════════════════════════════════════════════════════
    2 · ROOT TYPOGRAPHY  (headings → Space Grotesk via --ax-font-display;
    sizes/leading from --ax-text-* / --ax-leading-* token scale)
+   ════════════════════════════════════════════════════════════════════════
+
+   ⚠️ TOUT CE BLOC DOIT RESTER DANS @layer base — même raison que le reset de
+   formulaire (§1) et que les liens (plus bas), mais avec des conséquences
+   bien plus larges, parce qu'il touche h1…h6.
+
+   Rappel de la règle CSS : une déclaration HORS layer l'emporte sur TOUTE
+   déclaration dans un layer, quelle que soit la spécificité. Tailwind v4
+   place l'intégralité de son CSS dans des layers (`@layer theme, base,
+   components, utilities`), et `components.css` place tout Vireo dans
+   `@layer components`. Ces règles-ci, laissées hors layer, écrasaient donc :
+
+     · `.ax-card__title` (20px, @layer components) → les titres de carte
+       s'affichaient à 30px, soit la taille d'un titre de page ;
+     · `text-2xl`, `text-4xl`, `text-sm`… (@layer utilities) → 26 occurrences
+       de <h1>/<h2> classés dans 15 fichiers rendaient une taille qui n'était
+       pas celle demandée. Sur `/login`, `/register`, `/contact` et
+       `/forgot-password`, un `text-2xl` (24px) sortait à 38px, interligne
+       46px compris.
+
+   C'est de là que venait la sensation d'écrans « trop compacts » : l'espace
+   était correct, mais la typographie l'avait mangé.
    ════════════════════════════════════════════════════════════════════════ */
-h1,
-h2,
-.ax-display {
-  font-family: var(--ax-font-display);
-}
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--ax-font-sans);
-}
+@layer base {
+  h1,
+  h2,
+  .ax-display {
+    font-family: var(--ax-font-display);
+  }
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--ax-font-sans);
+  }
 
-h1 {
-  font-size: var(--ax-text-3xl);
-  line-height: var(--ax-leading-3xl);
-  font-weight: var(--ax-weight-bold);
-  letter-spacing: -0.018em;
-  color: var(--ax-text-strong);
-}
-h2 {
-  font-size: var(--ax-text-2xl);
-  line-height: var(--ax-leading-2xl);
-  font-weight: var(--ax-weight-semibold);
-  letter-spacing: -0.015em;
-  color: var(--ax-text-strong);
-}
-h3 {
-  font-size: var(--ax-text-xl);
-  line-height: var(--ax-leading-xl);
-  font-weight: var(--ax-weight-semibold);
-  letter-spacing: -0.012em;
-  color: var(--ax-text-strong);
-}
-h4 {
-  font-size: var(--ax-text-lg);
-  line-height: var(--ax-leading-lg);
-  font-weight: var(--ax-weight-semibold);
-  letter-spacing: -0.01em;
-  color: var(--ax-text-strong);
-}
-h5 {
-  font-size: var(--ax-text-md);
-  line-height: var(--ax-leading-md);
-  font-weight: var(--ax-weight-medium);
-  letter-spacing: -0.005em;
-  color: var(--ax-text-strong);
-}
-h6 {
-  font-size: var(--ax-text-base);
-  line-height: var(--ax-leading-base);
-  font-weight: var(--ax-weight-medium);
-  color: var(--ax-text-strong);
-}
+  h1 {
+    font-size: var(--ax-text-3xl);
+    line-height: var(--ax-leading-3xl);
+    font-weight: var(--ax-weight-bold);
+    letter-spacing: -0.018em;
+    color: var(--ax-text-strong);
+  }
+  h2 {
+    font-size: var(--ax-text-2xl);
+    line-height: var(--ax-leading-2xl);
+    font-weight: var(--ax-weight-semibold);
+    letter-spacing: -0.015em;
+    color: var(--ax-text-strong);
+  }
+  h3 {
+    font-size: var(--ax-text-xl);
+    line-height: var(--ax-leading-xl);
+    font-weight: var(--ax-weight-semibold);
+    letter-spacing: -0.012em;
+    color: var(--ax-text-strong);
+  }
+  h4 {
+    font-size: var(--ax-text-lg);
+    line-height: var(--ax-leading-lg);
+    font-weight: var(--ax-weight-semibold);
+    letter-spacing: -0.01em;
+    color: var(--ax-text-strong);
+  }
+  h5 {
+    font-size: var(--ax-text-md);
+    line-height: var(--ax-leading-md);
+    font-weight: var(--ax-weight-medium);
+    letter-spacing: -0.005em;
+    color: var(--ax-text-strong);
+  }
+  h6 {
+    font-size: var(--ax-text-base);
+    line-height: var(--ax-leading-base);
+    font-weight: var(--ax-weight-medium);
+    color: var(--ax-text-strong);
+  }
 
-small {
-  font-size: var(--ax-text-xs);
-  line-height: var(--ax-leading-xs);
-}
+  small {
+    font-size: var(--ax-text-xs);
+    line-height: var(--ax-leading-xs);
+  }
 
-strong,
-b {
-  font-weight: var(--ax-weight-semibold);
-  color: var(--ax-text-strong);
-}
+  strong,
+  b {
+    font-weight: var(--ax-weight-semibold);
+    color: var(--ax-text-strong);
+  }
 
-code,
-kbd,
-samp,
-pre {
-  font-family: var(--ax-font-mono);
-  font-size: 0.92em;
-}
-kbd {
-  font-size: var(--ax-text-2xs);
-  color: var(--ax-text-subtle);
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--ax-font-mono);
+    font-size: 0.92em;
+  }
+  kbd {
+    font-size: var(--ax-text-2xs);
+    color: var(--ax-text-subtle);
+  }
 }
 
 /* links — color MUST be in @layer base so it sits BELOW @layer components.

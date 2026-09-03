@@ -1,8 +1,49 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Les Ndiguels
+ * ═══════════════════════════════════════════════════════════════════════════
+ * L'écran central du produit : une grille de cartes média, une par campagne.
+ *
+ * Quatre problèmes de fond corrigés ici :
+ *
+ *   · Les deux modales (« Gérer » et « Faire un Jëf ») étaient des `<div>`
+ *     posées en `fixed inset-0`. Aucun piège de focus, aucune fermeture par
+ *     Échap, aucun retour du focus au bouton d'origine : au clavier, ouvrir la
+ *     modale de paiement laissait l'utilisateur bloqué derrière elle. Elles
+ *     passent sur <Modal>, donc sur les primitives Radix.
+ *
+ *   · Le statut s'affichait en anglais brut — « active », « completed » — dans
+ *     une pastille peinte en `rgba(145,110,231,0.85)` codée en dur, insensible
+ *     au thème. Il passe par <StatusBadge>, qui parle français.
+ *
+ *   · Les six moyens de paiement étaient six blocs de huit lignes recopiés,
+ *     chacun avec un `onClick` sur le label EN PLUS du `onChange` du radio —
+ *     donc un double déclenchement. Ils deviennent une seule liste mappée sur
+ *     des vrais radios stylés `.ax-segment`.
+ *
+ *   · La pagination ne disait que « Page 2 sur 5 » sans permettre d'aller à la
+ *     fin.
+ */
+
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  CheckCircle2,
+  ChevronRight,
+  Circle,
+  CreditCard,
+  MessageSquare,
+  Pencil,
+  Plus,
+  Settings2,
+  Target,
+  Trash2,
+  Wallet,
+} from "lucide-react";
+import { toast } from "sonner";
 import { makeDonation, payDonation } from "@/app/actions/donations";
 import {
   addCampaignTodo,
@@ -11,31 +52,15 @@ import {
   toggleCampaignTodo,
 } from "@/app/actions/campaigns";
 import { createChat } from "@/app/actions/comms";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Plus,
-  Wallet,
-  CreditCard,
-  ChevronRight,
-  Settings2,
-  CheckCircle2,
-  Circle,
-  MessageSquare,
-  Pencil,
-  Trash2,
-  Target,
-} from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-} from "@/components/ui/card";
-import { SmartLink } from "@/components/SmartLink";
-import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { roleLabel } from "@/lib/roles";
+import { formatFCFA } from "@/components/charts/YessalCharts";
+import { Modal } from "@/components/vireo/Modal";
+import { Pagination } from "@/components/vireo/Pagination";
+import { PaymentMethodPicker } from "@/components/vireo/PaymentMethodPicker";
+import { StatusBadge } from "@/components/vireo/StatusBadge";
+import { CoverImage } from "@/components/vireo/CoverImage";
+import { ALL, useCollection } from "@/hooks/useCollection";
 
 type Todo = {
   id: number;
@@ -69,6 +94,16 @@ type CampaignCard = {
   illustrative_photo?: string | null;
 };
 
+const STATUS_TABS = [
+  { value: ALL, label: "Tous" },
+  { value: "active", label: "En cours" },
+  { value: "pending", label: "À venir" },
+  { value: "inactive", label: "Suspendus" },
+  { value: "completed", label: "Terminés" },
+];
+
+const statusOf = (c: CampaignCard) => c.effective_status ?? c.status;
+
 export function CampaignsClient({
   initialCampaigns,
   isAdmin,
@@ -84,27 +119,33 @@ export function CampaignsClient({
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignCard | null>(
     null,
   );
-
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
   const [newTodoTitle, setNewTodoTitle] = useState("");
   const [organizerUsers, setOrganizerUsers] = useState<OrganizerUser[]>([]);
   const [organizerUsersError, setOrganizerUsersError] = useState("");
   const [chatName, setChatName] = useState("");
-  const [selectedAssistantIds, setSelectedAssistantIds] = useState<number[]>(
-    [],
-  );
+  const [selectedAssistantIds, setSelectedAssistantIds] = useState<number[]>([]);
   const [assistantSearch, setAssistantSearch] = useState("");
   const [selectedMethod, setSelectedMethod] = useState("orange_money");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const itemsPerPage = 6;
 
-  const filteredByStatus = initialCampaigns.filter(c => {
-    if (statusFilter === "all") return true;
-    const status = c.effective_status ?? c.status;
-    return status === statusFilter;
-  });
+  const filters = useMemo(
+    () => ({ status: (c: CampaignCard, v: string) => statusOf(c) === v }),
+    [],
+  );
+
+  const c = useCollection(initialCampaigns, { filters, pageSize: 6 });
+
+  /* Compteurs d'onglets, calculés sur l'ensemble : un onglet doit annoncer ce
+     qu'il contient, pas ce que le filtre courant laisse passer. */
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { [ALL]: initialCampaigns.length };
+    for (const camp of initialCampaigns) {
+      const s = statusOf(camp);
+      counts[s] = (counts[s] ?? 0) + 1;
+    }
+    return counts;
+  }, [initialCampaigns]);
 
   useEffect(() => {
     if (!isManageOpen || !selectedCampaign) return;
@@ -114,7 +155,7 @@ export function CampaignsClient({
     setOrganizerUsersError("");
     setSelectedAssistantIds([]);
     setAssistantSearch("");
-    setChatName(`Organisation - ${selectedCampaign.name}`);
+    setChatName(`Organisation — ${selectedCampaign.name}`);
 
     startTransition(async () => {
       const res = await getCampaignOrganizerDirectory(
@@ -142,41 +183,46 @@ export function CampaignsClient({
       const res = await makeDonation(formData);
       if (res.error) {
         setErrorMsg(res.error);
-      } else {
-        const donation = res.data;
+        return;
+      }
 
-        // If collector payment, show specific message
-        if (paymentMethod === "collector") {
-          setIsDonationOpen(false);
-          toast.success("Demande de collecte enregistrée. Les responsables ont été notifiés.");
+      const donation = res.data;
+
+      // Collecte physique : rien à payer en ligne, on notifie les responsables.
+      if (paymentMethod === "collector") {
+        setIsDonationOpen(false);
+        toast.success(
+          "Demande de collecte enregistrée. Les responsables ont été notifiés.",
+        );
+        return;
+      }
+
+      // Paiement digital : on enchaîne sur Bictorys.
+      if (paymentMethod !== "paypal") {
+        const payRes = await payDonation(donation.id, paymentMethod);
+        if (payRes.error) {
+          setErrorMsg(payRes.error);
           return;
         }
 
-        // If digital payment, initiate Bictorys
-        if (paymentMethod !== "paypal") {
-          const payRes = await payDonation(donation.id, paymentMethod);
-          if (payRes.error) {
-            setErrorMsg(payRes.error);
+        if (paymentMethod === "visa" || paymentMethod === "mastercard") {
+          if (payRes.data?.checkout_url) {
+            window.location.href = payRes.data.checkout_url;
             return;
           }
-
-          if (paymentMethod === "visa" || paymentMethod === "mastercard") {
-            if (payRes.data?.checkout_url) {
-              window.location.href = payRes.data.checkout_url;
-              return;
-            }
-          } else {
-            toast.success(`Demande de paiement ${paymentMethod.replace("_", " ")} envoyée. Validez sur votre téléphone.`);
-          }
+        } else {
+          toast.success(
+            "Demande de paiement envoyée. Validez sur votre téléphone.",
+          );
         }
-
-        setIsDonationOpen(false);
-        toast.success("Demande de don effectuée avec succès.");
       }
+
+      setIsDonationOpen(false);
+      toast.success("Demande de Jëf effectuée avec succès.");
     });
   };
 
-  const handleAddTodo = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddTodo = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!newTodoTitle.trim() || !selectedCampaign) return;
 
@@ -185,16 +231,16 @@ export function CampaignsClient({
         Number(selectedCampaign.id),
         newTodoTitle,
       );
-      if (!res.error) {
-        setNewTodoTitle("");
-        router.refresh();
-      } else {
+      if (res.error) {
         toast.error(res.error);
+        return;
       }
+      setNewTodoTitle("");
+      router.refresh();
     });
   };
 
-  const handleToggleTodo = async (todoId: number, isCompleted: boolean) => {
+  const handleToggleTodo = (todoId: number, isCompleted: boolean) => {
     startTransition(async () => {
       const res = await toggleCampaignTodo(todoId, !isCompleted);
       if (res.error) {
@@ -231,15 +277,13 @@ export function CampaignsClient({
 
       const chat = res.data as { id?: number } | undefined;
       setIsManageOpen(false);
-      router.push(
-        chat?.id ? `/dashboard/chat?chat=${chat.id}` : "/dashboard/chat",
-      );
+      router.push(chat?.id ? `/dashboard/chat?chat=${chat.id}` : "/dashboard/chat");
       router.refresh();
     });
   };
 
   const handleDeleteCampaign = (campaignId: number, campaignName: string) => {
-    toast(`Supprimer "${campaignName}" ? Cette action est irréversible.`, {
+    toast(`Supprimer « ${campaignName} » ? Cette action est irréversible.`, {
       action: {
         label: "Supprimer",
         onClick: () => {
@@ -249,7 +293,7 @@ export function CampaignsClient({
               toast.error(res.error);
               return;
             }
-            toast.success("Campagne supprimée.");
+            toast.success("Ndiguel supprimé.");
             router.refresh();
           });
         },
@@ -267,598 +311,469 @@ export function CampaignsClient({
       .includes(q);
   });
 
+  const activeStatus = c.filter("status");
+
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="flex items-center gap-2 bg-muted/40 p-1 rounded-xl">
-            {["all", "active", "inactive", "completed"].map((s) => (
-                <button
-                    key={s}
-                    onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
-                    className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-                        statusFilter === s ? "bg-card shadow-sm text-yessal-violet" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                >
-                    {s === "all" ? "Tous" : s === "active" ? "En cours" : s === "inactive" ? "Inactifs" : "Terminés"}
-                </button>
-            ))}
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="ax-segment ax-scroll-x max-w-full" role="group" aria-label="Filtrer par statut">
+          {STATUS_TABS.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              className="ax-segment__option"
+              aria-pressed={activeStatus === t.value}
+              onClick={() => c.setFilter("status", t.value)}
+            >
+              {t.label}
+              <span className="ax-badge ax-badge--count ax-badge--sm">
+                {statusCounts[t.value] ?? 0}
+              </span>
+            </button>
+          ))}
         </div>
+
         {isAdmin && (
-          <Button
-            className="gap-3 shadow-xl shadow-yessal-violet/20 rounded-2xl h-12 px-8 font-black uppercase tracking-widest text-[10px] border-none"
-            style={{
-              background: "var(--primary)",
-              color: "#FAFAF8",
-            }}
-            asChild
-          >
-            <Link href="/dashboard/campaigns/new">
-              <Plus size={20} /> Lancer un Ndiguel
-            </Link>
-          </Button>
+          <Link href="/dashboard/campaigns/new" className="ax-btn ax-btn--primary">
+            <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
+            <span className="ax-btn__label">Lancer un Ndiguel</span>
+          </Link>
         )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredByStatus.length === 0 ? (
-          <div
-            className="col-span-full p-12 text-center border-2 border-dashed rounded-lg"
-            style={{
-              borderColor: "var(--border)",
-              color: "var(--muted-foreground)",
-            }}
-          >
-            Aucune campagne correspondant à ce statut.
+      {c.total === 0 ? (
+        <div className="ax-card">
+          <div className="ax-card__body">
+            <EmptyState
+              icon={Target}
+              tone={c.isFiltered ? "search" : "neutral"}
+              title={
+                c.isFiltered
+                  ? "Aucun Ndiguel dans cet état"
+                  : "Aucun Ndiguel lancé"
+              }
+              description={
+                c.isFiltered
+                  ? "Changez d'onglet pour voir les autres campagnes."
+                  : "Les campagnes de collecte de la confrérie apparaîtront ici."
+              }
+              action={
+                isAdmin && !c.isFiltered ? (
+                  <Link
+                    href="/dashboard/campaigns/new"
+                    className="ax-btn ax-btn--primary"
+                  >
+                    <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
+                    <span className="ax-btn__label">Lancer un Ndiguel</span>
+                  </Link>
+                ) : undefined
+              }
+            />
           </div>
-        ) : (
-          filteredByStatus
-            .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-            .map((camp) => {
-            const collected = camp.collected_amount ?? 0;
-            const goal = camp.goal_amount;
-            const progressPct =
-              goal > 0 ? Math.min(100, (collected / goal) * 100) : 0;
-            const statusLabel = camp.effective_status ?? camp.status;
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {c.rows.map((camp) => {
+            const collected = Number(camp.collected_amount ?? 0);
+            const goal = Number(camp.goal_amount ?? 0);
+            const pct = goal > 0 ? Math.min(100, (collected / goal) * 100) : 0;
+            const status = statusOf(camp);
 
             return (
-              <Card
-                key={camp.id}
-                className="overflow-hidden hover:shadow-lg transition-shadow border-2 flex flex-col group"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <div className="relative h-48 w-full overflow-hidden bg-muted">
-                  {camp.illustrative_photo ? (
-                    <img
-                      src={camp.illustrative_photo}
-                      alt={camp.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                      <Target size={64} />
-                    </div>
-                  )}
-                  <div className="absolute top-3 right-3">
-                    <span
-                      className="px-3 py-1 rounded-full text-[10px] font-black uppercase text-white shadow-lg backdrop-blur-md"
-                      style={{
-                        background:
-                          statusLabel === "completed"
-                            ? "rgba(37, 99, 235, 0.8)"
-                            : statusLabel === "inactive"
-                              ? "rgba(107, 114, 128, 0.8)"
-                              : "rgba(145,110,231,0.85)",
-                      }}
-                    >
-                      {statusLabel}
-                    </span>
+              <article key={camp.id} className="ax-card ax-card--media flex flex-col">
+                <div className="ax-card__media relative h-44 overflow-hidden">
+                  <CoverImage
+                    src={camp.illustrative_photo}
+                    icon={Target}
+                    iconSize={56}
+                    className="h-full w-full object-cover"
+                    fallbackClassName="h-full w-full"
+                  />
+                  <div className="absolute inset-e-3 top-3">
+                    <StatusBadge domain="campaign" value={status} size="sm" />
                   </div>
                 </div>
-                <CardHeader className="pb-3 border-b bg-muted/5 relative">
-                  <div className="flex justify-between items-start gap-2">
-                    <SmartLink
+
+                <div className="ax-card__header">
+                  <div className="ax-card__titles">
+                    <Link
                       href={`/dashboard/campaigns/${camp.id}`}
-                      className="text-xl line-clamp-1 pr-2 block font-semibold"
+                      className="ax-card__title ax-clamp-2"
                     >
                       {camp.name}
-                    </SmartLink>
+                    </Link>
+                    <p className="ax-card__subtitle ax-clamp-2">
+                      {camp.description || "Pas de description pour ce Ndiguel."}
+                    </p>
                   </div>
-                  <CardDescription className="line-clamp-2 min-h-[40px] mt-1">
-                    {camp.description ||
-                      "Pas de description pour cette campagne."}
-                  </CardDescription>
-                  <div className="mt-2">
-                    <SmartLink
-                      href={`/dashboard/campaigns/${camp.id}/etat`}
-                      className="text-xs font-semibold"
-                    >
-                      Etat du Ndiguel
-                    </SmartLink>
-                  </div>
+                </div>
+
+                <div className="ax-card__body flex flex-1 flex-col gap-4">
                   {camp.organizer_name && (
-                    <span className="inline-block mt-2 text-[10px] uppercase font-bold text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                      Responsable : {camp.organizer_name}
-                      {camp.organizer_role ? ` (${camp.organizer_role})` : ""}
-                    </span>
+                    <p className="ax-text-muted text-xs">
+                      Responsable :{" "}
+                      <span className="ax-text-strong">{camp.organizer_name}</span>
+                      {/* La clé brute s'affichait telle quelle : on lisait
+                          « Pape Kane · collector » sur les cartes. */}
+                      {camp.organizer_role ? ` · ${roleLabel(camp.organizer_role)}` : ""}
+                    </p>
                   )}
-                </CardHeader>
-                {goal > 0 && (
-                  <CardContent className="py-6 space-y-4 flex-1">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] font-black uppercase tracking-widest mb-1">
-                        <span className="text-muted-foreground">Progression</span>
-                        <span className="text-yessal-green">{progressPct.toFixed(0)}%</span>
-                      </div>
-                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden border">
-                        <div
-                          className="h-full bg-yessal-violet transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(145,110,231,0.4)]"
-                          style={{ width: `${progressPct}%` }}
-                        />
-                      </div>
-                    </div>
-                    <div
-                      className="grid grid-cols-2 pt-4 mt-2 border-t"
-                      style={{ borderColor: "var(--border)" }}
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase text-muted-foreground font-black">Objectif</span>
-                        <span className="text-sm font-black">
-                          {Number(camp.goal_amount).toLocaleString()} FCFA
+
+                  {goal > 0 && (
+                    <div className="flex flex-col gap-3">
+                      <div
+                        className="ax-progress ax-progress--md"
+                        role="progressbar"
+                        aria-valuenow={Math.round(pct)}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`Progression de ${camp.name}`}
+                      >
+                        <div className="ax-progress__track">
+                          <div
+                            className="ax-progress__fill"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="ax-progress__value">
+                          {pct.toFixed(0)} %
                         </span>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-[10px] uppercase text-muted-foreground font-black">Collecté</span>
-                        <span className="text-sm font-black text-yessal-green">
-                          {Number(camp.collected_amount || 0).toLocaleString()} FCFA
-                        </span>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex flex-col">
+                          <span className="ax-eyebrow">Objectif</span>
+                          <span className="font-mono tabular text-sm font-semibold">
+                            {formatFCFA(goal)}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="ax-eyebrow">Collecté</span>
+                          <span className="text-montant font-mono tabular text-sm font-semibold">
+                            {formatFCFA(collected)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </CardContent>
-                )}
-                <CardFooter
-                  className="pt-0 p-0 flex flex-col sm:flex-row border-t"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  {canUseDonationPage ? (
-                    <Button
-                      variant="ghost"
-                      className="flex-1 h-12 gap-2 rounded-none hover:bg-muted/50"
-                      asChild
-                    >
+                  )}
+
+                  <Link
+                    href={`/dashboard/campaigns/${camp.id}/etat`}
+                    className="ax-link text-xs"
+                  >
+                    Voir l&apos;état du Ndiguel
+                  </Link>
+                </div>
+
+                <div className="ax-card__footer">
+                  <div className="ax-btn-group w-full">
+                    {canUseDonationPage ? (
                       <Link
                         href={`/dashboard/donations/new?campaign=${camp.id}`}
+                        className="ax-btn ax-btn--tonal"
                       >
-                        Faire un Jëfs <ChevronRight size={14} />
+                        <span className="ax-btn__label">Faire un Jëf</span>
+                        <ChevronRight className="ax-btn__icon" size={14} aria-hidden="true" />
                       </Link>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      className="flex-1 h-12 gap-2 rounded-none hover:bg-muted/50"
-                      onClick={() => {
-                        setSelectedCampaign(camp);
-                        setIsDonationOpen(true);
-                      }}
-                    >
-                      Faire un Jëfs <ChevronRight size={14} />
-                    </Button>
-                  )}
-
-                  {camp.is_manageable && statusLabel !== "completed" && (
-                    <Button
-                      variant="secondary"
-                      className="flex-1 h-12 gap-2 rounded-none bg-muted/30 hover:bg-muted/80 border-t sm:border-t-0 sm:border-l"
-                      onClick={() => {
-                        setSelectedCampaign(camp);
-                        setIsManageOpen(true);
-                      }}
-                    >
-                      <Settings2 size={14} /> Gérer
-                    </Button>
-                  )}
-                </CardFooter>
-                {isAdmin ? (
-                  <div
-                    className="grid grid-cols-2 border-t"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <Button
-                      variant="ghost"
-                      className="rounded-none h-11 gap-2"
-                      asChild
-                    >
-                      <Link href={`/dashboard/campaigns/${camp.id}`}>
-                        <Pencil size={14} /> Modifier
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="rounded-none h-11 gap-2 text-red-600 hover:text-red-700 border-l"
-                      style={{ borderColor: "var(--border)" }}
-                      onClick={() =>
-                        handleDeleteCampaign(Number(camp.id), camp.name)
-                      }
-                      disabled={isPending}
-                    >
-                      <Trash2 size={14} /> Supprimer
-                    </Button>
-                  </div>
-                ) : null}
-              </Card>
-            );
-          })
-        )}
-      </div>
-
-      {filteredByStatus.length > itemsPerPage && (
-        <div className="flex justify-center gap-2 mt-8">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-          >
-            Précédent
-          </Button>
-          <div className="flex items-center px-4 text-sm font-medium">
-            Page {currentPage} sur {Math.ceil(filteredByStatus.length / itemsPerPage)}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setCurrentPage((prev) =>
-                Math.min(Math.ceil(filteredByStatus.length / itemsPerPage), prev + 1),
-              )
-            }
-            disabled={
-              currentPage === Math.ceil(filteredByStatus.length / itemsPerPage)
-            }
-          >
-            Suivant
-          </Button>
-        </div>
-      )}
-
-      {isManageOpen && selectedCampaign && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-          onClick={() => setIsManageOpen(false)}
-        >
-          <div
-            className="w-full max-w-[760px] max-h-[90vh] overflow-y-auto rounded-xl border bg-background p-6 shadow-2xl"
-            style={{ borderColor: "var(--border)" }}
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-6 flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <Settings2 size={20} /> Gestion de campagne
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Campagne : {selectedCampaign.name}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsManageOpen(false)}
-              >
-                Fermer
-              </Button>
-            </div>
-
-            <div className="grid gap-8 lg:grid-cols-2">
-              <div className="space-y-4">
-                <h3 className="font-bold text-sm tracking-widest uppercase text-muted-foreground border-b pb-2">
-                  Liste des tâches
-                </h3>
-
-                <form onSubmit={handleAddTodo} className="flex gap-2">
-                  <Input
-                    value={newTodoTitle}
-                    onChange={(e) => setNewTodoTitle(e.target.value)}
-                    placeholder="Nouvelle tâche à accomplir..."
-                    disabled={isPending}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={isPending || !newTodoTitle.trim()}
-                  >
-                    Ajouter
-                  </Button>
-                </form>
-
-                <div className="space-y-2 mt-4 max-h-[280px] overflow-y-auto pr-2">
-                  {!selectedCampaign.todos ||
-                  selectedCampaign.todos.length === 0 ? (
-                    <p className="text-sm text-muted-foreground italic text-center p-4 bg-muted/20 rounded-md">
-                      Aucune tâche enregistrée.
-                    </p>
-                  ) : (
-                    selectedCampaign.todos.map((todo) => (
-                      <div
-                        key={todo.id}
-                        className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/30 transition-colors"
-                      >
-                        <button
-                          onClick={() =>
-                            handleToggleTodo(todo.id, todo.is_completed)
-                          }
-                          className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                          disabled={isPending}
-                        >
-                          {todo.is_completed ? (
-                            <CheckCircle2
-                              size={20}
-                              className="text-emerald-500"
-                            />
-                          ) : (
-                            <Circle size={20} />
-                          )}
-                        </button>
-                        <span
-                          className={`text-sm font-medium ${
-                            todo.is_completed
-                              ? "text-muted-foreground line-through"
-                              : ""
-                          }`}
-                        >
-                          {todo.title}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-bold text-sm tracking-widest uppercase text-muted-foreground border-b pb-2">
-                  Salon d&apos;organisation
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Invitez les membres qui vont assister le responsable sur cette
-                  campagne.
-                </p>
-
-                <div className="space-y-2">
-                  <Label htmlFor="chatName">Nom du salon</Label>
-                  <Input
-                    id="chatName"
-                    value={chatName}
-                    onChange={(e) => setChatName(e.target.value)}
-                    placeholder="Ex. Coordination campagne Ramadan"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Membres à inviter</Label>
-                  <Input
-                    value={assistantSearch}
-                    onChange={(e) => setAssistantSearch(e.target.value)}
-                    placeholder="Rechercher un membre, un rôle ou un daara..."
-                  />
-                  <div className="max-h-[240px] overflow-y-auto rounded-lg border p-3 space-y-2">
-                    {organizerUsersError ? (
-                      <p className="text-sm text-red-600">
-                        {organizerUsersError}
-                      </p>
-                    ) : filteredOrganizerUsers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Aucun membre ne correspond à la recherche.
-                      </p>
                     ) : (
-                      filteredOrganizerUsers.map((user) => (
-                        <label
-                          key={user.id}
-                          className="flex items-start gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/30"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedAssistantIds.includes(user.id)}
-                            onChange={() => toggleAssistant(user.id)}
-                            className="mt-1"
-                          />
-                          <div className="min-w-0">
-                            <div className="font-medium text-sm">
-                              {user.first_name} {user.last_name}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {user.role}
-                              {user.daara_name ? ` • ${user.daara_name}` : ""}
-                            </div>
-                          </div>
-                        </label>
-                      ))
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--tonal"
+                        onClick={() => {
+                          setSelectedCampaign(camp);
+                          setErrorMsg("");
+                          setIsDonationOpen(true);
+                        }}
+                      >
+                        <span className="ax-btn__label">Faire un Jëf</span>
+                        <ChevronRight className="ax-btn__icon" size={14} aria-hidden="true" />
+                      </button>
+                    )}
+
+                    {camp.is_manageable && status !== "completed" && (
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--ghost"
+                        onClick={() => {
+                          setSelectedCampaign(camp);
+                          setIsManageOpen(true);
+                        }}
+                      >
+                        <Settings2 className="ax-btn__icon" size={14} aria-hidden="true" />
+                        <span className="ax-btn__label">Gérer</span>
+                      </button>
                     )}
                   </div>
-                </div>
 
-                <Button
-                  className="w-full gap-2 font-bold text-white"
-                  style={{ background: "var(--primary)" }}
-                  type="button"
-                  disabled={isPending || !chatName.trim()}
-                  onClick={handleCreateCampaignChat}
-                >
-                  <MessageSquare size={16} /> Créer le salon
-                </Button>
-              </div>
-            </div>
-          </div>
+                  {isAdmin && (
+                    <div className="ax-btn-group ms-auto">
+                      <Link
+                        href={`/dashboard/campaigns/${camp.id}`}
+                        className="ax-btn ax-btn--ghost ax-btn--icon"
+                        aria-label={`Modifier ${camp.name}`}
+                        title="Modifier"
+                      >
+                        <Pencil size={15} aria-hidden="true" />
+                      </Link>
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--ghost-danger ax-btn--icon"
+                        aria-label={`Supprimer ${camp.name}`}
+                        title="Supprimer"
+                        disabled={isPending}
+                        onClick={() =>
+                          handleDeleteCampaign(Number(camp.id), camp.name)
+                        }
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
-      {isDonationOpen && selectedCampaign && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-          onClick={() => setIsDonationOpen(false)}
-        >
-          <div
-            className="w-full max-w-[450px] rounded-xl border bg-background p-6 shadow-2xl"
-            style={{ borderColor: "var(--border)" }}
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-6 flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <Wallet size={20} style={{ color: "var(--primary)" }} />
-                  Faire un Jëfs
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Campagne : {selectedCampaign.name}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsDonationOpen(false)}
-              >
-                Quitter
-              </Button>
-            </div>
+      <Pagination
+        page={c.page}
+        totalPages={c.totalPages}
+        onPageChange={c.setPage}
+        totalItems={c.total}
+        pageSize={c.pageSize}
+        itemLabel="Ndiguels"
+      />
 
-            <form action={handleDonation} className="space-y-5">
-              <input
-                type="hidden"
-                name="campaignId"
-                value={selectedCampaign.id}
-              />
+      {/* ── Gestion : tâches + salon d'organisation ── */}
+      <Modal
+        open={isManageOpen && Boolean(selectedCampaign)}
+        onOpenChange={setIsManageOpen}
+        title="Gestion du Ndiguel"
+        description={selectedCampaign?.name}
+        size="lg"
+      >
+        {selectedCampaign && (
+          <div className="grid gap-8 lg:grid-cols-2">
+            <section className="flex flex-col gap-3">
+              <h3 className="ax-eyebrow">Liste des tâches</h3>
 
-              <div className="space-y-2">
-                <Label htmlFor="amount">Montant du don (FCFA)</Label>
-                <div className="relative">
-                  <Input
-                    id="amount"
-                    name="amount"
-                    type="number"
-                    min="5"
-                    placeholder="5000"
-                    className="pl-9"
-                    required
-                  />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-xs">
-                    CFA
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Moyen de paiement</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "orange_money" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                    onClick={() => setSelectedMethod("orange_money")}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="orange_money"
-                      checked={selectedMethod === "orange_money"}
-                      onChange={() => setSelectedMethod("orange_money")}
-                      className="hidden"
-                    />
-                    <span className="text-[10px] font-bold">Orange</span>
-                  </label>
-                  <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "wave" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                    onClick={() => setSelectedMethod("wave")}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="wave"
-                      checked={selectedMethod === "wave"}
-                      onChange={() => setSelectedMethod("wave")}
-                      className="hidden"
-                    />
-                    <span className="text-[10px] font-bold">Wave</span>
-                  </label>
-                  <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "visa" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                    onClick={() => setSelectedMethod("visa")}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="visa"
-                      checked={selectedMethod === "visa"}
-                      onChange={() => setSelectedMethod("visa")}
-                      className="hidden"
-                    />
-                    <span className="text-[10px] font-bold">Visa</span>
-                  </label>
-                  <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "mastercard" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                    onClick={() => setSelectedMethod("mastercard")}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="mastercard"
-                      checked={selectedMethod === "mastercard"}
-                      onChange={() => setSelectedMethod("mastercard")}
-                      className="hidden"
-                    />
-                    <span className="text-[10px] font-bold">Mastercard</span>
-                  </label>
-                  <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "paypal" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                    onClick={() => setSelectedMethod("paypal")}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="paypal"
-                      checked={selectedMethod === "paypal"}
-                      onChange={() => setSelectedMethod("paypal")}
-                      className="hidden"
-                    />
-                    <span className="text-[10px] font-bold">PayPal</span>
-                  </label>
-                  <label
-                    className={`flex flex-col items-center gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted transition-colors ${selectedMethod === "collector" ? "border-yessal-violet bg-yessal-violet/10" : "border-border"}`}
-                    onClick={() => setSelectedMethod("collector")}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="collector"
-                      checked={selectedMethod === "collector"}
-                      onChange={() => setSelectedMethod("collector")}
-                      className="hidden"
-                    />
-                    <span className="text-[10px] font-bold">Collecteur</span>
-                  </label>
-                </div>
-              </div>
-
-              {errorMsg && (
-                <p className="text-xs text-red-500 font-medium">{errorMsg}</p>
-              )}
-
-              <div className="pt-2">
-                <Button
-                  type="submit"
+              <form onSubmit={handleAddTodo} className="ax-input-group">
+                <input
+                  className="ax-input"
+                  value={newTodoTitle}
+                  onChange={(e) => setNewTodoTitle(e.target.value)}
+                  placeholder="Nouvelle tâche à accomplir…"
                   disabled={isPending}
-                  className="w-full gap-2 py-6 text-lg"
-                  style={{ background: "var(--primary)", color: "white" }}
+                  aria-label="Nouvelle tâche"
+                />
+                <button
+                  type="submit"
+                  className="ax-btn ax-btn--primary"
+                  disabled={isPending || !newTodoTitle.trim()}
                 >
-                  <CreditCard size={18} />
-                  {isPending ? "Traitement..." : "Confirmer le paiement"}
-                </Button>
-                <p className="text-[10px] text-center mt-3 text-muted-foreground">
-                  Paiement sécurisé chiffré de bout en bout.
+                  <span className="ax-btn__label">Ajouter</span>
+                </button>
+              </form>
+
+              {!selectedCampaign.todos || selectedCampaign.todos.length === 0 ? (
+                <p className="ax-text-subtle text-sm italic">
+                  Aucune tâche enregistrée.
                 </p>
+              ) : (
+                <ul className="ax-list ax-list--compact ax-scroll-y max-h-72">
+                  {selectedCampaign.todos.map((todo) => (
+                    <li key={todo.id} className="ax-list__row">
+                      <button
+                        type="button"
+                        className="ax-list__leading ax-icon-btn"
+                        onClick={() => handleToggleTodo(todo.id, todo.is_completed)}
+                        disabled={isPending}
+                        aria-pressed={todo.is_completed}
+                        aria-label={
+                          todo.is_completed
+                            ? `Rouvrir « ${todo.title} »`
+                            : `Terminer « ${todo.title} »`
+                        }
+                      >
+                        {todo.is_completed ? (
+                          <CheckCircle2 size={18} className="ax-text-success" />
+                        ) : (
+                          <Circle size={18} />
+                        )}
+                      </button>
+                      <span
+                        className={`ax-list__content ${
+                          todo.is_completed ? "ax-text-subtle line-through" : ""
+                        }`}
+                      >
+                        {todo.title}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="flex flex-col gap-3">
+              <h3 className="ax-eyebrow">Salon d&apos;organisation</h3>
+              <p className="ax-text-muted text-sm">
+                Invitez les membres qui assisteront le responsable sur ce
+                Ndiguel.
+              </p>
+
+              <div className="ax-field">
+                <label className="ax-field__label" htmlFor="chatName">
+                  Nom du salon
+                </label>
+                <input
+                  id="chatName"
+                  className="ax-input"
+                  value={chatName}
+                  onChange={(e) => setChatName(e.target.value)}
+                  placeholder="Ex. Coordination Ramadan"
+                />
               </div>
-            </form>
+
+              <div className="ax-field">
+                <label className="ax-field__label" htmlFor="assistantSearch">
+                  Membres à inviter
+                  {selectedAssistantIds.length > 0 && (
+                    <span className="ax-badge ax-badge--count ax-badge--sm ms-2">
+                      {selectedAssistantIds.length}
+                    </span>
+                  )}
+                </label>
+                <input
+                  id="assistantSearch"
+                  className="ax-input"
+                  value={assistantSearch}
+                  onChange={(e) => setAssistantSearch(e.target.value)}
+                  placeholder="Nom, rôle ou Daara…"
+                />
+
+                <div className="ax-scroll-y max-h-60 rounded-(--ax-radius-sm) border border-(--ax-border)">
+                  {organizerUsersError ? (
+                    <p className="ax-field__message ax-field__message--error p-3">
+                      {organizerUsersError}
+                    </p>
+                  ) : filteredOrganizerUsers.length === 0 ? (
+                    <p className="ax-text-subtle p-3 text-sm">
+                      Aucun membre ne correspond à la recherche.
+                    </p>
+                  ) : (
+                    <ul className="ax-list ax-list--compact">
+                      {filteredOrganizerUsers.map((user) => (
+                        <li key={user.id} className="ax-list__row">
+                          <label className="ax-check w-full">
+                            <input
+                              type="checkbox"
+                              className="ax-checkbox"
+                              checked={selectedAssistantIds.includes(user.id)}
+                              onChange={() => toggleAssistant(user.id)}
+                            />
+                            <span className="ax-list__content">
+                              <span className="ax-list__title">
+                                {user.first_name} {user.last_name}
+                              </span>
+                              <span className="ax-list__meta">
+                                {user.role}
+                                {user.daara_name ? ` · ${user.daara_name}` : ""}
+                              </span>
+                            </span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="ax-btn ax-btn--primary ax-btn--block"
+                disabled={isPending || !chatName.trim()}
+                onClick={handleCreateCampaignChat}
+              >
+                <MessageSquare className="ax-btn__icon" size={16} aria-hidden="true" />
+                <span className="ax-btn__label">Créer le salon</span>
+              </button>
+            </section>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+
+      {/* ── Paiement d'un Jëf ── */}
+      <Modal
+        open={isDonationOpen && Boolean(selectedCampaign)}
+        onOpenChange={setIsDonationOpen}
+        title="Faire un Jëf"
+        description={selectedCampaign?.name}
+        size="sm"
+      >
+        {selectedCampaign && (
+          <form action={handleDonation} className="flex flex-col gap-5">
+            <input type="hidden" name="campaignId" value={selectedCampaign.id} />
+
+            <div className="ax-field">
+              <label className="ax-field__label" htmlFor="amount">
+                Montant du Jëf
+                <span className="ax-field__required" aria-hidden="true"> *</span>
+              </label>
+              <div className="ax-field__control">
+                <span className="ax-field__affix ax-field__affix--leading">
+                  <Wallet aria-hidden="true" />
+                </span>
+                <input
+                  id="amount"
+                  name="amount"
+                  type="number"
+                  min="5"
+                  inputMode="numeric"
+                  className="ax-input ax-input--with-leading-icon ax-input--lg font-mono tabular"
+                  placeholder="5000"
+                  required
+                />
+                <span className="ax-field__affix ax-field__affix--trailing">
+                  FCFA
+                </span>
+              </div>
+            </div>
+
+            {/*
+              Sélecteur partagé avec « Nouveau Jëf ». Le virement bancaire
+              rejoint au passage cette modale : il y manquait sans raison
+              métier, les deux listes ayant divergé au fil des copies.
+            */}
+            <PaymentMethodPicker
+              value={selectedMethod}
+              onChange={setSelectedMethod}
+            />
+
+            {errorMsg && (
+              <p className="ax-field__message ax-field__message--error">
+                {errorMsg}
+              </p>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <button
+                type="submit"
+                className="ax-btn ax-btn--primary ax-btn--lg ax-btn--block"
+                disabled={isPending}
+              >
+                <CreditCard className="ax-btn__icon" size={18} aria-hidden="true" />
+                <span className="ax-btn__label">
+                  {isPending ? "Traitement…" : "Confirmer le paiement"}
+                </span>
+              </button>
+              <p className="ax-text-subtle text-center text-xs">
+                Paiement sécurisé, chiffré de bout en bout.
+              </p>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

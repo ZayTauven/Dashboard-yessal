@@ -1,33 +1,38 @@
-import { getCampaigns } from "@/app/actions/campaigns";
-import { CollectClient } from "./CollectClient";
-import { getProfile } from "@/app/actions/users";
 import { redirect } from "next/navigation";
+import { getCampaigns } from "@/app/actions/campaigns";
+import { getProfile } from "@/app/actions/users";
+import { PageHead } from "@/components/vireo/PageHead";
+import type { Role } from "@/lib/nav";
+import { CollectClient, type CollectCampaign } from "./CollectClient";
 
 const ALLOWED_COLLECT_ROLES = ["collector", "admin", "chef_daara"];
 
 export default async function CollectPage() {
-  const { data: campaigns } = await getCampaigns();
-  const { data: profile } = await getProfile();
+  const [{ data: campaigns }, { data: profile }] = await Promise.all([
+    getCampaigns(),
+    getProfile(),
+  ]);
 
-  // Vérification stricte du rôle depuis le profil Django
-  const isAllowed = profile?.role && ALLOWED_COLLECT_ROLES.includes(profile.role);
-
-  if (!isAllowed) {
+  // Vérification stricte du rôle depuis le profil Django.
+  const role = (profile?.role ?? "member") as Role;
+  if (!ALLOWED_COLLECT_ROLES.includes(role)) {
     redirect("/dashboard");
   }
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight" style={{ color: "var(--foreground)" }}>
-          Collecte de fonds physique
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-          Interface réservée aux agents collecteurs ({ALLOWED_COLLECT_ROLES.join(", ")}) pour l'enregistrement manuel des dons.
-        </p>
-      </div>
+    <div className="flex flex-col gap-6">
+      {/*
+        L'ancien sous-titre listait les rôles autorisés en clair
+        (« collector, admin, chef_daara ») : un détail d'implémentation affiché
+        à quelqu'un qui, par construction, fait déjà partie de la liste.
+      */}
+      <PageHead
+        role={role}
+        title="Collecte physique"
+        subtitle="Enregistrez un versement en espèces reçu de la main à la main."
+      />
 
-      <CollectClient campaigns={campaigns || []} />
+      <CollectClient campaigns={(campaigns || []) as CollectCampaign[]} />
     </div>
   );
 }

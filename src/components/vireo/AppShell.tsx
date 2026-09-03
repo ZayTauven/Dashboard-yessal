@@ -137,6 +137,7 @@ export function AppShell({
       <div className="ax-layout">
         <ShellSidebar
           role={role}
+          user={user}
           counts={counts}
           onNavigate={() => setDrawerOpen(false)}
         />

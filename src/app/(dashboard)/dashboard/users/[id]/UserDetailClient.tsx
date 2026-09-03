@@ -1,91 +1,200 @@
-﻿"use client";
+"use client";
 
-import { useState, useTransition } from "react";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Fiche membre (vue administrateur)
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Repris du patron `ecommerce/CustomerDetails` de Vireo : en-tête d'identité,
+ * bandeau de KPI, rail de gauche factuel, et le gros du contenu en onglets.
+ *
+ * <MemberProfileCard> reste l'en-tête — il était déjà porté sur Aurora. Tout
+ * ce qui l'entourait ne l'était pas.
+ *
+ * Ce que la reprise corrige, au-delà du style :
+ *
+ *   · Le bouton « Modifier » n'avait ni `onClick` ni `href` : il ne menait
+ *     nulle part. Aucune route d'édition par utilisateur n'existe — l'édition
+ *     se fait depuis « Utilisateurs et rôles ». Le bouton pointe désormais là,
+ *     au lieu de simuler une action.
+ *
+ *   · « Voir tout (N) » sous les Ndiguels était mort lui aussi. La liste
+ *     n'est plus tronquée : la carte défile, ce qui rend le bouton inutile.
+ *
+ *   · « Appeler » et « Voir » n'apparaissaient qu'au survol
+ *     (`opacity-0 group-hover:opacity-100`). Sur un écran tactile il n'y a pas
+ *     de survol : ces actions étaient inatteignables sur mobile.
+ *
+ *   · `new Date(doc.validated_at)` était formaté sans vérifier le champ : un
+ *     document validé sans date affichait « Validé le Invalid Date ».
+ *
+ *   · Les `any` de l'interface sont remplacés par des formes explicites.
+ */
+
+import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import {
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Building2,
-  Wallet,
-  HandCoins,
-  Edit,
-  ShieldAlert,
-  ShieldCheck,
-  MoreVertical,
-  FileText,
-  CheckCircle2,
-  Clock,
-  Calendar,
-  CreditCard,
-  Users,
-  ExternalLink,
   BookOpen,
+  Building2,
+  Calendar,
+  Copy,
+  CreditCard,
+  ExternalLink,
+  FileText,
+  HandCoins,
+  KeyRound,
   Layers,
-  Hash,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  ShieldAlert,
+  Trash2,
+  User,
+  Users,
+  Wallet,
 } from "lucide-react";
-import AppAreaChart from "@/components/AppAreaChart";
-import { MemberProfileCard } from "@/components/vireo/MemberProfileCard";
-import { DonationListClient } from "../../donations/DonationListClient";
-import { updateUserStatus, deleteUserAction } from "@/app/actions/users";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { formatFCFA } from "@/lib/format";
+import { Avatar } from "@/components/vireo/Avatar";
+import { Amount, KpiValue } from "@/components/vireo/Amount";
+import { MemberProfileCard } from "@/components/vireo/MemberProfileCard";
+import { cn } from "@/lib/utils";
+import { Menu } from "@/components/vireo/Menu";
+import { Modal } from "@/components/vireo/Modal";
+import { PageHead } from "@/components/vireo/PageHead";
+import {
+  PaymentMethodBadge,
+  StatusBadge,
+  statusLabel,
+} from "@/components/vireo/StatusBadge";
+import {
+  deleteUserAction,
+  resetMemberPasswordAction,
+  updateUserStatus,
+} from "@/app/actions/users";
+import type { DocumentStatus } from "@/types/member";
+import { DonationListClient } from "../../donations/DonationListClient";
 
-interface UserDetailClientProps {
-  user: any;
-  stats: any;
-  donations: any[];
-  documents: any[];
-  tutelle: any[];
+interface DetailUser {
+  id: number;
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  ldd_name?: string | null;
+  daara_name?: string | null;
+  title_name?: string | null;
+  member_number?: string | null;
+  date_joined?: string | null;
+  is_active?: boolean;
+  status?: string | null;
 }
 
+interface Kpi {
+  title: string;
+  value: string | number;
+  /** Montant brut, en FCFA. Prioritaire sur `value` quand il est présent. */
+  amount?: number;
+  /** Valeur textuelle (une date) : ni chasse fixe, ni corps de KPI. */
+  text?: boolean;
+  icon?: string;
+}
+
+interface CampaignDonation {
+  id: number;
+  name: string;
+  total: number | string;
+  count?: number | null;
+  last_donation?: string | null;
+  description?: string | null;
+}
+
+interface UserStats {
+  kpis?: Kpi[];
+  campaign_donations?: CampaignDonation[];
+  chartData?: Record<string, unknown>[];
+}
+
+interface UserDoc {
+  id: number;
+  type_display?: string | null;
+  /* Meme union que `MemberDocument`, a qui cette liste est transmise. */
+  status?: DocumentStatus | null;
+  validated_at?: string | null;
+  doc_number?: string | null;
+  image?: string | null;
+  image_verso?: string | null;
+}
+
+interface TutelleEntry {
+  id: number;
+  first_name?: string | null;
+  last_name?: string | null;
+  relation?: string | null;
+  phone?: string | null;
+  avatar_url?: string | null;
+}
+
+interface UserDetailClientProps {
+  user: DetailUser;
+  stats: UserStats | null;
+  /* `campaign` et `created_at` sont nommés explicitement — les KPI du membre
+     s'appuient dessus, et l'index signature les aurait laissés en `unknown`.
+     DRF sérialise `campaign` tantôt en objet imbriqué, tantôt en identifiant
+     brut selon la profondeur demandée : les deux formes sont acceptées. */
+  donations: Array<{
+    amount?: string | number;
+    created_at?: string | null;
+    campaign?: { id?: number | string } | number | string | null;
+    [k: string]: unknown;
+  }>;
+  documents: UserDoc[];
+  tutelle: TutelleEntry[];
+}
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Wallet,
+  HandCoins,
+  Landmark: Building2,
+  Users,
+  Calendar,
+};
+
+const dateFmt = new Intl.DateTimeFormat("fr-SN", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+function formatDate(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? null : dateFmt.format(d);
+}
+
+type Tab = "stats" | "history" | "docs";
+
+/** Ligne d'information du rail de gauche. */
 function InfoRow({
   icon: Icon,
   label,
   value,
 }: {
-  icon: any;
+  icon: LucideIcon;
   label: string;
   value?: string | null;
 }) {
   return (
-    <div className="flex items-center gap-4 group/item">
-      <div className="p-3 rounded-2xl bg-muted group-hover/item:bg-yessal-violet/10 group-hover/item:text-yessal-violet transition-colors shrink-0">
-        <Icon size={16} />
-      </div>
-      <div className="flex flex-col overflow-hidden min-w-0">
-        <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-          {label}
-        </span>
-        <span className="font-bold text-sm truncate">{value || "—"}</span>
-      </div>
-    </div>
+    <li className="ax-list__row">
+      <Icon className="ax-list__leading" size={16} aria-hidden="true" />
+      <span className="ax-list__content">
+        <span className="ax-list__title">{value || "—"}</span>
+        <span className="ax-list__meta">{label}</span>
+      </span>
+    </li>
   );
 }
 
@@ -98,115 +207,244 @@ export default function UserDetailClient({
 }: UserDetailClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [selectedCampaign, setSelectedCampaign] = useState<any>(null);
-  const [selectedDoc, setSelectedDoc] = useState<any>(null);
+  const [tab, setTab] = useState<Tab>("stats");
+  const [selectedCampaign, setSelectedCampaign] =
+    useState<CampaignDonation | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<UserDoc | null>(null);
+  /* Le mot de passe qui vient d'être attribué, le temps de le transmettre. */
+  const [issuedPassword, setIssuedPassword] = useState<string | null>(null);
 
-  const kpis = stats?.kpis || [];
+  const campaignDonations = stats?.campaign_donations ?? [];
+
+  const fullName = `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim();
 
   /* DRF sérialise les Decimal en chaîne : on repasse par Number avant de
      sommer, sinon « 5000 » + « 3000 » donne « 50003000 ». */
   const totalDonated = donations.reduce(
-    (sum: number, d: { amount?: string | number }) => sum + Number(d?.amount ?? 0),
+    (sum, d) => sum + Number(d?.amount ?? 0),
     0,
   );
 
+  /*
+   * ── Les quatre chiffres de CE membre ──
+   *
+   * `stats.kpis` vient de `getUserDashboardStats`, qui renvoie les compteurs du
+   * DAARA : « Total Daara », « Talibés », « Jëfs Actifs »… Affichés en tête
+   * d'une fiche individuelle, ils se lisaient comme les chiffres de la personne
+   * — un membre paraissait avoir collecté les 20 000 FCFA de son Daara entier.
+   *
+   * Ils sont donc calculés ici, sur `donations`, qui ne contient plus que les
+   * Jëfs de ce membre depuis que `DonationViewSet` honore `?user_id=`.
+   */
+  const memberKpis = useMemo((): Kpi[] => {
+    const campaigns = new Set(
+      donations
+        .map((d) => {
+          const c = d?.campaign;
+          if (c === null || c === undefined) return undefined;
+          return typeof c === "object" ? c.id : c;
+        })
+        .filter((c): c is number | string => c !== undefined),
+    );
+
+    const lastAt = donations.reduce<number | null>((latest, d) => {
+      const t = d?.created_at ? new Date(d.created_at).getTime() : NaN;
+      if (Number.isNaN(t)) return latest;
+      return latest === null || t > latest ? t : latest;
+    }, null);
+
+    return [
+      /* `amount` porte le nombre BRUT : c'est <Amount> qui décide de l'écrire
+         en entier ou en abrégé, et à quelle taille. Passer une chaîne déjà
+         formatée lui retirerait cette décision. */
+      { title: "Total donné", value: "", amount: totalDonated, icon: "Wallet" },
+      { title: "Jëfs", value: donations.length, icon: "HandCoins" },
+      { title: "Ndiguels soutenus", value: campaigns.size, icon: "Landmark" },
+      {
+        title: "Dernier versement",
+        value: lastAt === null ? "—" : dateFmt.format(new Date(lastAt)),
+        /* Une date n'est pas un chiffre : ni chasse fixe, ni corps de KPI.
+           « 31 août 2026 » en mono à 26 px détonnait à côté d'un « 3 ». */
+        text: true,
+        icon: "Calendar",
+      },
+    ];
+  }, [donations, totalDonated]);
+
+  /*
+   * Assistance : le membre a perdu son mot de passe et ne peut pas passer par
+   * « mot de passe oublié », faute d'adresse e-mail valide. On lui en attribue
+   * un nouveau, affiché une seule fois pour qu'il soit dicté au téléphone.
+   *
+   * La confirmation est demandée avant, pas après : l'ancien mot de passe
+   * cesse immédiatement de fonctionner, et quelqu'un qui utilisait encore son
+   * compte se retrouverait dehors sans comprendre pourquoi.
+   */
+  /*
+   * ── Ce que l'onglet « Statistiques » montre désormais ──
+   *
+   * Il n'affichait qu'un graphique alimenté par `getUserDashboardStats`, la
+   * même source que les compteurs du DAARA écartés plus haut : sur une fiche
+   * individuelle, il restait désespérément vide.
+   *
+   * Tout ce qu'il faut est pourtant déjà là, dans `donations` — montant, date,
+   * moyen de paiement, Ndiguel — depuis que l'API honore `?user_id=`. Trois
+   * lectures d'un même jeu de dons : quand, comment, et pour quoi.
+   */
+  const memberStats = useMemo(() => {
+    const monthFmt = new Intl.DateTimeFormat("fr-SN", { month: "short" });
+
+    /* Douze mois glissants : un membre inscrit en mars ne doit pas voir onze
+       colonnes vides parce que l'année civile commence en janvier. */
+    const months: { label: string; total: number }[] = [];
+    const keys: string[] = [];
+    const now = new Date();
+
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      keys.push(`${d.getFullYear()}-${d.getMonth()}`);
+      months.push({ label: monthFmt.format(d), total: 0 });
+    }
+
+    const byMethod = new Map<string, { amount: number; count: number }>();
+    const byCampaign = new Map<string, { name: string; amount: number; count: number }>();
+
+    for (const d of donations) {
+      const amount = Number(d?.amount ?? 0);
+
+      const at = d?.created_at ? new Date(d.created_at) : null;
+      if (at && !Number.isNaN(at.getTime())) {
+        const idx = keys.indexOf(`${at.getFullYear()}-${at.getMonth()}`);
+        if (idx >= 0) months[idx].total += amount;
+      }
+
+      const method = String(d?.payment_method ?? "") || "inconnu";
+      const m = byMethod.get(method) ?? { amount: 0, count: 0 };
+      byMethod.set(method, { amount: m.amount + amount, count: m.count + 1 });
+
+      const cname =
+        typeof d?.campaign_name === "string" && d.campaign_name
+          ? d.campaign_name
+          : "Sans Ndiguel";
+      const c = byCampaign.get(cname) ?? { name: cname, amount: 0, count: 0 };
+      byCampaign.set(cname, { name: cname, amount: c.amount + amount, count: c.count + 1 });
+    }
+
+    return {
+      months,
+      monthMax: Math.max(1, ...months.map((m) => m.total)),
+      methods: [...byMethod.entries()]
+        .map(([method, v]) => ({ method, ...v }))
+        .sort((a, b) => b.amount - a.amount),
+      campaigns: [...byCampaign.values()].sort((a, b) => b.amount - a.amount),
+    };
+  }, [donations]);
+
+  const handleResetPassword = () => {
+    toast(`Réinitialiser le mot de passe de ${fullName} ?`, {
+      description:
+        "Son mot de passe actuel cessera aussitôt de fonctionner. Le nouveau ne s'affichera qu'une fois.",
+      action: {
+        label: "Réinitialiser",
+        onClick: () =>
+          startTransition(async () => {
+            const res = await resetMemberPasswordAction(user.id);
+            if (res.error) {
+              toast.error(res.error);
+              return;
+            }
+            setIssuedPassword(res.password ?? "");
+          }),
+      },
+    });
+  };
+
   const handleBlock = () => {
-    toast(`Bloquer l'accès de ${user?.first_name} ${user?.last_name} ?`, {
+    toast(`Bloquer l'accès de ${fullName} ?`, {
       action: {
         label: "Confirmer",
-        onClick: () => startTransition(async () => {
-          const res = await updateUserStatus(user.id, "block");
-          if (res.error) { toast.error(res.error); return; }
-          toast.success("Accès bloqué.");
-          router.refresh();
-        }),
+        onClick: () =>
+          startTransition(async () => {
+            const res = await updateUserStatus(user.id, "block");
+            if (res.error) {
+              toast.error(res.error);
+              return;
+            }
+            toast.success("Accès bloqué.");
+            router.refresh();
+          }),
       },
       cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
   const handleDelete = () => {
-    toast(`Supprimer définitivement le compte de ${user?.first_name} ${user?.last_name} ?`, {
+    toast(`Supprimer définitivement le compte de ${fullName} ?`, {
       description: "Cette action est irréversible.",
       action: {
         label: "Supprimer",
-        onClick: () => startTransition(async () => {
-          const res = await deleteUserAction(user.id);
-          if (res.error) { toast.error(res.error); return; }
-          toast.success("Compte supprimé.");
-          router.push("/dashboard/members");
-        }),
+        onClick: () =>
+          startTransition(async () => {
+            const res = await deleteUserAction(user.id);
+            if (res.error) {
+              toast.error(res.error);
+              return;
+            }
+            toast.success("Compte supprimé.");
+            router.push("/dashboard/members");
+          }),
       },
       cancel: { label: "Annuler", onClick: () => {} },
     });
   };
-  const campaignDonations = stats?.campaign_donations || [];
-  const chartData = stats?.chartData || [];
-
-  const IconMap: Record<string, any> = {
-    Wallet,
-    HandCoins,
-    Landmark: Building2,
-    Users,
-  };
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* TOP BAR */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard/members">Membres</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>
-                {user?.first_name} {user?.last_name}
-              </BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+    <div className="flex flex-col gap-6">
+      <PageHead
+        role="admin"
+        title={fullName || `Membre #${user.id}`}
+        crumbs={[
+          { label: "Communauté" },
+          { label: "Membres", href: "/dashboard/members" },
+        ]}
+        actions={
+          <>
+            <Link
+              href="/dashboard/admin/users"
+              className="ax-btn ax-btn--outline"
+            >
+              <Pencil className="ax-btn__icon" size={15} aria-hidden="true" />
+              <span className="ax-btn__label">Modifier</span>
+            </Link>
+            <Menu
+              label={`Actions pour ${fullName}`}
+              items={[
+                {
+                  label: "Réinitialiser le mot de passe",
+                  icon: KeyRound,
+                  disabled: isPending,
+                  onSelect: handleResetPassword,
+                },
+                {
+                  label: "Bloquer l'accès",
+                  icon: ShieldAlert,
+                  disabled: isPending,
+                  onSelect: handleBlock,
+                },
+                {
+                  label: "Supprimer le compte",
+                  icon: Trash2,
+                  danger: true,
+                  separatorBefore: true,
+                  disabled: isPending,
+                  onSelect: handleDelete,
+                },
+              ]}
+            />
+          </>
+        }
+      />
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="gap-2 font-bold h-9 border-yessal-violet text-yessal-violet hover:bg-yessal-violet/5"
-          >
-            <Edit size={14} /> Modifier
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full hover:bg-muted"
-              >
-                <MoreVertical size={18} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 rounded-xl p-2">
-              <DropdownMenuItem disabled={isPending} className="rounded-lg gap-2 cursor-pointer text-orange-600 focus:text-orange-600 focus:bg-orange-50" onClick={handleBlock}>
-                <ShieldAlert size={16} /> Bloquer l&apos;accès
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={isPending} className="rounded-lg gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50" onClick={handleDelete}>
-                <ShieldAlert size={16} /> Supprimer le compte
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/*
-        Fiche membre — remplace l'ancien en-tête (bannière violette figée +
-        état civil en vrac) par le composant partagé : bannière construite sur
-        l'accent actif, bandeau de KPI, jauge de complétude qui dit précisément
-        ce qui manque au dossier, proches sous tutelle et pièces déposées.
-      */}
       <MemberProfileCard
         member={user}
         totalDonated={totalDonated}
@@ -215,194 +453,169 @@ export default function UserDetailClient({
         tutelle={tutelle}
       />
 
-      {/* ─── MAIN GRID ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* ── LEFT COLUMN ── */}
-        <div className="space-y-6">
-          {/* Contact & Identité */}
-          <Card
-            className="rounded-3xl border shadow-sm hover:shadow-md transition-shadow"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <CardHeader>
-              <CardTitle className="text-base font-black flex items-center gap-2">
-                <User size={16} className="text-yessal-violet" /> Contact &
-                Identité
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <InfoRow icon={Mail} label="Adresse Email" value={user?.email} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* ══ Rail de gauche ══ */}
+        <div className="flex flex-col gap-4">
+          <section className="ax-card">
+            <div className="ax-card__header">
+              <span className="ax-card__kpi-icon ax-card__kpi-icon--c1" aria-hidden="true">
+                <User />
+              </span>
+              <div className="ax-card__titles">
+                <h3 className="ax-card__title">Contact et identité</h3>
+              </div>
+            </div>
+            <ul className="ax-list ax-list--compact">
+              <InfoRow icon={Mail} label="Adresse e-mail" value={user?.email} />
               <InfoRow icon={Phone} label="Téléphone" value={user?.phone} />
               <InfoRow icon={MapPin} label="Localité (LDD)" value={user?.ldd_name} />
               <InfoRow icon={Building2} label="Daara" value={user?.daara_name} />
-              <InfoRow icon={BookOpen} label="Titre honorifique" value={user?.title_name} />
+              <InfoRow
+                icon={BookOpen}
+                label="Titre honorifique"
+                value={user?.title_name}
+              />
               <InfoRow
                 icon={CreditCard}
                 label="Numéro de membre"
-                value={user?.member_number || user?.id?.toString()}
+                value={user?.member_number || String(user?.id ?? "")}
               />
               <InfoRow
                 icon={Calendar}
                 label="Date d'inscription"
-                value={
-                  user?.date_joined
-                    ? new Date(user.date_joined).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })
-                    : undefined
-                }
+                value={formatDate(user?.date_joined)}
               />
+              {/*
+                Le statut MÉTIER, pas le drapeau Django.
+                `is_active` n'est même pas sérialisé par `UserSerializer` :
+                l'expression valait donc toujours `undefined`, et la ligne
+                affichait « Inactif » sur TOUS les comptes — juste sous un badge
+                d'en-tête qui lit `status` et annonce « Actif ». Deux réponses
+                contradictoires sur le même écran, dont une systématiquement
+                fausse.
+                `statusLabel` est la même fonction qui nomme le badge : les deux
+                ne peuvent plus diverger.
+              */}
               <InfoRow
                 icon={Layers}
                 label="Statut du compte"
-                value={user?.is_active ? "Actif" : "Inactif"}
+                value={statusLabel("user", user?.status)}
               />
-            </CardContent>
-          </Card>
+            </ul>
+          </section>
 
           {/* Tutelle */}
-          <Card
-            className="rounded-3xl border shadow-sm overflow-hidden"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <CardHeader className="bg-muted/30">
-              <CardTitle className="text-base font-black flex items-center gap-2">
-                <Users size={16} className="text-yessal-violet" /> Tutelle
-                <Badge variant="outline" className="ml-auto text-xs">
-                  {tutelle.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {tutelle.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground italic bg-muted/10">
-                  Aucun tuteur renseigné.
+          <section className="ax-card">
+            <div className="ax-card__header">
+              <span className="ax-card__kpi-icon ax-card__kpi-icon--c3" aria-hidden="true">
+                <Users />
+              </span>
+              <div className="ax-card__titles">
+                <h3 className="ax-card__title">Tutelle</h3>
+              </div>
+              <span className="ax-badge ax-badge--neutral ax-badge--sm">
+                {tutelle.length}
+              </span>
+            </div>
+
+            {tutelle.length === 0 ? (
+              <div className="ax-card__body">
+                <p className="ax-text-subtle text-center text-sm italic">
+                  Aucun proche sous tutelle.
                 </p>
-              ) : (
-                <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
-                  {tutelle.map((t: any) => (
-                    <li
-                      key={t.id}
-                      className="p-4 flex items-center gap-4 hover:bg-muted/20 transition-colors group"
-                    >
-                      <Avatar className="size-9 shrink-0">
-                        <AvatarImage src={t.avatar_url} />
-                        <AvatarFallback className="text-xs font-black bg-yessal-violet/10 text-yessal-violet uppercase">
-                          {t.first_name?.[0]}
-                          {t.last_name?.[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-sm truncate">
-                          {t.first_name} {t.last_name}
+              </div>
+            ) : (
+              <ul className="ax-list ax-list--compact">
+                {tutelle.map((t) => {
+                  const name = `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim();
+                  return (
+                    <li key={t.id} className="ax-list__row">
+                      <Avatar
+                        className="ax-list__leading"
+                        src={t.avatar_url}
+                        name={name}
+                        size="sm"
+                      />
+                      <span className="ax-list__content">
+                        <span className="ax-list__title">{name}</span>
+                        <span className="ax-list__meta">
+                          {t.relation || "Proche"}
                         </span>
-                        <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
-                          {t.relation || "Tuteur"}
-                        </span>
-                      </div>
+                      </span>
                       {t.phone && (
                         <a
                           href={`tel:${t.phone}`}
-                          className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                          className="ax-btn ax-btn--ghost ax-btn--sm ax-list__trailing"
                         >
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 gap-1 text-xs font-bold"
-                          >
-                            <Phone size={12} /> Appeler
-                          </Button>
+                          <Phone className="ax-btn__icon" size={13} aria-hidden="true" />
+                          <span className="ax-btn__label">Appeler</span>
                         </a>
                       )}
                     </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
 
-          {/* Ndiguels Participés */}
-          <Card
-            className="rounded-3xl border shadow-sm overflow-hidden"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <CardHeader className="bg-yessal-violet text-white">
-              <CardTitle className="text-base font-black flex items-center gap-2">
-                <Wallet size={16} /> Ndiguels Participés
-                <Badge className="ml-auto bg-white/20 border-white/30 text-white text-xs">
-                  {campaignDonations.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {campaignDonations.length === 0 ? (
-                <p className="p-10 text-center text-sm text-muted-foreground italic bg-muted/10">
+          {/* Ndiguels auxquels le membre a contribué */}
+          <section className="ax-card">
+            <div className="ax-card__header">
+              <span className="ax-card__kpi-icon ax-card__kpi-icon--c2" aria-hidden="true">
+                <Wallet />
+              </span>
+              <div className="ax-card__titles">
+                <h3 className="ax-card__title">Ndiguels soutenus</h3>
+              </div>
+              <span className="ax-badge ax-badge--neutral ax-badge--sm">
+                {campaignDonations.length}
+              </span>
+            </div>
+
+            {campaignDonations.length === 0 ? (
+              <div className="ax-card__body">
+                <p className="ax-text-subtle text-center text-sm italic">
                   Aucune participation enregistrée.
                 </p>
-              ) : (
-                <ul
-                  className="divide-y"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  {campaignDonations.map((cd: any) => (
-                    <li
-                      key={cd.id}
-                      className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group cursor-pointer"
+              </div>
+            ) : (
+              <ul className="ax-list ax-list--compact ax-list--selectable ax-scroll-y max-h-96">
+                {campaignDonations.map((cd) => (
+                  <li key={cd.id}>
+                    <button
+                      type="button"
+                      className="ax-list__row w-full text-start"
                       onClick={() => setSelectedCampaign(cd)}
                     >
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-sm truncate max-w-[160px] group-hover:text-yessal-violet transition-colors">
-                          {cd.name}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">
-                          Contributeur
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-end shrink-0 gap-1">
-                        <span className="text-yessal-green font-black text-sm">{Number(cd.total).toLocaleString()} F
-                        </span>
-                        <button
-                          className="text-[9px] font-black uppercase text-muted-foreground border border-dashed rounded px-1.5 py-0.5 hover:border-yessal-violet hover:text-yessal-violet transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCampaign(cd);
-                          }}
-                        >
-                          Détail
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {campaignDonations.length > 5 && (
-                <Button
-                  variant="ghost"
-                  className="w-full rounded-none h-11 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-yessal-violet"
-                >
-                  Voir tout ({campaignDonations.length})
-                </Button>
-              )}
-            </CardContent>
-          </Card>
+                      <span className="ax-list__content">
+                        <span className="ax-list__title">{cd.name}</span>
+                        {cd.count != null && (
+                          <span className="ax-list__meta">
+                            {cd.count} Jëf{cd.count > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </span>
+                      <span className="ax-list__trailing text-montant font-mono tabular text-sm font-semibold">
+                        {formatFCFA(Number(cd.total ?? 0))}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
 
-        {/* ── RIGHT COLUMN ── */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* KPI GRID */}
-          {kpis.length > 0 && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {kpis.map((kpi: any, idx: number) => {
-                const Icon = IconMap[kpi.icon] || User;
+        {/* ══ Colonne principale ══ */}
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          {memberKpis.length > 0 && (
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {memberKpis.map((kpi, idx) => {
+                const Icon = ICON_MAP[kpi.icon ?? ""] ?? User;
                 return (
                   /*
-                    Les KPI arrivent du backend déjà formatés (`kpi.value` est
-                    une chaîne), donc on garde le rendu direct et on adopte
-                    seulement le contrat visuel `.ax-kpi` de Vireo. Les tuiles
-                    d'icône alternent sur c1..c4 pour que quatre cartes
-                    voisines ne soient pas quatre fois la même.
+                    Les tuiles d'icône alternent sur c1..c4 pour que quatre
+                    cartes voisines ne soient pas quatre fois la même.
                   */
                   <article key={idx} className="ax-card ax-card--stat">
                     <div className="ax-card__body">
@@ -417,8 +630,21 @@ export default function UserDetailClient({
                         </div>
                         <div>
                           <p className="ax-kpi__label">{kpi.title}</p>
-                          <p className="ax-kpi__value font-mono tabular">
-                            {kpi.value}
+                          <p
+                            className={cn(
+                              "ax-kpi__value",
+                              !kpi.text && "font-mono tabular",
+                              kpi.text && "text-lg font-medium",
+                              kpi.amount !== undefined && "text-montant",
+                            )}
+                          >
+                            {kpi.amount !== undefined ? (
+                              <Amount value={kpi.amount} responsive />
+                            ) : kpi.text ? (
+                              kpi.value
+                            ) : (
+                              <KpiValue value={kpi.value} />
+                            )}
                           </p>
                         </div>
                       </div>
@@ -429,267 +655,371 @@ export default function UserDetailClient({
             </div>
           )}
 
-          {/* TABS: Stats / Historique / Documents */}
-          <Card
-            className="rounded-3xl border shadow-sm bg-white dark:bg-card overflow-hidden"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <CardContent className="p-0">
-              <Tabs defaultValue="activity" className="w-full">
-                <div
-                  className="px-6 pt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  <h3 className="text-base font-black tracking-tight">
-                    Activité & Documents
-                  </h3>
-                  <TabsList className="flex w-fit bg-transparent p-0 h-12 gap-8">
-                    <TabsTrigger
-                      value="activity"
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-yessal-violet data-[state=active]:bg-transparent px-0 font-bold h-full"
-                    >
-                      Statistiques
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="history"
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-yessal-violet data-[state=active]:bg-transparent px-0 font-bold h-full"
-                    >
-                      Historique
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="docs"
-                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-yessal-violet data-[state=active]:bg-transparent px-0 font-bold h-full relative"
-                    >
-                      Documents
-                      {documents.length > 0 && (
-                        <span className="absolute -top-1 -right-3 size-4 bg-orange-500 text-white text-[8px] rounded-full flex items-center justify-center border border-white">
-                          {documents.length}
-                        </span>
-                      )}
-                    </TabsTrigger>
-                  </TabsList>
+          <section className="ax-card">
+            <div className="ax-card__header">
+              <div className="ax-card__titles">
+                <h3 className="ax-card__title">Activité et documents</h3>
+              </div>
+            </div>
+
+            <div className="ax-card__body flex flex-col gap-4">
+              <div className="ax-tabs">
+                <div className="ax-tabs__list" role="tablist">
+                  <button
+                    type="button"
+                    role="tab"
+                    className="ax-tabs__tab"
+                    aria-selected={tab === "stats"}
+                    onClick={() => setTab("stats")}
+                  >
+                    Statistiques
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className="ax-tabs__tab"
+                    aria-selected={tab === "history"}
+                    onClick={() => setTab("history")}
+                  >
+                    Historique
+                    <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+                      {donations.length}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className="ax-tabs__tab"
+                    aria-selected={tab === "docs"}
+                    onClick={() => setTab("docs")}
+                  >
+                    Documents
+                    {documents.length > 0 && (
+                      <span className="ax-tabs__badge ax-badge ax-badge--warning ax-badge--sm">
+                        {documents.length}
+                      </span>
+                    )}
+                  </button>
                 </div>
+              </div>
 
-                <div className="p-6">
-                  <TabsContent
-                    value="activity"
-                    className="space-y-4 mt-0 data-[state=active]:animate-in data-[state=active]:fade-in duration-300"
-                  >
-                    <div
-                      className="h-[340px] w-full bg-muted/5 rounded-2xl p-4 border border-dashed"
-                      style={{ borderColor: "var(--border)" }}
-                    >
-                      <AppAreaChart
-                        data={chartData}
-                        title="Évolution financière"
-                        subtitle="Cumul des dons sur l'année en cours"
-                      />
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent
-                    value="history"
-                    className="mt-0 data-[state=active]:animate-in data-[state=active]:fade-in duration-300"
-                  >
-                    <div className="-mx-6">
-                      <DonationListClient
-                        initialDonations={donations}
-                        variant="directory"
-                      />
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent
-                    value="docs"
-                    className="mt-0 data-[state=active]:animate-in data-[state=active]:fade-in duration-300"
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {documents.length === 0 ? (
-                        <div className="col-span-full p-12 text-center bg-muted/20 rounded-2xl border border-dashed flex flex-col items-center gap-3">
-                          <FileText
-                            size={40}
-                            className="text-muted-foreground/20"
-                          />
-                          <p className="text-muted-foreground italic text-sm">
-                            Aucun document d&apos;identité téléchargé.
-                          </p>
-                        </div>
-                      ) : (
-                        documents.map((doc: any) => (
-                          <div
-                            key={doc.id}
-                            className="p-4 rounded-2xl border bg-muted/5 flex items-center justify-between group hover:border-yessal-violet/30 transition-colors"
-                            style={{ borderColor: "var(--border)" }}
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="p-3 rounded-xl bg-white shadow-sm text-yessal-violet border">
-                                <FileText size={22} />
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="font-bold text-sm uppercase">
-                                  {doc.type_display || "Pièce d'identité"}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                                  {doc.status === "validated" ? (
-                                    <>
-                                      <CheckCircle2
-                                        size={10}
-                                        className="text-green-500"
-                                      />
-                                      Validé le{" "}
-                                      {new Date(
-                                        doc.validated_at,
-                                      ).toLocaleDateString("fr-FR")}
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Clock
-                                        size={10}
-                                        className="text-orange-500"
-                                      />
-                                      En attente de validation
-                                    </>
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity font-bold"
-                              onClick={() => setSelectedDoc(doc)}
+              {tab === "stats" && (
+                <div className="flex flex-col gap-6" role="tabpanel">
+                  {donations.length === 0 ? (
+                    <EmptyState
+                      icon={HandCoins}
+                      title="Aucun Jëf pour le moment"
+                      description="Les versements de ce membre apparaîtront ici."
+                    />
+                  ) : (
+                    <>
+                      {/* ── Douze mois glissants ── */}
+                      <section>
+                        <p className="ax-eyebrow mb-3">Versements par mois</p>
+                        <div className="flex h-40 items-end gap-1.5">
+                          {memberStats.months.map((m, i) => (
+                            <div
+                              key={i}
+                              className="flex flex-1 flex-col items-center gap-1.5"
+                              title={`${m.label} : ${formatFCFA(m.total)}`}
                             >
-                              Voir
-                            </Button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </TabsContent>
+                              <div className="flex w-full flex-1 items-end">
+                                <div
+                                  className="w-full rounded-t-(--ax-radius-sm) bg-(--ax-accent)"
+                                  style={{
+                                    height: `${(m.total / memberStats.monthMax) * 100}%`,
+                                    minHeight: m.total > 0 ? 2 : 0,
+                                  }}
+                                />
+                              </div>
+                              <span className="ax-text-subtle text-[10px]">
+                                {m.label}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+
+                      {/* ── Moyens de paiement ── */}
+                      <section>
+                        <p className="ax-eyebrow mb-3">Moyens de paiement</p>
+                        <ul className="flex flex-col gap-2">
+                          {memberStats.methods.map((m) => (
+                            <li key={m.method} className="ax-list__row">
+                              <PaymentMethodBadge value={m.method} />
+                              <span className="ax-list__content ax-text-muted text-xs">
+                                {m.count} Jëf{m.count > 1 ? "s" : ""}
+                              </span>
+                              <span className="ax-list__trailing text-montant font-mono tabular text-sm font-semibold">
+                                {formatFCFA(m.amount)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+
+                      {/* ── Ndiguels soutenus ── */}
+                      <section>
+                        <p className="ax-eyebrow mb-3">Ndiguels soutenus</p>
+                        <ul className="flex flex-col gap-2">
+                          {memberStats.campaigns.map((c) => (
+                            <li key={c.name} className="ax-list__row">
+                              <span className="ax-list__content ax-truncate text-sm">
+                                {c.name}
+                              </span>
+                              <span className="ax-list__trailing text-montant font-mono tabular text-sm font-semibold">
+                                {formatFCFA(c.amount)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    </>
+                  )}
                 </div>
-              </Tabs>
-            </CardContent>
-          </Card>
+              )}
+
+              {tab === "history" && (
+                <div role="tabpanel">
+                  <DonationListClient
+                    initialDonations={
+                      donations as React.ComponentProps<
+                        typeof DonationListClient
+                      >["initialDonations"]
+                    }
+                    variant="directory"
+                  />
+                </div>
+              )}
+
+              {tab === "docs" && (
+                <div role="tabpanel">
+                  {documents.length === 0 ? (
+                    <EmptyState
+                      icon={FileText}
+                      title="Aucun document déposé"
+                      description="Le membre n'a pas encore soumis de pièce d'identité."
+                    />
+                  ) : (
+                    <ul className="ax-list">
+                      {documents.map((doc) => {
+                        const validatedOn = formatDate(doc.validated_at);
+                        return (
+                          <li key={doc.id} className="ax-list__row">
+                            <FileText
+                              className="ax-list__leading"
+                              size={18}
+                              aria-hidden="true"
+                            />
+                            <span className="ax-list__content">
+                              <span className="ax-list__title">
+                                {doc.type_display || "Pièce d'identité"}
+                              </span>
+                              <span className="ax-list__meta">
+                                {doc.status === "validated" && validatedOn
+                                  ? `Validé le ${validatedOn}`
+                                  : doc.doc_number
+                                    ? `N° ${doc.doc_number}`
+                                    : "En attente de validation"}
+                              </span>
+                            </span>
+                            <span className="ax-list__trailing gap-2">
+                              <StatusBadge
+                                domain="document"
+                                value={doc.status}
+                                size="sm"
+                                iconless
+                              />
+                              <button
+                                type="button"
+                                className="ax-btn ax-btn--ghost ax-btn--sm"
+                                onClick={() => setSelectedDoc(doc)}
+                              >
+                                <span className="ax-btn__label">Voir</span>
+                              </button>
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
         </div>
       </div>
 
-      {/* ─── NDIGUEL DETAIL MODAL ──────────────────────────────────── */}
-      <Dialog
-        open={!!selectedCampaign}
-        onOpenChange={(open) => !open && setSelectedCampaign(null)}
+      {/* ── Détail d'une participation ── */}
+      <Modal
+        open={Boolean(selectedCampaign)}
+        onOpenChange={(o) => !o && setSelectedCampaign(null)}
+        title={selectedCampaign?.name ?? ""}
+        description="Détail de la participation à ce Ndiguel"
+        size="sm"
+        footer={
+          selectedCampaign && (
+            <>
+              <button
+                type="button"
+                className="ax-btn ax-btn--ghost"
+                onClick={() => setSelectedCampaign(null)}
+              >
+                <span className="ax-btn__label">Fermer</span>
+              </button>
+              <Link
+                href={`/dashboard/campaigns/${selectedCampaign.id}`}
+                className="ax-btn ax-btn--primary"
+              >
+                <ExternalLink className="ax-btn__icon" size={14} aria-hidden="true" />
+                <span className="ax-btn__label">Voir le Ndiguel</span>
+              </Link>
+            </>
+          )
+        }
       >
-        <DialogContent className="max-w-sm rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          {selectedCampaign && (
-            <div className="flex flex-col">
-              <div className="bg-gradient-to-br from-yessal-violet to-violet-700 p-6 text-white">
-                <DialogHeader>
-                  <DialogTitle className="text-white text-xl font-black leading-tight">
-                    {selectedCampaign.name}
-                  </DialogTitle>
-                  <DialogDescription className="text-white/70 text-[11px] font-black uppercase tracking-widest mt-1">
-                    Ndiguel · Détail de la participation
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="mt-6 text-center">
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-70">
-                    Montant total contribué
-                  </p>
-                  <p className="text-4xl font-black mt-1">
-                    {Number(selectedCampaign.total).toLocaleString()}
-                    <span className="text-lg ml-1 opacity-70">F CFA</span>
-                  </p>
-                </div>
+        {selectedCampaign && (
+          <div className="flex flex-col gap-4">
+            <div className="ax-card ax-card--stat">
+              <div className="ax-card__body">
+                <p className="ax-kpi__label">Montant total contribué</p>
+                <p className="ax-kpi__value text-montant font-mono tabular">
+                  {formatFCFA(Number(selectedCampaign.total ?? 0))}
+                </p>
               </div>
+            </div>
 
-              <div className="p-6 bg-white dark:bg-card space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  {selectedCampaign.count != null && (
-                    <div className="flex flex-col items-center p-4 rounded-2xl bg-muted/30">
-                      <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        Nbre de dons
-                      </span>
-                      <span className="text-2xl font-black mt-1 text-yessal-violet">
-                        {selectedCampaign.count}
-                      </span>
-                    </div>
-                  )}
-                  {selectedCampaign.last_donation && (
-                    <div className="flex flex-col items-center p-4 rounded-2xl bg-muted/30">
-                      <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
-                        Dernier don
-                      </span>
-                      <span className="text-sm font-black mt-1">
-                        {new Date(
-                          selectedCampaign.last_donation,
-                        ).toLocaleDateString("fr-FR")}
-                      </span>
-                    </div>
-                  )}
+            <div className="grid grid-cols-2 gap-3">
+              {selectedCampaign.count != null && (
+                <div className="ax-card ax-card--compact">
+                  <div className="ax-card__body">
+                    <p className="ax-kpi__label">Nombre de Jëfs</p>
+                    <p className="ax-kpi__value font-mono tabular text-xl">
+                      {selectedCampaign.count}
+                    </p>
+                  </div>
                 </div>
+              )}
+              {formatDate(selectedCampaign.last_donation) && (
+                <div className="ax-card ax-card--compact">
+                  <div className="ax-card__body">
+                    <p className="ax-kpi__label">Dernier Jëf</p>
+                    <p className="text-sm font-medium">
+                      {formatDate(selectedCampaign.last_donation)}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
 
-                {selectedCampaign.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {selectedCampaign.description}
-                  </p>
-                )}
+            {selectedCampaign.description && (
+              <p className="ax-text-muted text-sm">
+                {selectedCampaign.description}
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
 
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    className="flex-1 bg-yessal-violet hover:bg-yessal-violet/90 font-black h-11 rounded-xl gap-2"
-                    asChild
-                  >
-                    <a href={`/dashboard/campaigns/${selectedCampaign.id}`}>
-                      <ExternalLink size={14} /> Voir le Ndiguel
+      {/* ── Visionneuse de document ── */}
+      <Modal
+        open={Boolean(selectedDoc)}
+        onOpenChange={(o) => !o && setSelectedDoc(null)}
+        title={selectedDoc?.type_display || "Document d'identité"}
+        description={
+          selectedDoc?.doc_number ? `N° ${selectedDoc.doc_number}` : undefined
+        }
+        size="lg"
+      >
+        {selectedDoc && (
+          <div className="flex flex-col gap-4">
+            <StatusBadge domain="document" value={selectedDoc.status} />
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {(["image", "image_verso"] as const).map((key) => {
+                const src = selectedDoc[key];
+                if (!src) return null;
+                const label = key === "image" ? "Recto" : "Verso";
+                return (
+                  <figure key={key} className="flex flex-col gap-1">
+                    <figcaption className="ax-eyebrow">{label}</figcaption>
+                    <a href={src} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt={`${label} du document`}
+                        className="max-h-64 w-full rounded-(--ax-radius-sm) border border-(--ax-border) object-cover"
+                      />
                     </a>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 font-bold h-11 rounded-xl"
-                    onClick={() => setSelectedCampaign(null)}
-                  >
-                    Fermer
-                  </Button>
-                </div>
-              </div>
+                  </figure>
+                );
+              })}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        )}
+      </Modal>
 
-      {/* ─── DOCUMENT VIEWER ─────────────────────────────────────── */}
-      <Dialog open={!!selectedDoc} onOpenChange={(open) => !open && setSelectedDoc(null)}>
-        <DialogContent className="max-w-2xl rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="font-black uppercase text-sm tracking-widest">
-              {selectedDoc?.type_display || "Document d'identité"}
-            </DialogTitle>
-            <DialogDescription className="text-[10px]">
-              {selectedDoc?.status === "validated" ? "Validé" : "En attente de validation"}
-              {selectedDoc?.doc_number ? ` · N° ${selectedDoc.doc_number}` : ""}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedDoc && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
-              {selectedDoc.image && (
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Recto</p>
-                  <a href={selectedDoc.image} target="_blank" rel="noopener noreferrer">
-                    <img src={selectedDoc.image} alt="Recto" className="rounded-xl border w-full object-cover max-h-60 hover:opacity-90 transition-opacity" />
-                  </a>
-                </div>
-              )}
-              {selectedDoc.image_verso && (
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Verso</p>
-                  <a href={selectedDoc.image_verso} target="_blank" rel="noopener noreferrer">
-                    <img src={selectedDoc.image_verso} alt="Verso" className="rounded-xl border w-full object-cover max-h-60 hover:opacity-90 transition-opacity" />
-                  </a>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/*
+        Le mot de passe attribué, une fois et une seule.
+        Il n'est stocké nulle part : fermer cette fenêtre l'efface définitivement,
+        et il faudra recommencer. C'est dit explicitement, parce que la personne
+        au bout du fil attend qu'on le lui dicte.
+      */}
+      <Modal
+        open={issuedPassword !== null}
+        onOpenChange={(open) => !open && setIssuedPassword(null)}
+        title="Nouveau mot de passe"
+        description={`Dictez-le à ${fullName}. Il ne sera plus affiché.`}
+        status="success"
+        size="sm"
+        footer={
+          <button
+            type="button"
+            className="ax-btn ax-btn--primary"
+            onClick={() => setIssuedPassword(null)}
+          >
+            <span className="ax-btn__label">J&apos;ai transmis le mot de passe</span>
+          </button>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="ax-field__control">
+            <span className="ax-field__affix ax-field__affix--leading">
+              <KeyRound aria-hidden="true" />
+            </span>
+            <input
+              readOnly
+              value={issuedPassword ?? ""}
+              aria-label="Nouveau mot de passe"
+              className="ax-input ax-input--lg ax-input--with-leading-icon ax-input--with-trailing font-mono tracking-wider"
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <button
+              type="button"
+              className="ax-field__affix ax-field__affix--trailing ax-field__affix--button"
+              aria-label="Copier le mot de passe"
+              onClick={async () => {
+                if (!issuedPassword) return;
+                try {
+                  await navigator.clipboard.writeText(issuedPassword);
+                  toast.success("Mot de passe copié.");
+                } catch {
+                  /* Presse-papiers refusé (contexte non sécurisé, permission) :
+                     le mot de passe reste lisible à l'écran. */
+                  toast.error("Copie impossible — notez-le à l'écran.");
+                }
+              }}
+            >
+              <Copy aria-hidden="true" />
+            </button>
+          </div>
+
+          <p className="ax-text-muted text-sm leading-relaxed">
+            {fullName} devra le remplacer à sa prochaine connexion : un bandeau
+            le lui rappellera tant que ce ne sera pas fait.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }

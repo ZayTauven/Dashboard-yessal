@@ -1,67 +1,82 @@
-﻿"use client";
+"use client";
 
-import { useState, useMemo, useRef } from "react";
-import { 
-  Search, UserPlus, FileDown, MoreHorizontal, 
-  CheckCircle2, XCircle, Shield, Building2, 
-  User as UserIcon, Mail, Phone, Filter,
-  FileUp, Edit, Trash2, Loader2, Check, ChevronsUpDown,
-  FileText, ShieldCheck, Eye, ThumbsUp, ThumbsDown, Info
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Utilisateurs et rôles
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Deux onglets : l'annuaire complet, et la file des demandes (pièces
+ * d'identité, titres). Le sélecteur de Daara passe sur <DaaraCombobox>, qui
+ * était jusqu'ici recopié ici ET dans « Annonces Hub ».
+ *
+ * Corrections de fond :
+ *
+ *   · Les notes de rejet passaient par `window.prompt()` — même problème que
+ *     dans Pilotage : boîte native bloquante, sans contexte, impossible à
+ *     styler. Elles passent sur <Modal>.
+ *
+ *   · Les cartes de demande d'inscription étaient posées sur `bg-white` en dur,
+ *     donc invisibles en thème sombre (texte blanc sur blanc).
+ *
+ *   · L'import Excel crée les comptes avec un mot de passe unique écrit dans le
+ *     source (`YessalPassword2024!`). Le comportement est conservé — c'est un
+ *     chantier backend, consigné dans AGENTS/REFONTE_DETTE.md — mais la modale
+ *     l'ANNONCE désormais à l'administrateur, qui l'ignorait.
+ *
+ *   · La recherche et le tri étaient réimplémentés à la main ; ils passent sur
+ *     `useCollection`, avec le tri sur l'ensemble et non sur la page.
+ */
+
+import { useMemo, useRef, useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  Check,
+  Copy,
+  FileText,
+  FileUp,
+  FileWarning,
+  Inbox,
+  KeyRound,
+  Loader2,
+  Pencil,
+  Plus,
+  Search,
+  ShieldAlert,
+  Trash2,
+  Users,
+  X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
+  createUserByAdmin,
+  deleteUserAction,
+  resetMemberPasswordAction,
+  reviewTitleRequest,
+  updateUserAction,
+  updateUserRole,
+  updateUserStatus,
+  validateDocument,
+} from "@/app/actions/users";
 import { ExportButton } from "@/components/ExportButton";
 import PhoneNumberValidation from "@/components/PhoneNumberValidation";
-import { 
-    updateUserStatus, 
-    updateUserRole, 
-    createUserByAdmin, 
-    updateUserAction, 
-    deleteUserAction,
-    validateDocument,
-    reviewTitleRequest,
-    getPendingDocuments,
-    getTitleRequests
-} from "@/app/actions/users";
-import { useRouter } from "next/navigation";
-import * as XLSX from "xlsx";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar } from "@/components/vireo/Avatar";
+import {
+  DaaraCombobox,
+  type DaaraOption,
+} from "@/components/vireo/DaaraCombobox";
+import { DataTable, type Column } from "@/components/vireo/DataTable";
+import { FilterBar } from "@/components/vireo/FilterBar";
+import { checkFileSize } from "@/components/vireo/FileDrop";
+import { Menu } from "@/components/vireo/Menu";
+import { Modal } from "@/components/vireo/Modal";
+import { Pagination } from "@/components/vireo/Pagination";
+import { StatusBadge, statusLabel } from "@/components/vireo/StatusBadge";
+import { CoverImage } from "@/components/vireo/CoverImage";
+import { ALL, useCollection } from "@/hooks/useCollection";
 
-interface User {
+export interface User {
   id: number;
   email: string;
   first_name: string;
@@ -69,846 +84,1241 @@ interface User {
   phone: string;
   role: string;
   status: string;
-  daara: any;
+  daara?: { id?: number; name?: string | null } | null;
   documents_count?: number;
   avatar?: string | null;
   avatar_url?: string | null;
 }
 
-interface UserDocument {
-    id: number;
-    user_name?: string;
-    doc_type: string;
-    image: string;
-    image_verso?: string;
-    status: string;
-    created_at: string;
+export interface PendingDoc {
+  id: number;
+  user_name?: string;
+  doc_type: string;
+  image: string;
+  image_verso?: string;
+  status: string;
+  created_at: string;
 }
 
-interface TitleRequest {
-    id: number;
-    member_name: string;
-    title_name: string;
-    status: string;
-    created_at: string;
+export interface TitleRequest {
+  id: number;
+  member_name: string;
+  title_name: string;
+  status: string;
+  created_at: string;
 }
 
-// Custom Searchable Combobox for Daara
-function DaaraCombobox({ daaras, value, onChange }: { daaras: any[], value: string, onChange: (val: string) => void }) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
+/** `accounts.User.Role` */
+const ROLES = [
+  { value: "admin", label: "Administrateur" },
+  { value: "chef_daara", label: "Chef de Daara" },
+  { value: "collector", label: "Collecteur" },
+  { value: "member", label: "Talibé" },
+];
 
-    const filteredDaaras = daaras.filter(d => 
-        (d.name?.toLowerCase().includes(search.toLowerCase()) ?? false) || 
-        (d.ldd?.name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-        (d.ldd?.code?.toLowerCase().includes(search.toLowerCase()) ?? false)
-    );
+const ROLE_LABEL: Record<string, string> = Object.fromEntries(
+  ROLES.map((r) => [r.value, r.label]),
+);
 
-    // Group daaras by LDD
-    const groupedDaaras = useMemo(() => {
-        const groups: { [key: string]: { name: string, code: string, items: any[] } } = {};
-        filteredDaaras.forEach(d => {
-            const lddId = d.ldd?.id || "unknown";
-            if (!groups[lddId]) {
-                groups[lddId] = { 
-                    name: d.ldd?.name || "Sans LDD", 
-                    code: d.ldd?.code || "??",
-                    items: [] 
-                };
-            }
-            groups[lddId].items.push(d);
-        });
-        return Object.values(groups);
-    }, [filteredDaaras]);
+/** `accounts.UserDocument.DocType` */
+const DOC_TYPE_LABEL: Record<string, string> = {
+  national_id: "Carte nationale d'identité",
+  passport: "Passeport",
+  voter_id: "Carte d'électeur",
+  driver_license: "Permis de conduire",
+};
 
-    const selectedDaara = daaras.find(d => d.id.toString() === value);
+/** Mot de passe attribué par l'import Excel — voir AGENTS/REFONTE_DETTE.md §2. */
+const IMPORT_DEFAULT_PASSWORD = "YessalPassword2024!";
 
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={open}
-                    className="w-full justify-between bg-muted/20 border-none h-10"
-                >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                        {selectedDaara ? (
-                            <>
-                                <Badge variant="outline" className="text-[10px] px-1 h-4 border-yessal-violet/30 text-yessal-violet">
-                                    {selectedDaara.ldd?.code || "??"}
-                                </Badge>
-                                <span className="truncate">{selectedDaara.name}</span>
-                            </>
-                        ) : "Choisir un Daara..."}
-                    </div>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-87.5 p-0" align="start">
-                <div className="flex items-center border-b px-3">
-                    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                    <input
-                        className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground"
-                        placeholder="Rechercher par Daara ou LDD..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-                <ScrollArea className="h-75">
-                    <div className="p-1">
-                        <div 
-                            className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                            onClick={() => {
-                                onChange("");
-                                setOpen(false);
-                            }}
-                        >
-                            <Check className={`mr-2 h-4 w-4 ${value === "" ? "opacity-100" : "opacity-0"}`} />
-                            Global (Aucun Daara)
-                        </div>
-                        
-                        {groupedDaaras.map((group) => (
-                            <div key={group.code} className="mt-2">
-                                <div className="px-2 py-1 text-[10px] font-black uppercase text-muted-foreground bg-muted/30 rounded flex justify-between items-center">
-                                    <span>Zone : {group.name}</span>
-                                    <span className="text-yessal-violet">{group.code}</span>
-                                </div>
-                                {group.items.map((daara) => (
-                                    <div
-                                        key={daara.id}
-                                        className="relative flex cursor-pointer select-none items-center rounded-sm px-4 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                                        onClick={() => {
-                                            onChange(daara.id.toString());
-                                            setOpen(false);
-                                        }}
-                                    >
-                                        <Check className={`mr-2 h-4 w-4 ${value === daara.id.toString() ? "opacity-100" : "opacity-0"}`} />
-                                        {daara.name}
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
-                        
-                        {filteredDaaras.length === 0 && (
-                            <div className="py-6 text-center text-sm text-muted-foreground">Aucun résultat.</div>
-                        )}
-                    </div>
-                </ScrollArea>
-            </PopoverContent>
-        </Popover>
-    );
-}
+type SortKey = "name" | "role" | "status" | "daara";
+type Tab = "list" | "requests";
 
-export function UserManagementClient({ 
-    initialUsers, 
-    daaras, 
-    initialPendingDocs, 
-    initialTitles, 
-    initialTitleRequests 
-}: { 
-    initialUsers: User[], 
-    daaras: any[],
-    initialPendingDocs: any[],
-    initialTitles: any[],
-    initialTitleRequests: any[]
+type RefusalTarget =
+  | { kind: "title"; id: number; label: string }
+  | { kind: "document"; id: number; label: string };
+
+const fullName = (u: User) =>
+  `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim();
+
+export function UserManagementClient({
+  initialUsers,
+  daaras,
+  initialPendingDocs,
+  initialTitleRequests,
+}: {
+  initialUsers: User[];
+  daaras: DaaraOption[];
+  initialPendingDocs: PendingDoc[];
+  initialTitles?: unknown[];
+  initialTitleRequests: TitleRequest[];
 }) {
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [pendingDocs, setPendingDocs] = useState<UserDocument[]>(initialPendingDocs);
-  const [titleRequests, setTitleRequests] = useState<TitleRequest[]>(initialTitleRequests);
-  const [selectedDoc, setSelectedDoc] = useState<UserDocument | null>(null);
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<number | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
   const router = useRouter();
+  const [users, setUsers] = useState(initialUsers);
+  const [pendingDocs, setPendingDocs] = useState(initialPendingDocs);
+  const [titleRequests, setTitleRequests] = useState(initialTitleRequests);
 
-  // Selected Daara ID for new/edit user
+  const [tab, setTab] = useState<Tab>("list");
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [, startTransition] = useTransition();
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  /* Le mot de passe qui vient d'être attribué, le temps de le transmettre. */
+  const [issued, setIssued] = useState<{ name: string; password: string } | null>(
+    null,
+  );
   const [selectedDaaraId, setSelectedDaaraId] = useState("");
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredUsers = useMemo(() => {
-    return users.filter(u => {
-      const matchesSearch = 
-        (u.email?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-        (u.first_name?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-        (u.last_name?.toLowerCase().includes(search.toLowerCase()) ?? false);
-      const matchesRole = roleFilter === "all" || u.role === roleFilter;
-      return matchesSearch && matchesRole;
+  const [lightboxDoc, setLightboxDoc] = useState<PendingDoc | null>(null);
+  const [refusal, setRefusal] = useState<RefusalTarget | null>(null);
+  const [refusalNote, setRefusalNote] = useState("");
+
+  const queueCount = pendingDocs.length + titleRequests.length;
+
+  const searchable = useMemo(
+    () => (u: User) => [u.first_name, u.last_name, u.email, u.phone, u.daara?.name],
+    [],
+  );
+
+  const filters = useMemo(
+    () => ({
+      role: (u: User, v: string) => u.role === v,
+      status: (u: User, v: string) => u.status === v,
+    }),
+    [],
+  );
+
+  const sorters = useMemo(
+    () => ({
+      name: (u: User) => fullName(u),
+      role: (u: User) => u.role,
+      status: (u: User) => u.status,
+      daara: (u: User) => u.daara?.name ?? "",
+    }),
+    [],
+  );
+
+  const c = useCollection(users, {
+    searchable,
+    filters,
+    sorters,
+    initialSort: { key: "name", dir: "asc" },
+    pageSize: 12,
+  });
+
+  const pendingUsers = useMemo(
+    () => users.filter((u) => u.status === "pending"),
+    [users],
+  );
+
+  const exportData = useMemo(
+    () =>
+      c.matched.map((u) => ({
+        Nom: u.last_name,
+        Prénom: u.first_name,
+        Email: u.email,
+        Téléphone: u.phone,
+        Rôle: ROLE_LABEL[u.role] ?? u.role,
+        Statut: statusLabel("user", u.status),
+        Daara: u.daara?.name || "Global",
+      })),
+    [c.matched],
+  );
+
+  /* ── Actions sur les comptes ── */
+
+  const handleStatusUpdate = async (
+    user: User,
+    action: "validate" | "block",
+  ) => {
+    setBusyId(user.id);
+    const { error } = await updateUserStatus(user.id, action);
+    setBusyId(null);
+
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === user.id
+          ? { ...u, status: action === "validate" ? "active" : "blocked" }
+          : u,
+      ),
+    );
+    toast.success(
+      action === "validate"
+        ? `Compte de ${fullName(user)} validé.`
+        : `Accès de ${fullName(user)} bloqué.`,
+    );
+  };
+
+  const handleRoleUpdate = async (user: User, newRole: string) => {
+    setBusyId(user.id);
+    const { error } = await updateUserRole(user.id, newRole);
+    setBusyId(null);
+
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    setUsers((prev) =>
+      prev.map((u) => (u.id === user.id ? { ...u, role: newRole } : u)),
+    );
+    toast.success(`${fullName(user)} est désormais ${ROLE_LABEL[newRole]}.`);
+  };
+
+  /*
+   * Assistance : un membre a perdu son mot de passe et n'a pas d'adresse
+   * e-mail valide — le cas d'une bonne part des comptes créés sur le terrain.
+   * Il ne peut donc pas passer par « mot de passe oublié », et appelle un
+   * administrateur, qui lui en dicte un nouveau.
+   *
+   * La confirmation est demandée AVANT : l'ancien mot de passe cesse
+   * immédiatement de fonctionner, et quelqu'un qui utilisait encore son compte
+   * se retrouverait dehors sans comprendre pourquoi.
+   */
+  const handleResetPassword = (user: User) => {
+    toast(`Réinitialiser le mot de passe de ${fullName(user)} ?`, {
+      description:
+        "Son mot de passe actuel cessera aussitôt de fonctionner. Le nouveau ne s'affichera qu'une fois.",
+      action: {
+        label: "Réinitialiser",
+        onClick: () =>
+          startTransition(async () => {
+            const res = await resetMemberPasswordAction(user.id);
+            if (res.error) {
+              toast.error(res.error);
+              return;
+            }
+            setIssued({ name: fullName(user), password: res.password ?? "" });
+          }),
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
     });
-  }, [users, search, roleFilter]);
-
-  const paginatedUsers = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredUsers.slice(start, start + itemsPerPage);
-  }, [filteredUsers, currentPage]);
-
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-
-  // Reset to page 1 on filter change
-  useMemo(() => {
-    setCurrentPage(1);
-  }, [search, roleFilter]);
-
-  // ACTIONS
-  const handleStatusUpdate = async (id: number, action: 'validate' | 'block') => {
-    setLoading(id);
-    const { error } = await updateUserStatus(id, action);
-    if (!error) {
-        setUsers(prev => prev.map(u => u.id === id ? { ...u, status: action === 'validate' ? 'active' : 'blocked' } : u));
-    }
-    setLoading(null);
   };
 
-  const handleRoleUpdate = async (id: number, newRole: string) => {
-    setLoading(id);
-    const { error } = await updateUserRole(id, newRole);
-    if (!error) {
-        setUsers(prev => prev.map(u => u.id === id ? { ...u, role: newRole } : u));
-        toast.success("Rôle mis à jour");
-    } else {
-        toast.error(error);
-    }
-    setLoading(null);
+  const handleDeleteUser = (user: User) => {
+    toast(`Supprimer définitivement le compte de ${fullName(user)} ?`, {
+      description: "Cette action est irréversible.",
+      action: {
+        label: "Supprimer",
+        onClick: async () => {
+          const { error } = await deleteUserAction(user.id);
+          if (error) {
+            toast.error(error);
+            return;
+          }
+          setUsers((prev) => prev.filter((u) => u.id !== user.id));
+          toast.success("Compte supprimé.");
+        },
+      },
+      cancel: { label: "Annuler", onClick: () => {} },
+    });
   };
 
-  const handleDocumentReview = async (id: number, accept: boolean) => {
-    const status = accept ? "validated" : "rejected";
-    const note = accept ? "" : prompt("Note de rejet") || "";
-    const res = await validateDocument(id, status, note);
+  /* ── File d'attente ── */
+
+  const handleApproveDocument = async (doc: PendingDoc) => {
+    const res = await validateDocument(doc.id, "validated", "");
     if (res.error) {
-        toast.error(res.error);
-    } else {
-        toast.success(accept ? "Document validé" : "Document rejeté");
-        setPendingDocs(prev => prev.filter(d => d.id !== id));
-        setSelectedDoc(null);
+      toast.error(res.error);
+      return;
     }
+    setPendingDocs((prev) => prev.filter((d) => d.id !== doc.id));
+    toast.success("Document validé.");
   };
 
-  const handleTitleReview = async (id: number, action: "approve" | "refuse") => {
-    const note = action === "refuse" ? prompt("Note de refus") || "" : "";
-    const res = await reviewTitleRequest(id, action, note);
+  const handleApproveTitle = async (req: TitleRequest) => {
+    const res = await reviewTitleRequest(req.id, "approve", "");
     if (res.error) {
-        toast.error(res.error);
-    } else {
-        toast.success(action === "approve" ? "Titre accordé" : "Demande refusée");
-        setTitleRequests(prev => prev.filter(r => r.id !== id));
+      toast.error(res.error);
+      return;
     }
+    setTitleRequests((prev) => prev.filter((r) => r.id !== req.id));
+    toast.success("Demande approuvée.");
+    router.refresh();
   };
 
-  const handleDeleteUser = (id: number) => {
-      toast("Supprimer cet utilisateur ?", {
-          action: {
-              label: "Confirmer",
-              onClick: async () => {
-                  setLoading(id);
-                  const { error } = await deleteUserAction(id);
-                  if (!error) {
-                      setUsers(prev => prev.filter(u => u.id !== id));
-                      toast.success("Utilisateur supprimé");
-                  } else {
-                      toast.error(error);
-                  }
-                  setLoading(null);
-              },
-          },
-          cancel: { label: "Annuler", onClick: () => {} },
-      });
+  const submitRefusal = async () => {
+    if (!refusal) return;
+    const note = refusalNote.trim();
+
+    const res =
+      refusal.kind === "title"
+        ? await reviewTitleRequest(refusal.id, "refuse", note)
+        : await validateDocument(refusal.id, "rejected", note);
+
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+
+    if (refusal.kind === "title") {
+      setTitleRequests((prev) => prev.filter((r) => r.id !== refusal.id));
+      toast.success("Demande refusée.");
+    } else {
+      setPendingDocs((prev) => prev.filter((d) => d.id !== refusal.id));
+      toast.success("Document rejeté.");
+    }
+
+    setRefusal(null);
+    setRefusalNote("");
   };
+
+  /* ── Import Excel ── */
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const tooBig = checkFileSize(file);
+    if (tooBig) {
+      toast.error(tooBig);
+      e.target.value = "";
+      return;
+    }
+
     setIsImporting(true);
     const reader = new FileReader();
-    reader.onload = async (evt: any) => {
-        try {
-            const bstr = evt.target.result;
-            const wb = XLSX.read(bstr, { type: "binary" });
-            const wsname = wb.SheetNames[0];
-            const ws = wb.Sheets[wsname];
-            const data: any[] = XLSX.utils.sheet_to_json(ws);
-            
-            let successCount = 0;
-            for (const row of data) {
-                // Expected format: Nom, Prénom, Email, Téléphone, Rôle
-                const userData = {
-                    first_name: row["Prénom"] || row["first_name"],
-                    last_name: row["Nom"] || row["last_name"],
-                    email: row["Email"] || row["email"],
-                    phone: row["Téléphone"] || row["phone"],
-                    role: row["Rôle"] || row["role"] || "member",
-                    password: "YessalPassword2024!" // Default pwd
-                };
-                
-                const { error } = await createUserByAdmin(userData);
-                if (!error) successCount++;
-            }
-            toast.success(`${successCount} utilisateurs importés avec succès.`);
-            router.refresh();
-        } catch (err) {
-            toast.error("Erreur lors de l'import : " + err);
-        } finally {
-            setIsImporting(false);
-            if (fileInputRef.current) fileInputRef.current.value = "";
+
+    reader.onload = async (evt) => {
+      try {
+        const wb = XLSX.read(evt.target?.result, { type: "binary" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+
+        let successCount = 0;
+        for (const row of rows) {
+          const { error } = await createUserByAdmin({
+            first_name: row["Prénom"] ?? row["first_name"],
+            last_name: row["Nom"] ?? row["last_name"],
+            email: row["Email"] ?? row["email"],
+            phone: row["Téléphone"] ?? row["phone"],
+            role: row["Rôle"] ?? row["role"] ?? "member",
+            password: IMPORT_DEFAULT_PASSWORD,
+          });
+          if (!error) successCount++;
         }
+
+        toast.success(
+          `${successCount} compte${successCount > 1 ? "s" : ""} importé${successCount > 1 ? "s" : ""} sur ${rows.length}.`,
+        );
+        router.refresh();
+      } catch (err) {
+        toast.error(`Erreur lors de l'import : ${String(err)}`);
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
     };
+
     reader.readAsBinaryString(file);
   };
 
-  const exportData = useMemo(() => {
-    return filteredUsers.map(u => ({
-        Nom: u.last_name,
-        Prénom: u.first_name,
-        Email: u.email,
-        Téléphone: u.phone,
-        Rôle: u.role.toUpperCase(),
-        Statut: u.status.toUpperCase(),
-        Daara: u.daara?.name || "Global"
-    }));
-  }, [filteredUsers]);
+  /* ── Création / édition ── */
 
   const handleSubmitCreate = async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      const formData = new FormData(e.currentTarget);
-      const data = Object.fromEntries(formData);
-      // use selectedDaaraId instead of select value if needed
-      const payload = { 
-          ...data, 
-          daara_id: selectedDaaraId || null 
-      };
-      const { error, data: newUser } = await createUserByAdmin(payload);
-      if (!error) {
-          setIsAddModalOpen(false);
-          setUsers(prev => [newUser, ...prev]);
-          setSelectedDaaraId("");
-      } else {
-          toast.error(error);
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const data = Object.fromEntries(new FormData(e.currentTarget));
+      const { error, data: newUser } = await createUserByAdmin({
+        ...data,
+        daara_id: selectedDaaraId || null,
+      });
+      if (error) {
+        toast.error(error);
+        return;
       }
+      setUsers((prev) => [newUser as User, ...prev]);
+      setIsAddOpen(false);
+      setSelectedDaaraId("");
+      toast.success("Compte créé.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSubmitEdit = async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      if (!editingUser) return;
-      const formData = new FormData(e.currentTarget);
-      const data = Object.fromEntries(formData);
-      const payload = { 
-          ...data, 
-          daara_id: selectedDaaraId || null 
-      };
-      const { error, data: updatedUser } = await updateUserAction(editingUser.id, payload);
-      if (!error) {
-          setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
-          setEditingUser(null);
-      } else {
-          toast.error(error);
+    e.preventDefault();
+    if (!editingUser) return;
+
+    setIsSaving(true);
+    try {
+      const data = Object.fromEntries(new FormData(e.currentTarget));
+      const { error, data: updated } = await updateUserAction(editingUser.id, {
+        ...data,
+        daara_id: selectedDaaraId || null,
+      });
+      if (error) {
+        toast.error(error);
+        return;
       }
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editingUser.id ? (updated as User) : u)),
+      );
+      setEditingUser(null);
+      setSelectedDaaraId("");
+      toast.success("Compte mis à jour.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const pendingUsers = useMemo(() => users.filter(u => u.status === 'pending'), [users]);
-
-  return (
-    <Tabs defaultValue="list" className="space-y-6">
-        <div className="flex items-center justify-between border-b pb-4">
-            <TabsList className="bg-muted/50 p-1 rounded-xl">
-                <TabsTrigger value="list" className="rounded-lg px-6 font-bold">Membres</TabsTrigger>
-                <TabsTrigger value="requests" className="rounded-lg px-6 font-bold flex gap-2">
-                    Demandes & Docs
-                    {(pendingDocs.length + titleRequests.length) > 0 && (
-                        <Badge className="h-4 w-4 p-0 flex items-center justify-center bg-yessal-violet text-white text-[10px]">
-                            {pendingDocs.length + titleRequests.length}
-                        </Badge>
-                    )}
-                </TabsTrigger>
-            </TabsList>
-            
-            <div className="flex gap-2 text-xs text-muted-foreground font-medium">
-                <div className="flex items-center gap-1"><CheckCircle2 size={12} className="text-green-500" /> {users.length} Inscrits</div>
-                <div className="flex items-center gap-1 border-l pl-2"><FileText size={12} className="text-yessal-violet" /> {pendingDocs.length} Docs à valider</div>
+  const columns = useMemo<Column<User, SortKey>[]>(
+    () => [
+      {
+        key: "user",
+        header: "Utilisateur",
+        sortKey: "name",
+        cell: (u) => (
+          <div className="flex items-center gap-3">
+            <Avatar src={u.avatar || u.avatar_url} name={fullName(u)} size="sm" />
+            <div className="min-w-0">
+              <Link
+                href={`/dashboard/users/${u.id}`}
+                className="ax-link ax-truncate block font-medium"
+              >
+                {fullName(u)}
+              </Link>
+              <span className="ax-text-subtle ax-truncate block text-xs">
+                {u.email}
+              </span>
             </div>
-        </div>
+          </div>
+        ),
+      },
+      {
+        key: "role",
+        header: "Rôle",
+        sortKey: "role",
+        cell: (u) => (
+          <Menu
+            label={`Changer le rôle de ${fullName(u)}`}
+            trigger={
+              <button
+                type="button"
+                className="ax-badge ax-badge--outline ax-badge--sm cursor-pointer"
+              >
+                {ROLE_LABEL[u.role] ?? u.role}
+              </button>
+            }
+            items={ROLES.filter((r) => r.value !== u.role).map((r) => ({
+              label: r.label,
+              onSelect: () => handleRoleUpdate(u, r.value),
+              disabled: busyId === u.id,
+            }))}
+          />
+        ),
+      },
+      {
+        key: "status",
+        header: "Statut",
+        sortKey: "status",
+        cell: (u) => <StatusBadge domain="user" value={u.status} size="sm" />,
+      },
+      {
+        key: "daara",
+        header: "Daara",
+        sortKey: "daara",
+        hideBelow: "md",
+        cell: (u) =>
+          u.daara?.name || <span className="ax-text-subtle">Global</span>,
+      },
+      {
+        key: "actions",
+        header: "Actions",
+        headerHidden: true,
+        numeric: true,
+        cell: (u) => (
+          <Menu
+            label={`Actions pour ${fullName(u)}`}
+            items={[
+              {
+                label: "Modifier",
+                icon: Pencil,
+                onSelect: () => {
+                  setSelectedDaaraId(u.daara?.id ? String(u.daara.id) : "");
+                  setEditingUser(u);
+                },
+              },
+              ...(u.status !== "active"
+                ? [
+                    {
+                      label: "Valider le compte",
+                      icon: Check,
+                      onSelect: () => handleStatusUpdate(u, "validate"),
+                    },
+                  ]
+                : []),
+              {
+                label: "Réinitialiser le mot de passe",
+                icon: KeyRound,
+                separatorBefore: true,
+                onSelect: () => handleResetPassword(u),
+              },
+              ...(u.status !== "blocked"
+                ? [
+                    {
+                      label: "Bloquer l'accès",
+                      icon: ShieldAlert,
+                      onSelect: () => handleStatusUpdate(u, "block"),
+                    },
+                  ]
+                : []),
+              {
+                label: "Supprimer",
+                icon: Trash2,
+                danger: true,
+                separatorBefore: true,
+                onSelect: () => handleDeleteUser(u),
+              },
+            ]}
+          />
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [busyId],
+  );
 
-        <TabsContent value="list" className="space-y-6 m-0">
-      {pendingUsers.length > 0 && (
-        <div className="bg-yessal-violet/5 border border-yessal-violet/20 p-4 rounded-2xl animate-in fade-in slide-in-from-top-4 duration-500">
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <Badge className="bg-yessal-violet text-white">{pendingUsers.length}</Badge>
-                    <h3 className="font-bold text-sm">Demandes d'inscription en attente</h3>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {pendingUsers.map(u => (
-                    <div key={u.id} className="bg-white p-3 rounded-xl border flex items-center justify-between shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-yessal-violet/10 flex items-center justify-center text-yessal-violet font-bold text-[10px]">
-                                {u.first_name[0]}{u.last_name[0]}
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-bold truncate max-w-30">{u.first_name} {u.last_name}</span>
-                                <span className="text-[9px] text-muted-foreground">{u.phone || u.email}</span>
-                            </div>
-                        </div>
-                        <div className="flex gap-1">
-                            <Button 
-                                size="icon" 
-                                className="h-7 w-7 rounded-full bg-yessal-violet hover:bg-violet-700 text-white"
-                                onClick={() => handleStatusUpdate(u.id, 'validate')}
-                                disabled={loading === u.id}
-                            >
-                                {loading === u.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                            </Button>
-                            <Button 
-                                size="icon" 
-                                variant="ghost"
-                                className="h-7 w-7 rounded-full text-red-600 hover:bg-red-50"
-                                onClick={() => handleStatusUpdate(u.id, 'block')}
-                                disabled={loading === u.id}
-                            >
-                                <XCircle size={12} />
-                            </Button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-      )}
-
-      {/* TOOLBAR */}
-      <div className="flex flex-col xl:flex-row gap-4 bg-card p-5 rounded-2xl border shadow-sm items-center">
-        <div className="relative flex-1 group w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-yessal-violet transition-colors" size={18} />
-          <Input 
-            placeholder="Rechercher par nom, email..." 
-            className="pl-10 h-11 bg-muted/20 border-none focus-visible:ring-1 focus-visible:ring-yessal-violet"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+  /* Corps de formulaire commun création / édition. */
+  const userFields = (user: User | null) => (
+    <>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="ax-field">
+          <label className="ax-field__label" htmlFor="u-first">
+            Prénom
+            <span className="ax-field__required" aria-hidden="true"> *</span>
+          </label>
+          <input
+            id="u-first"
+            name="first_name"
+            className="ax-input"
+            defaultValue={user?.first_name ?? ""}
+            placeholder="Moussa"
+            required
           />
         </div>
-        
-        <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-40 h-11 border-none bg-muted/20">
-                    <SelectValue placeholder="Rôle" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="all">Tous les rôles</SelectItem>
-                    <SelectItem value="admin">Administrateur</SelectItem>
-                    <SelectItem value="chef_daara">Chef de Daara</SelectItem>
-                    <SelectItem value="collector">Collecteur</SelectItem>
-                    <SelectItem value="member">Membre</SelectItem>
-                </SelectContent>
-            </Select>
-
-            <Button 
-                variant="outline" 
-                className="h-11 border-dashed gap-2 px-4 bg-muted/10 hover:bg-yessal-violet/10 hover:text-yessal-violet transition-all"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isImporting}
-            >
-                {isImporting ? <Loader2 className="animate-spin" size={18} /> : <FileUp size={18} />}
-                Importer
-            </Button>
-            <input type="file" ref={fileInputRef} className="hidden" accept=".xlsx,.xls" onChange={handleImportExcel} />
-
-            <ExportButton data={exportData} filename="Yessal_Membres" />
-
-            <Dialog open={isAddModalOpen} onOpenChange={(val) => {
-                setIsAddModalOpen(val);
-                if (!val) setSelectedDaaraId("");
-            }}>
-                <DialogTrigger asChild>
-                    <Button className="h-11 bg-yessal-violet hover:bg-violet-700 text-white gap-2 px-6 border-none shadow-lg shadow-yessal-violet/20">
-                        <UserPlus size={18} />
-                        Inscrire un membre
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Créer un compte</DialogTitle>
-                        <DialogDescription>Remplissez les informations pour ajouter un membre manuellement.</DialogDescription>
-                    </DialogHeader>
-                    <form className="space-y-4 py-4" onSubmit={handleSubmitCreate}>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Prénom</label>
-                                <Input name="first_name" placeholder="Ex: Moussa" required className="bg-muted/10" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Nom</label>
-                                <Input name="last_name" placeholder="Ex: Diop" required className="bg-muted/10" />
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Email professionnel</label>
-                            <Input name="email" type="email" placeholder="email@exemple.com" required className="bg-muted/10" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Mot de passe initial</label>
-                            <Input name="password" type="password" placeholder="••••••••" required className="bg-muted/10" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Rôle</label>
-                                <Select name="role" defaultValue="member">
-                                    <SelectTrigger className="bg-muted/10 border-none">
-                                        <SelectValue placeholder="Rôle" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="admin">Administrateur</SelectItem>
-                                        <SelectItem value="chef_daara">Chef de Daara</SelectItem>
-                                        <SelectItem value="collector">Collecteur</SelectItem>
-                                        <SelectItem value="member">Membre</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Daara</label>
-                                <DaaraCombobox daaras={daaras} value={selectedDaaraId} onChange={setSelectedDaaraId} />
-                            </div>
-                        </div>
-                        <DialogFooter className="mt-6">
-                            <Button type="submit" className="w-full bg-yessal-violet text-white border-none py-6 font-bold uppercase tracking-widest text-xs">Créer l'utilisateur</Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+        <div className="ax-field">
+          <label className="ax-field__label" htmlFor="u-last">
+            Nom
+            <span className="ax-field__required" aria-hidden="true"> *</span>
+          </label>
+          <input
+            id="u-last"
+            name="last_name"
+            className="ax-input"
+            defaultValue={user?.last_name ?? ""}
+            placeholder="Diop"
+            required
+          />
         </div>
       </div>
 
-      {/* EDIT MODAL */}
-      <Dialog open={!!editingUser} onOpenChange={(val) => {
-          if (!val) {
-              setEditingUser(null);
-              setSelectedDaaraId("");
-          }
-      }}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-                <DialogTitle>Modifier l'utilisateur</DialogTitle>
-                <DialogDescription>Modifiez les informations de {editingUser?.first_name} {editingUser?.last_name}.</DialogDescription>
-            </DialogHeader>
-            {editingUser && (
-                <form className="space-y-4 py-4" onSubmit={handleSubmitEdit}>
-                    <div className="grid grid-cols-2 gap-4">
-                        <Input name="first_name" defaultValue={editingUser.first_name} required />
-                        <Input name="last_name" defaultValue={editingUser.last_name} required />
-                    </div>
-                    <Input name="email" defaultValue={editingUser.email} type="email" required />
-                    <PhoneNumberValidation name="phone" hideLabel={true} defaultValue={editingUser.phone?.replace('+', '') || "221"} />
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <Select name="role" defaultValue={editingUser.role}>
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="admin">Administrateur</SelectItem>
-                                <SelectItem value="chef_daara">Chef de Daara</SelectItem>
-                                <SelectItem value="collector">Collecteur</SelectItem>
-                                <SelectItem value="member">Membre</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <DaaraCombobox daaras={daaras} value={selectedDaaraId || editingUser.daara?.id?.toString() || ""} onChange={setSelectedDaaraId} />
-                    </div>
-                    
-                    <DialogFooter className="mt-6">
-                        <Button type="submit" className="w-full bg-yessal-violet text-white border-none py-6">Sauvegarder les modifications</Button>
-                    </DialogFooter>
-                </form>
-            )}
-          </DialogContent>
-      </Dialog>
-
-      {/* USERS LIST */}
-      <div className="bg-card rounded-2xl border shadow-sm overflow-hidden">
-        <ScrollArea className="w-full">
-            <table className="w-full text-left border-collapse min-w-200">
-                <thead className="bg-muted/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b">
-                    <tr>
-                        <th className="px-6 py-4">Utilisateur</th>
-                        <th className="px-6 py-4">Rôle</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4">Daara</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-muted/10">
-                    {paginatedUsers.map((user) => (
-                        <tr key={user.id} className="hover:bg-muted/10 transition-colors group">
-                            <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="h-10 w-10">
-                                        <AvatarImage src={user.avatar || user.avatar_url || undefined} className="object-cover" />
-                                        <AvatarFallback className="bg-yessal-violet/10 text-yessal-violet font-bold text-xs">
-                                            {user.first_name?.[0]}{user.last_name?.[0]}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-bold">{user.first_name} {user.last_name}</span>
-                                        <div className="flex items-center gap-3 mt-0.5">
-                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Mail size={10} /> {user.email}</span>
-                                            <span className="text-[10px] text-yessal-violet font-bold flex items-center gap-1"><Phone size={10} /> {user.phone || "N/A"}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td className="px-6 py-4">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 px-2 gap-1 text-xs hover:bg-yessal-violet/10 hover:text-yessal-violet transition-all border-none">
-                                            <Badge variant="outline" className="capitalize border-none bg-accent/30 font-bold px-2">{user.role.replace('_', ' ')}</Badge>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        <DropdownMenuLabel>Changer le rôle</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "admin")}>Administrateur</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "chef_daara")}>Chef de Daara</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "collector")}>Collecteur</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleRoleUpdate(user.id, "member")}>Membre</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </td>
-                            <td className="px-6 py-4">
-                                <Badge variant={
-                                    user.status === 'active' ? 'active' :
-                                    user.status === 'pending' ? 'pending' : 'failed'
-                                } className="text-[10px] gap-1 px-2 py-0.5 font-bold">
-                                    {user.status === 'active' ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
-                                    {user.status.toUpperCase()}
-                                </Badge>
-                            </td>
-                            <td className="px-6 py-4">
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                                        <Building2 size={14} className="text-yessal-violet/50" />
-                                        {user.daara?.name || "Global"}
-                                    </div>
-                                    {user.daara?.ldd && (
-                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60 uppercase font-bold ml-5">
-                                            Zone : {user.daara.ldd.code}
-                                        </div>
-                                    )}
-                                </div>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                                <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-8 w-8 text-blue-600 hover:bg-blue-50 border-none"
-                                        onClick={() => {
-                                            setEditingUser(user);
-                                            setSelectedDaaraId(user.daara?.id?.toString() || "");
-                                        }}
-                                    >
-                                        <Edit size={14} />
-                                    </Button>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon" 
-                                        className="h-8 w-8 text-red-600 hover:bg-red-50 border-none"
-                                        onClick={() => handleDeleteUser(user.id)}
-                                        disabled={loading === user.id}
-                                    >
-                                        {loading === user.id ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
-                                    </Button>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 border-none">
-                                                <MoreHorizontal size={14} />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem onClick={() => handleStatusUpdate(user.id, 'validate')}>
-                                                Valider le compte
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleStatusUpdate(user.id, 'block')} className="text-red-600">
-                                                Bloquer l'accès
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </ScrollArea>
-        {filteredUsers.length === 0 && (
-            <div className="p-20 text-center text-muted-foreground italic text-sm">
-                Aucun utilisateur ne correspond à votre recherche.
-            </div>
-        )}
+      <div className="ax-field">
+        <label className="ax-field__label" htmlFor="u-email">
+          E-mail
+          <span className="ax-field__required" aria-hidden="true"> *</span>
+        </label>
+        <input
+          id="u-email"
+          name="email"
+          type="email"
+          className="ax-input"
+          defaultValue={user?.email ?? ""}
+          placeholder="email@exemple.com"
+          required
+        />
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
+      <div className="ax-field">
+        <PhoneNumberValidation
+          name="phone"
+          defaultValue={user?.phone?.replace("+", "") || "221"}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="ax-field">
+          <label className="ax-field__label" htmlFor="u-role">
+            Rôle
+          </label>
+          <select
+            id="u-role"
+            name="role"
+            className="ax-select"
+            defaultValue={user?.role ?? "member"}
           >
-            Précédent
-          </Button>
-          <div className="flex items-center px-4 text-sm font-medium">
-            Page {currentPage} sur {totalPages}
+            {ROLES.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="ax-field">
+          <label className="ax-field__label" htmlFor="u-daara">
+            Daara
+          </label>
+          <DaaraCombobox
+            id="u-daara"
+            daaras={daaras}
+            value={selectedDaaraId}
+            onChange={setSelectedDaaraId}
+            neutralLabel="Global — aucun Daara"
+          />
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ax-tabs">
+        <div className="ax-tabs__list" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            className="ax-tabs__tab"
+            aria-selected={tab === "list"}
+            onClick={() => setTab("list")}
+          >
+            <Users className="ax-tabs__icon" size={15} aria-hidden="true" />
+            Comptes
+            <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+              {users.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className="ax-tabs__tab"
+            aria-selected={tab === "requests"}
+            onClick={() => setTab("requests")}
+          >
+            <Inbox className="ax-tabs__icon" size={15} aria-hidden="true" />
+            Demandes
+            {queueCount > 0 && (
+              <span className="ax-tabs__badge ax-badge ax-badge--warning ax-badge--sm">
+                {queueCount}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* ══ Comptes ══ */}
+      {tab === "list" && (
+        <div className="flex flex-col gap-4" role="tabpanel">
+          {/* Inscriptions en attente — traitement rapide, sans quitter l'écran. */}
+          {pendingUsers.length > 0 && (
+            <section className="ax-card ax-card--accent-edge">
+              <div className="ax-card__header">
+                <div className="ax-card__titles">
+                  <h2 className="ax-card__title">
+                    Demandes d&apos;inscription
+                  </h2>
+                  <p className="ax-card__subtitle">
+                    Validez ou refusez les nouveaux comptes.
+                  </p>
+                </div>
+                <span className="ax-badge ax-badge--warning ax-badge--sm">
+                  {pendingUsers.length}
+                </span>
+              </div>
+
+              <div className="ax-card__body grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {pendingUsers.map((u) => (
+                  <div
+                    key={u.id}
+                    className="ax-card ax-card--compact flex items-center gap-3 p-3"
+                  >
+                    <Avatar
+                      src={u.avatar || u.avatar_url}
+                      name={fullName(u)}
+                      size="sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="ax-truncate text-sm font-medium">
+                        {fullName(u)}
+                      </div>
+                      <div className="ax-text-subtle ax-truncate text-xs">
+                        {u.phone || u.email}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--soft-success ax-btn--icon ax-btn--sm"
+                        aria-label={`Valider ${fullName(u)}`}
+                        onClick={() => handleStatusUpdate(u, "validate")}
+                        disabled={busyId === u.id}
+                      >
+                        {busyId === u.id ? (
+                          <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Check size={13} aria-hidden="true" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--soft-danger ax-btn--icon ax-btn--sm"
+                        aria-label={`Bloquer ${fullName(u)}`}
+                        onClick={() => handleStatusUpdate(u, "block")}
+                        disabled={busyId === u.id}
+                      >
+                        <X size={13} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/*
+            L'import Excel attribue le MEME mot de passe a tous les comptes
+            crees. C'est un defaut connu (chantier backend, voir
+            AGENTS/REFONTE_DETTE.md) ; en attendant, l'administrateur doit au
+            moins le savoir avant d'importer un fichier.
+          */}
+          <div className="ax-alert ax-alert--warning ax-alert--inline">
+            <ShieldAlert className="ax-alert__icon" aria-hidden="true" />
+            <div className="ax-alert__content">
+              <p className="ax-alert__message">
+                Les comptes créés par import Excel reçoivent tous le même mot de
+                passe provisoire{" "}
+                <code className="ax-code">{IMPORT_DEFAULT_PASSWORD}</code>. Un
+                bandeau leur demandera de le remplacer dès leur première
+                connexion, et restera affiché tant que ce ne sera pas fait.
+              </p>
+            </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-          >
-            Suivant
-          </Button>
+
+          <FilterBar
+            searchValue={c.search}
+            onSearchChange={c.setSearch}
+            searchPlaceholder="Nom, e-mail, téléphone ou Daara…"
+            resultCount={c.total}
+            itemLabel="compte"
+            filters={[
+              {
+                label: "Rôle",
+                value: c.filter("role"),
+                onChange: (v) => c.setFilter("role", v),
+                options: [
+                  { value: ALL, label: "Tous les rôles" },
+                  ...ROLES.map((r) => ({ value: r.value, label: r.label })),
+                ],
+              },
+              {
+                label: "Statut",
+                value: c.filter("status"),
+                onChange: (v) => c.setFilter("status", v),
+                options: [
+                  { value: ALL, label: "Tous les statuts" },
+                  { value: "active", label: "Actif" },
+                  { value: "pending", label: "À valider" },
+                  { value: "inactive", label: "Inactif" },
+                  { value: "blocked", label: "Bloqué" },
+                ],
+              },
+            ]}
+            actions={
+              <>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isImporting}
+                >
+                  {isImporting ? (
+                    <Loader2 className="ax-btn__icon animate-spin" size={16} aria-hidden="true" />
+                  ) : (
+                    <FileUp className="ax-btn__icon" size={16} aria-hidden="true" />
+                  )}
+                  <span className="ax-btn__label">Importer</span>
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="ax-visually-hidden"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportExcel}
+                />
+
+                <ExportButton data={exportData} filename="Yessal_Membres" />
+
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--primary"
+                  onClick={() => {
+                    setSelectedDaaraId("");
+                    setIsAddOpen(true);
+                  }}
+                >
+                  <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
+                  <span className="ax-btn__label">Créer un compte</span>
+                </button>
+              </>
+            }
+          />
+
+          <div className="ax-card">
+            <DataTable
+              rows={c.rows}
+              columns={columns}
+              getRowKey={(u) => u.id}
+              sort={c.sort}
+              onSort={c.toggleSort}
+              caption="Comptes de la plateforme"
+              rowTone={(u) =>
+                u.status === "blocked"
+                  ? "danger"
+                  : u.status === "pending"
+                    ? "warning"
+                    : undefined
+              }
+              empty={
+                <div className="ax-card__body">
+                  <EmptyState
+                    icon={c.isFiltered ? Search : Users}
+                    tone={c.isFiltered ? "search" : "neutral"}
+                    title={
+                      c.isFiltered
+                        ? "Aucun compte ne correspond"
+                        : "Aucun compte enregistré"
+                    }
+                    description={
+                      c.isFiltered
+                        ? "Élargissez la recherche ou remettez les filtres à zéro."
+                        : "Créez un compte, ou importez un fichier Excel."
+                    }
+                    action={
+                      c.isFiltered ? (
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--outline"
+                          onClick={c.resetFilters}
+                        >
+                          <span className="ax-btn__label">
+                            Réinitialiser les filtres
+                          </span>
+                        </button>
+                      ) : undefined
+                    }
+                  />
+                </div>
+              }
+            />
+          </div>
+
+          <Pagination
+            page={c.page}
+            totalPages={c.totalPages}
+            onPageChange={c.setPage}
+            totalItems={c.total}
+            pageSize={c.pageSize}
+            itemLabel="comptes"
+          />
         </div>
       )}
-      </TabsContent>
 
-      <TabsContent value="requests" className="space-y-8 m-0 animate-in fade-in slide-in-from-bottom-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* DOCUMENTS SECTION */}
-              <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                      <ShieldCheck size={20} className="text-yessal-violet" />
-                      <h3 className="text-lg font-black tracking-tight">Vérification d&apos;Identité</h3>
-                  </div>
-                  
-                  {pendingDocs.length === 0 ? (
-                      <div className="p-12 text-center border-2 border-dashed rounded-3xl bg-muted/5">
-                          <p className="text-sm text-muted-foreground italic">Aucun document en attente de validation.</p>
-                      </div>
-                  ) : (
-                      <div className="grid grid-cols-1 gap-4">
-                          {pendingDocs.map(doc => (
-                              <Card key={doc.id} className="border-none shadow-sm overflow-hidden group">
-                                  <CardContent className="p-0 flex">
-                                      <div className="w-24 bg-muted flex items-center justify-center border-r relative overflow-hidden">
-                                          <img src={doc.image} className="w-full h-full object-cover opacity-50 group-hover:opacity-100 transition-opacity" alt="Preview" />
-                                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <Eye size={20} className="text-white" />
-                                          </div>
-                                      </div>
-                                      <div className="flex-1 p-4 flex flex-col justify-center">
-                                          <div className="flex justify-between items-start mb-2">
-                                              <div>
-                                                  <div className="text-sm font-black">{doc.user_name || "Membres"}</div>
-                                                  <div className="text-[10px] uppercase font-bold text-muted-foreground">{doc.doc_type}</div>
-                                              </div>
-                                              <Badge variant="outline" className="text-[9px] border-yessal-violet/30 text-yessal-violet">EN ATTENTE</Badge>
-                                          </div>
-                                          <div className="flex gap-2">
-                                              <Button size="sm" className="h-8 bg-yessal-violet text-white gap-1 text-[10px] font-bold" onClick={() => setSelectedDoc(doc)}>
-                                                  <Eye size={12} /> Inspecter
-                                              </Button>
-                                              <Button size="sm" variant="ghost" className="h-8 text-red-600 hover:bg-red-50 text-[10px] font-bold" onClick={() => handleDocumentReview(doc.id, false)}>
-                                                  Rejeter
-                                              </Button>
-                                          </div>
-                                      </div>
-                                  </CardContent>
-                              </Card>
-                          ))}
-                      </div>
-                  )}
+      {/* ══ Demandes ══ */}
+      {tab === "requests" && (
+        <div className="flex flex-col gap-4" role="tabpanel">
+          {queueCount === 0 && (
+            <div className="ax-card">
+              <div className="ax-card__body">
+                <EmptyState
+                  icon={Inbox}
+                  tone="success"
+                  title="Rien à traiter"
+                  description="Aucune pièce d'identité ni demande de titre en attente."
+                />
+              </div>
+            </div>
+          )}
+
+          {pendingDocs.length > 0 && (
+            <section className="ax-card">
+              <div className="ax-card__header">
+                <span className="ax-card__kpi-icon ax-card__kpi-icon--c3" aria-hidden="true">
+                  <FileText />
+                </span>
+                <div className="ax-card__titles">
+                  <h2 className="ax-card__title">
+                    Vérification d&apos;identité
+                  </h2>
+                </div>
+                <span className="ax-badge ax-badge--warning ax-badge--sm">
+                  {pendingDocs.length}
+                </span>
               </div>
 
-              {/* TITLES SECTION */}
-              <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                      <Shield size={20} className="text-yessal-violet" />
-                      <h3 className="text-lg font-black tracking-tight">Demandes de Titres Officiels</h3>
-                  </div>
+              <div className="ax-card__body grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {pendingDocs.map((doc) => (
+                  <article key={doc.id} className="ax-card ax-card--compact">
+                    <div className="ax-card__body flex flex-col gap-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="ax-truncate text-sm font-medium">
+                            {doc.user_name || "Membre"}
+                          </p>
+                          <p className="ax-text-subtle text-xs">
+                            {DOC_TYPE_LABEL[doc.doc_type] ?? doc.doc_type}
+                          </p>
+                        </div>
+                        <StatusBadge domain="document" value="pending" size="sm" />
+                      </div>
 
-                  {titleRequests.length === 0 ? (
-                      <div className="p-12 text-center border-2 border-dashed rounded-3xl bg-muted/5">
-                          <p className="text-sm text-muted-foreground italic">Aucune demande de titre en attente.</p>
-                      </div>
-                  ) : (
-                      <div className="space-y-3">
-                          {titleRequests.map(req => (
-                              <div key={req.id} className="bg-card border rounded-2xl p-4 flex items-center justify-between shadow-sm">
-                                  <div className="flex items-center gap-4">
-                                      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                                          <Shield size={20} />
-                                      </div>
-                                      <div>
-                                          <div className="text-sm font-black">{req.member_name}</div>
-                                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                              Demande le titre : <span className="font-bold text-yessal-violet underline">{req.title_name}</span>
-                                          </div>
-                                      </div>
-                                  </div>
-                                  <div className="flex gap-2">
-                                      <Button size="icon" className="h-9 w-9 rounded-xl bg-yessal-violet text-white" onClick={() => handleTitleReview(req.id, "approve")}>
-                                          <ThumbsUp size={16} />
-                                      </Button>
-                                      <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl text-red-600 hover:bg-red-50" onClick={() => handleTitleReview(req.id, "refuse")}>
-                                          <ThumbsDown size={16} />
-                                      </Button>
-                                  </div>
-                              </div>
-                          ))}
-                      </div>
-                  )}
+                      {doc.image && (
+                        <button
+                          type="button"
+                          onClick={() => setLightboxDoc(doc)}
+                          className="w-full cursor-zoom-in"
+                          aria-label="Agrandir le document"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={doc.image}
+                            alt=""
+                            className="h-32 w-full rounded-(--ax-radius-sm) border border-(--ax-border) object-cover"
+                          />
+                        </button>
+                      )}
 
-                  <div className="bg-muted/30 p-6 rounded-3xl border border-dashed flex flex-col items-center gap-3 text-center mt-8">
-                      <div className="p-3 rounded-full bg-background border">
-                        <Info size={24} className="text-muted-foreground" />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--soft-success ax-btn--sm flex-1"
+                          onClick={() => handleApproveDocument(doc)}
+                        >
+                          <Check className="ax-btn__icon" size={14} aria-hidden="true" />
+                          <span className="ax-btn__label">Valider</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="ax-btn ax-btn--soft-danger ax-btn--sm flex-1"
+                          onClick={() => {
+                            setRefusalNote("");
+                            setRefusal({
+                              kind: "document",
+                              id: doc.id,
+                              label: `${doc.user_name || "Membre"} — ${DOC_TYPE_LABEL[doc.doc_type] ?? doc.doc_type}`,
+                            });
+                          }}
+                        >
+                          <X className="ax-btn__icon" size={14} aria-hidden="true" />
+                          <span className="ax-btn__label">Rejeter</span>
+                        </button>
                       </div>
-                      <p className="text-xs text-muted-foreground max-w-xs font-medium">
-                          Ces demandes proviennent des membres souhaitant officialiser leur statut. L&apos;approbation mettra à jour leur profil instantanément.
-                      </p>
-                  </div>
+                    </div>
+                  </article>
+                ))}
               </div>
+            </section>
+          )}
+
+          {titleRequests.length > 0 && (
+            <section className="ax-card">
+              <div className="ax-card__header">
+                <div className="ax-card__titles">
+                  <h2 className="ax-card__title">Demandes de titres</h2>
+                </div>
+                <span className="ax-badge ax-badge--warning ax-badge--sm">
+                  {titleRequests.length}
+                </span>
+              </div>
+
+              <ul className="ax-list ax-list--comfortable">
+                {titleRequests.map((req) => (
+                  <li key={req.id} className="ax-list__row">
+                    <span className="ax-list__content">
+                      <span className="ax-list__title">{req.member_name}</span>
+                      <span className="ax-list__meta">
+                        demande le titre de{" "}
+                        <span className="ax-text-strong">{req.title_name}</span>
+                      </span>
+                    </span>
+
+                    <span className="ax-list__trailing gap-2">
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--soft-success ax-btn--sm"
+                        onClick={() => handleApproveTitle(req)}
+                      >
+                        <Check className="ax-btn__icon" size={14} aria-hidden="true" />
+                        <span className="ax-btn__label">Approuver</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="ax-btn ax-btn--soft-danger ax-btn--sm"
+                        onClick={() => {
+                          setRefusalNote("");
+                          setRefusal({
+                            kind: "title",
+                            id: req.id,
+                            label: `${req.member_name} — ${req.title_name}`,
+                          });
+                        }}
+                      >
+                        <X className="ax-btn__icon" size={14} aria-hidden="true" />
+                        <span className="ax-btn__label">Refuser</span>
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* ── Création ── */}
+      <Modal
+        open={isAddOpen}
+        onOpenChange={(o) => {
+          setIsAddOpen(o);
+          if (!o) setSelectedDaaraId("");
+        }}
+        title="Créer un compte"
+        description="Le membre pourra se connecter avec l'e-mail et le mot de passe saisis."
+        size="md"
+      >
+        <form onSubmit={handleSubmitCreate} className="flex flex-col gap-4">
+          {userFields(null)}
+
+          <div className="ax-field">
+            <label className="ax-field__label" htmlFor="u-password">
+              Mot de passe
+              <span className="ax-field__required" aria-hidden="true"> *</span>
+            </label>
+            <input
+              id="u-password"
+              name="password"
+              type="password"
+              className="ax-input"
+              placeholder="••••••••"
+              required
+            />
           </div>
-      </TabsContent>
 
-      {/* DOCUMENT LIGHTBOX */}
-      <Dialog open={!!selectedDoc} onOpenChange={() => setSelectedDoc(null)}>
-          <DialogContent className="max-w-4xl border-none shadow-2xl p-8">
-              <DialogHeader>
-                  <DialogTitle className="text-2xl font-black">{selectedDoc?.doc_type} - {selectedDoc?.user_name}</DialogTitle>
-                  <DialogDescription>Vérifiez la validité et la lisibilité des documents avant approbation.</DialogDescription>
-              </DialogHeader>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                  <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase text-muted-foreground ml-1">Recto du document</p>
-                      <div className="aspect-4/3 bg-muted rounded-2xl overflow-hidden border shadow-inner">
-                          <img src={selectedDoc?.image} className="w-full h-full object-contain" alt="Recto" />
-                      </div>
-                  </div>
-                  <div className="space-y-2">
-                      <p className="text-[10px] font-black uppercase text-muted-foreground ml-1">Verso du document</p>
-                      <div className="aspect-4/3 bg-muted rounded-2xl overflow-hidden border shadow-inner flex items-center justify-center">
-                          {selectedDoc?.image_verso ? (
-                              <img src={selectedDoc.image_verso} className="w-full h-full object-contain" alt="Verso" />
-                          ) : (
-                              <span className="text-xs text-muted-foreground font-medium italic">Aucun verso fourni</span>
-                          )}
-                      </div>
-                  </div>
-              </div>
+          <button
+            type="submit"
+            className="ax-btn ax-btn--primary ax-btn--block"
+            disabled={isSaving}
+          >
+            <span className="ax-btn__label">
+              {isSaving ? "Création…" : "Créer le compte"}
+            </span>
+          </button>
+        </form>
+      </Modal>
 
-              <DialogFooter className="mt-8 gap-3 sm:gap-0">
-                  <Button variant="outline" className="h-12 px-8 font-bold border-red-100 text-red-600 hover:bg-red-50" onClick={() => selectedDoc && handleDocumentReview(selectedDoc.id, false)}>
-                      Rejeter le document
-                  </Button>
-                  <Button className="h-12 px-8 bg-yessal-violet text-white font-bold" onClick={() => selectedDoc && handleDocumentReview(selectedDoc.id, true)}>
-                      Valider l&apos;identité
-                  </Button>
-              </DialogFooter>
-          </DialogContent>
-      </Dialog>
-    </Tabs>
+      {/* ── Édition ── */}
+      <Modal
+        open={Boolean(editingUser)}
+        onOpenChange={(o) => {
+          if (!o) {
+            setEditingUser(null);
+            setSelectedDaaraId("");
+          }
+        }}
+        title="Modifier le compte"
+        description={editingUser ? fullName(editingUser) : undefined}
+        size="md"
+      >
+        {editingUser && (
+          <form
+            key={editingUser.id}
+            onSubmit={handleSubmitEdit}
+            className="flex flex-col gap-4"
+          >
+            {userFields(editingUser)}
+
+            <button
+              type="submit"
+              className="ax-btn ax-btn--primary ax-btn--block"
+              disabled={isSaving}
+            >
+              <span className="ax-btn__label">
+                {isSaving ? "Enregistrement…" : "Enregistrer les modifications"}
+              </span>
+            </button>
+          </form>
+        )}
+      </Modal>
+
+      {/* ── Note de refus (remplace window.prompt) ── */}
+      <Modal
+        open={Boolean(refusal)}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRefusal(null);
+            setRefusalNote("");
+          }
+        }}
+        title={
+          refusal?.kind === "title"
+            ? "Refuser la demande"
+            : "Rejeter le document"
+        }
+        description={refusal?.label}
+        status="warning"
+        size="sm"
+        footer={
+          <>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost"
+              onClick={() => setRefusal(null)}
+            >
+              <span className="ax-btn__label">Annuler</span>
+            </button>
+            <button
+              type="button"
+              className="ax-btn ax-btn--danger"
+              onClick={submitRefusal}
+            >
+              <span className="ax-btn__label">
+                {refusal?.kind === "title" ? "Refuser" : "Rejeter"}
+              </span>
+            </button>
+          </>
+        }
+      >
+        <div className="ax-field">
+          <label className="ax-field__label" htmlFor="user-refusal-note">
+            Motif
+          </label>
+          <textarea
+            id="user-refusal-note"
+            rows={4}
+            className="ax-textarea"
+            value={refusalNote}
+            onChange={(e) => setRefusalNote(e.target.value)}
+            placeholder="Ce motif sera visible par le membre."
+          />
+          <p className="ax-field__hint">
+            Facultatif, mais un refus sans explication oblige le membre à
+            deviner ce qu&apos;il doit corriger.
+          </p>
+        </div>
+      </Modal>
+
+      {/* ── Agrandissement d'un document ── */}
+      <Modal
+        open={Boolean(lightboxDoc)}
+        onOpenChange={(o) => !o && setLightboxDoc(null)}
+        title={
+          lightboxDoc
+            ? (DOC_TYPE_LABEL[lightboxDoc.doc_type] ?? lightboxDoc.doc_type)
+            : ""
+        }
+        description={lightboxDoc?.user_name ?? undefined}
+        size="lg"
+      >
+        {lightboxDoc && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {(["image", "image_verso"] as const).map((key) => {
+              const src = lightboxDoc[key];
+              if (!src) return null;
+              const label = key === "image" ? "Recto" : "Verso";
+              return (
+                <figure key={key} className="flex flex-col gap-1">
+                  <figcaption className="ax-eyebrow">{label}</figcaption>
+                  <a href={src} target="_blank" rel="noopener noreferrer">
+                    {/*
+                      Un fichier manquant doit se DIRE, pas se deviner. Une
+                      vignette cassée peut passer pour un défaut d'affichage,
+                      et rien n'est plus fâcheux ici : on valide une pièce
+                      d'identité. <CoverImage> affiche l'icône d'alerte, qui
+                      ne ressemble à aucun document valide.
+                    */}
+                    <CoverImage
+                      src={src}
+                      alt={`${label} du document`}
+                      icon={FileWarning}
+                      iconSize={40}
+                      className="w-full rounded-(--ax-radius-sm) border border-(--ax-border)"
+                      fallbackClassName="aspect-3/2 w-full rounded-(--ax-radius-sm) border border-(--ax-border)"
+                    />
+                  </a>
+                </figure>
+              );
+            })}
+          </div>
+        )}
+      </Modal>
+
+      {/*
+        Le mot de passe attribué, une fois et une seule. Il n'est stocké nulle
+        part : fermer cette fenêtre l'efface définitivement, et il faudra
+        recommencer. C'est dit explicitement, parce que la personne au bout du
+        fil attend qu'on le lui dicte.
+      */}
+      <Modal
+        open={issued !== null}
+        onOpenChange={(open) => !open && setIssued(null)}
+        title="Nouveau mot de passe"
+        description={
+          issued ? `Dictez-le à ${issued.name}. Il ne sera plus affiché.` : undefined
+        }
+        status="success"
+        size="sm"
+        footer={
+          <button
+            type="button"
+            className="ax-btn ax-btn--primary"
+            onClick={() => setIssued(null)}
+          >
+            <span className="ax-btn__label">J&apos;ai transmis le mot de passe</span>
+          </button>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="ax-field__control">
+            <span className="ax-field__affix ax-field__affix--leading">
+              <KeyRound aria-hidden="true" />
+            </span>
+            <input
+              readOnly
+              value={issued?.password ?? ""}
+              aria-label="Nouveau mot de passe"
+              className="ax-input ax-input--lg ax-input--with-leading-icon ax-input--with-trailing font-mono tracking-wider"
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <button
+              type="button"
+              className="ax-field__affix ax-field__affix--trailing ax-field__affix--button"
+              aria-label="Copier le mot de passe"
+              onClick={async () => {
+                if (!issued) return;
+                try {
+                  await navigator.clipboard.writeText(issued.password);
+                  toast.success("Mot de passe copié.");
+                } catch {
+                  toast.error("Copie impossible — notez-le à l'écran.");
+                }
+              }}
+            >
+              <Copy aria-hidden="true" />
+            </button>
+          </div>
+
+          <p className="ax-text-muted text-sm leading-relaxed">
+            {issued?.name} devra le remplacer à sa prochaine connexion : un
+            bandeau le lui rappellera tant que ce ne sera pas fait.
+          </p>
+        </div>
+      </Modal>
+    </div>
   );
 }

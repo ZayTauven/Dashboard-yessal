@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react"
 import { DayPicker } from "react-day-picker"
 import { fr } from "date-fns/locale"
 
@@ -25,14 +25,25 @@ function Calendar({
         month: "flex flex-col gap-4",
         // Caption row — nav is positioned absolute over it
         month_caption: "flex justify-center pt-1 relative items-center h-9",
-        caption_label: "text-sm font-semibold capitalize",
+        caption_label:
+          "flex items-center gap-1 h-8 rounded-lg px-2 text-sm font-semibold capitalize bg-muted/20",
         // Dropdown navigation (captionLayout="dropdown")
         dropdowns: "flex gap-2 items-center justify-center",
         dropdown_root: "relative",
-        months_dropdown:
-          "h-8 rounded-lg px-2 text-sm font-medium bg-muted/20 border-none outline-none cursor-pointer focus:ring-2 focus:ring-ring/30 appearance-none",
-        years_dropdown:
-          "h-8 rounded-lg px-2 text-sm font-medium bg-muted/20 border-none outline-none cursor-pointer focus:ring-2 focus:ring-ring/30 appearance-none",
+        /*
+         * react-day-picker rend DEUX choses par liste déroulante (voir
+         * `components/Dropdown.js`) : le <select> réel, puis un <span> qui
+         * affiche le libellé sélectionné. Le <select> doit donc être un calque
+         * transparent POSÉ SUR le libellé — c'est ce que fait la feuille de
+         * style officielle, et cette classe manquait ici.
+         *
+         * Sans elle, les deux étaient visibles côte à côte : la légende du
+         * calendrier affichait « septembre septembre 2026 2026 ».
+         */
+        dropdown:
+          "absolute inset-0 z-[2] w-full cursor-pointer opacity-0 appearance-none border-none outline-none",
+        months_dropdown: "",
+        years_dropdown: "",
         // Navigation buttons — absolute top corners
         nav: "absolute top-0 inset-x-0 flex justify-between z-10 pointer-events-none",
         button_previous: cn(
@@ -75,12 +86,24 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Chevron: ({ orientation, ...rest }) =>
-          orientation === "left" ? (
-            <ChevronLeft className="size-4" {...rest} />
-          ) : (
-            <ChevronRight className="size-4" {...rest} />
-          ),
+        /*
+         * Les QUATRE orientations, et pas seulement `left` contre le reste.
+         * react-day-picker demande aussi un chevron `down` — celui qui signale
+         * qu'une légende est une liste déroulante. Le ternaire précédent le
+         * rendait pointant à DROITE : la légende du calendrier affichait deux
+         * chevrons « suivant » là où il fallait deux chevrons « dérouler ».
+         */
+        Chevron: ({ orientation = "left", ...rest }) => {
+          const Icon =
+            orientation === "left"
+              ? ChevronLeft
+              : orientation === "up"
+                ? ChevronUp
+                : orientation === "down"
+                  ? ChevronDown
+                  : ChevronRight
+          return <Icon className="size-4" {...rest} />
+        },
       }}
       {...props}
     />

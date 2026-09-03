@@ -1,7 +1,9 @@
 import { getEvents } from "@/app/actions/events";
 import { getProfile } from "@/app/actions/users";
-import { EventsClient } from "./EventsClient";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { PageHead } from "@/components/vireo/PageHead";
+import type { Role } from "@/lib/nav";
+import { EventsClient } from "./EventsClient";
 
 export default async function EventsPage() {
   const [{ data: fetes, error }, { data: profile }] = await Promise.all([
@@ -9,25 +11,22 @@ export default async function EventsPage() {
     getProfile(),
   ]);
 
-  const isAdmin = profile?.role === "admin";
+  const role = (profile?.role ?? "member") as Role;
 
   return (
-    <div className="max-w-6xl mx-auto flex flex-col gap-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight" style={{ color: "var(--foreground)" }}>
-            Fetes
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-            Calendrier des fetes utilisees pour lier les Ndiguels.
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      {/* Le titre et le sous-titre étaient saisis sans accents (« Fetes »,
+          « utilisees »). */}
+      <PageHead
+        role={role}
+        title="Les Fêtes"
+        subtitle="Calendrier des célébrations de la confrérie, auxquelles se rattachent les Ndiguels."
+      />
 
       {error ? (
         <ErrorAlert message={error} />
       ) : (
-        <EventsClient initialEvents={fetes || []} isAdmin={isAdmin} />
+        <EventsClient initialEvents={fetes || []} isAdmin={role === "admin"} />
       )}
     </div>
   );

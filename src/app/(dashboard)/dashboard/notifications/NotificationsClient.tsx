@@ -1,47 +1,78 @@
-﻿"use client";
+"use client";
 
-import { useState, useTransition } from "react";
-import { Bell, CheckCircle } from "lucide-react";
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Notifications
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Repris du patron `pages/Notifications` de Vireo : onglets de filtre à
+ * compteur, action « tout marquer lu » RÉVERSIBLE, et lignes groupées par
+ * période sur le contrat `.ax-list`.
+ *
+ * Ce que le patron corrige ici :
+ *
+ *   · « Tout marquer lu » était irréversible. Un clic de trop, et la seule
+ *     alerte qu'on n'avait pas encore lue disparaissait sans recours. Vireo
+ *     répond par une bande d'annulation ; on la reprend, avec la sauvegarde de
+ *     l'état d'avant qui existait déjà dans le code (`snapshot`) mais ne
+ *     servait qu'en cas d'erreur réseau.
+ *
+ *   · Aucun filtre. Sur une boîte à cinquante entrées, retrouver les non lues
+ *     demandait de tout parcourir — alors que le compteur de non lues était
+ *     affiché juste au-dessus.
+ *
+ *   · Les lignes étaient des `<div onClick>` : ni focus, ni activation au
+ *     clavier, alors que le clic est l'action qui marque comme lu. Ce sont
+ *     maintenant des boutons, et seules les non lues sont cliquables — cliquer
+ *     une notification déjà lue ne faisait rien tout en affichant un curseur
+ *     de pointeur.
+ *
+ *   · La pastille de non-lu était en `animate-pulse`. Une alerte n'a pas
+ *     besoin de clignoter pour se signaler, et le clignotement continu est
+ *     précisément ce que `prefers-reduced-motion` demande d'éviter.
+ */
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState, useTransition } from "react";
+import { Bell, CheckCircle, Undo2 } from "lucide-react";
 import {
   markAllNotificationsRead,
   markNotificationRead,
   type NotificationDto,
 } from "@/app/actions/notifications";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export type Notification = NotificationDto;
 
+type Filter = "all" | "unread";
+
 function timeAgo(dateStr: string): string {
   const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
+  if (Number.isNaN(date.getTime())) return "—";
+  const diffMins = Math.floor((Date.now() - date.getTime()) / 60000);
   if (diffMins < 1) return "À l'instant";
   if (diffMins < 60) return `Il y a ${diffMins} min`;
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `Il y a ${diffHours}h`;
+  if (diffHours < 24) return `Il y a ${diffHours} h`;
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `Il y a ${diffDays}j`;
-  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  if (diffDays < 7) return `Il y a ${diffDays} j`;
+  return date.toLocaleDateString("fr-SN", { day: "numeric", month: "short" });
 }
 
+const GROUPS = ["Aujourd'hui", "Cette semaine", "Plus ancien"] as const;
+
 function groupByDate(items: Notification[]): Record<string, Notification[]> {
-  const now = new Date();
   const groups: Record<string, Notification[]> = {
     "Aujourd'hui": [],
     "Cette semaine": [],
     "Plus ancien": [],
   };
 
-  items.forEach((item) => {
+  for (const item of items) {
     const d = new Date(item.created_at);
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor((Date.now() - d.getTime()) / 86_400_000);
     if (diffDays < 1) groups["Aujourd'hui"].push(item);
     else if (diffDays < 7) groups["Cette semaine"].push(item);
     else groups["Plus ancien"].push(item);
-  });
+  }
 
   return groups;
 }
@@ -52,20 +83,34 @@ export function NotificationsClient({
   notifications: Notification[];
 }) {
   const [notifications, setNotifications] = useState(initialNotifications);
+  const [filter, setFilter] = useState<Filter>("all");
   const [isPending, startTransition] = useTransition();
+  /* Sauvegarde d'avant le « tout marquer lu », qui alimente l'annulation. */
+  const [undoSnapshot, setUndoSnapshot] = useState<Notification[] | null>(null);
 
-  const unreadCount = notifications.filter((a) => !a.is_read).length;
-  const grouped = groupByDate(notifications);
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+
+  const visible = useMemo(
+    () =>
+      filter === "unread"
+        ? notifications.filter((n) => !n.is_read)
+        : notifications,
+    [notifications, filter],
+  );
+
+  const grouped = useMemo(() => groupByDate(visible), [visible]);
 
   const markRead = (id: number) => {
+    /* Optimiste : la ligne s'éteint tout de suite, et se rallume si le serveur
+       refuse. C'est le bon compromis pour une action aussi anodine. */
     setNotifications((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, is_read: true } : item)),
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
     );
     startTransition(async () => {
       const res = await markNotificationRead(id, true);
       if (res.error) {
         setNotifications((prev) =>
-          prev.map((item) => (item.id === id ? { ...item, is_read: false } : item)),
+          prev.map((n) => (n.id === id ? { ...n, is_read: false } : n)),
         );
       }
     });
@@ -73,115 +118,213 @@ export function NotificationsClient({
 
   const markAllRead = () => {
     const snapshot = notifications;
-    setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+    setUndoSnapshot(snapshot);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+
     startTransition(async () => {
       const res = await markAllNotificationsRead();
       if (res.error) {
         setNotifications(snapshot);
+        setUndoSnapshot(null);
       }
     });
   };
 
+  /*
+   * L'annulation rejoue un `markNotificationRead(id, false)` par entrée qui
+   * était non lue — le backend n'expose pas d'inverse groupé. On restaure
+   * l'affichage d'abord, pour que le retour soit immédiat.
+   */
+  const undoMarkAll = () => {
+    const snapshot = undoSnapshot;
+    if (!snapshot) return;
+
+    setNotifications(snapshot);
+    setUndoSnapshot(null);
+
+    const toRestore = snapshot.filter((n) => !n.is_read).map((n) => n.id);
+    startTransition(async () => {
+      await Promise.all(toRestore.map((id) => markNotificationRead(id, false)));
+    });
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="ml-auto flex items-center gap-2">
-          {unreadCount > 0 ? (
-            <Badge className="bg-yessal-violet/10 text-yessal-violet border-none font-bold text-[11px]">
-              {unreadCount} non lue{unreadCount > 1 ? "s" : ""}
-            </Badge>
-          ) : null}
-          <Button
-            variant="outline"
-            size="sm"
+    <div className="flex flex-col gap-4">
+      {/* ── Onglets + action groupée ── */}
+      <div className="ax-card ax-card--compact">
+        <div className="ax-card__body flex flex-wrap items-center gap-3">
+          <div className="ax-tabs ax-tabs--pill">
+            <div className="ax-tabs__list" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                className="ax-tabs__tab"
+                aria-selected={filter === "all"}
+                onClick={() => setFilter("all")}
+              >
+                Toutes
+                <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+                  {notifications.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className="ax-tabs__tab"
+                aria-selected={filter === "unread"}
+                onClick={() => setFilter("unread")}
+              >
+                Non lues
+                <span className="ax-tabs__badge ax-badge ax-badge--accent ax-badge--sm">
+                  {unreadCount}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--sm ms-auto"
             onClick={markAllRead}
             disabled={isPending || unreadCount === 0}
-            className="h-8 text-[11px] uppercase font-bold tracking-wider border-none bg-muted/60 hover:bg-muted"
           >
-            <CheckCircle size={13} className="mr-1.5" />
-            Tout marquer lu
-          </Button>
+            <CheckCircle className="ax-btn__icon" size={14} aria-hidden="true" />
+            <span className="ax-btn__label">Tout marquer lu</span>
+          </button>
         </div>
       </div>
 
-      {notifications.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center">
-            <Bell size={28} className="text-muted-foreground/40" />
-          </div>
-          <p className="text-muted-foreground text-sm font-medium">
-            Aucune notification pour l&apos;instant.
-          </p>
-        </div>
-      ) : null}
-
-      {Object.entries(grouped).map(([label, items]) => {
-        if (items.length === 0) return null;
-        return (
-          <div key={label} className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                {label}
-              </span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            {items.map((notification) => (
-              <div
-                key={notification.id}
-                onClick={() => {
-                  if (!notification.is_read) markRead(notification.id);
-                }}
-                className={`relative p-5 rounded-2xl border flex gap-4 cursor-pointer transition-all hover:shadow-md overflow-hidden group ${
-                  !notification.is_read
-                    ? "bg-card shadow-sm border-l-0"
-                    : "bg-muted/20 opacity-70"
-                }`}
-                style={{ borderColor: "var(--border)" }}
+      {/* ── Bande d'annulation ── */}
+      {undoSnapshot && (
+        <div className="ax-alert ax-alert--success" role="status">
+          <CheckCircle className="ax-alert__icon" aria-hidden="true" />
+          <div className="ax-alert__content">
+            <p className="ax-alert__message">
+              Toutes les notifications ont été marquées comme lues.
+            </p>
+            <div className="ax-alert__actions">
+              <button
+                type="button"
+                className="ax-btn ax-btn--soft-success ax-btn--sm"
+                onClick={undoMarkAll}
               >
-                <div
-                  className="absolute left-0 top-0 w-1 h-full"
-                  style={{ background: "var(--primary)" }}
-                />
-
-                <div className="p-3 rounded-full h-fit mt-0.5 flex-shrink-0 bg-yessal-violet/10 text-yessal-violet">
-                  <Bell size={18} />
-                </div>
-
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p
-                      className={`font-bold text-sm ${
-                        !notification.is_read ? "text-foreground" : "text-muted-foreground"
-                      }`}
-                    >
-                      {notification.title}
-                    </p>
-                    <span className="text-[10px] text-muted-foreground font-semibold whitespace-nowrap flex-shrink-0">
-                      {timeAgo(notification.created_at)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{notification.message}</p>
-                  {!notification.is_read ? (
-                    <div className="pt-1">
-                      <Badge className="text-[9px] uppercase font-black tracking-widest bg-yessal-violet/10 text-yessal-violet border-none px-2 h-5">
-                        Nouveau
-                      </Badge>
-                    </div>
-                  ) : null}
-                </div>
-
-                {!notification.is_read ? (
-                  <div
-                    className="w-2.5 h-2.5 rounded-full self-center flex-shrink-0 animate-pulse"
-                    style={{ background: "var(--primary)" }}
-                  />
-                ) : null}
-              </div>
-            ))}
+                <Undo2 className="ax-btn__icon" size={14} aria-hidden="true" />
+                <span className="ax-btn__label">Annuler</span>
+              </button>
+            </div>
           </div>
-        );
-      })}
+          <button
+            type="button"
+            className="ax-alert__dismiss"
+            aria-label="Masquer"
+            onClick={() => setUndoSnapshot(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* ── Liste ── */}
+      {visible.length === 0 ? (
+        <div className="ax-card">
+          <div className="ax-card__body">
+            <EmptyState
+              icon={Bell}
+              tone={filter === "unread" ? "success" : "neutral"}
+              title={
+                filter === "unread"
+                  ? "Tout est lu"
+                  : "Aucune notification pour l'instant"
+              }
+              description={
+                filter === "unread"
+                  ? "Vous n'avez aucune alerte en attente."
+                  : "Les alertes concernant vos Jëfs, Ndiguels et fêtes arriveront ici."
+              }
+              action={
+                filter === "unread" ? (
+                  <button
+                    type="button"
+                    className="ax-btn ax-btn--outline"
+                    onClick={() => setFilter("all")}
+                  >
+                    <span className="ax-btn__label">Voir toutes les notifications</span>
+                  </button>
+                ) : undefined
+              }
+            />
+          </div>
+        </div>
+      ) : (
+        GROUPS.map((label) => {
+          const items = grouped[label];
+          if (items.length === 0) return null;
+
+          return (
+            <section key={label} className="ax-card">
+              <div className="ax-card__header">
+                <div className="ax-card__titles">
+                  <h2 className="ax-eyebrow">{label}</h2>
+                </div>
+                <span className="ax-badge ax-badge--neutral ax-badge--sm">
+                  {items.length}
+                </span>
+              </div>
+
+              <ul className="ax-list">
+                {items.map((n) => {
+                  /* Seules les non lues réagissent au clic : une notification
+                     déjà lue n'a plus d'action associée. */
+                  const Row = n.is_read ? "div" : "button";
+
+                  return (
+                    <li key={n.id}>
+                      <Row
+                        {...(n.is_read
+                          ? {}
+                          : {
+                              type: "button" as const,
+                              onClick: () => markRead(n.id),
+                              "aria-label": `Marquer « ${n.title} » comme lue`,
+                            })}
+                        className={`ax-list__row w-full text-start ${
+                          n.is_read ? "opacity-70" : ""
+                        }`}
+                      >
+                        <span
+                          className={`ax-list__leading ax-avatar ax-avatar--sm ${
+                            n.is_read ? "" : "ax-kpi__icon--c1"
+                          }`}
+                          aria-hidden="true"
+                        >
+                          <Bell size={15} />
+                        </span>
+
+                        <span className="ax-list__content">
+                          <span className="ax-list__title">{n.title}</span>
+                          <span className="ax-list__meta">{n.message}</span>
+                        </span>
+
+                        <span className="ax-list__trailing flex-col items-end gap-1">
+                          <span className="ax-text-subtle text-xs whitespace-nowrap">
+                            {timeAgo(n.created_at)}
+                          </span>
+                          {!n.is_read && (
+                            <span
+                              className="ax-badge-count ax-badge-count--dot"
+                              aria-label="Non lue"
+                            />
+                          )}
+                        </span>
+                      </Row>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })
+      )}
     </div>
   );
 }

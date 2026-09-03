@@ -1,6 +1,19 @@
-"use client";
-
 /*
+ * ⚠️ PAS de `"use client"` ici, et c'est délibéré.
+ *
+ * Ce composant n'a ni état, ni effet, ni gestionnaire d'événement : rien ne le
+ * force côté client. Or la directive posait un vrai problème — trois pages de
+ * lecture (état d'un Ndiguel, état d'une fête, performance des Ndiguels) sont
+ * des composants SERVEUR et lui passent `icon={TrendingUp}`, une référence de
+ * composant. React refuse de franchir la frontière serveur → client avec une
+ * fonction, et la page échouait à l'exécution avec « Functions cannot be passed
+ * directly to Client Components ».
+ *
+ * Sans la directive, le module est universel : les pages serveur le rendent sur
+ * le serveur, et les composants client qui l'importent l'embarquent simplement
+ * dans leur bundle. Il rend <Sparkline>, qui est bien client — un composant
+ * serveur a parfaitement le droit de rendre un composant client.
+ *
  * Carte de KPI — la brique de tête de tous les tableaux de bord Yessal.
  *
  * Reprend le contrat `.ax-kpi` de Vireo (tuile d'icône teintée, valeur en
@@ -20,7 +33,8 @@
 
 import type { LucideIcon } from "lucide-react";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
-import { Sparkline, formatFCFA } from "@/components/charts/YessalCharts";
+import { Sparkline } from "@/components/charts/YessalCharts";
+import { Amount } from "@/components/vireo/Amount";
 import { cn } from "@/lib/utils";
 
 const nf = new Intl.NumberFormat("fr-SN", { maximumFractionDigits: 0 });
@@ -51,6 +65,8 @@ export interface StatCardProps {
   trend?: number[];
   /** Précision affichée sous la valeur, ex. « 12 Daaras actifs ». */
   hint?: string;
+  /** Unité collée à la valeur, ex. « % ». Ignorée si `currency` est vrai. */
+  suffix?: string;
   className?: string;
 }
 
@@ -64,6 +80,7 @@ export function StatCard({
   deltaLabel = "vs période précédente",
   trend,
   hint,
+  suffix,
   className,
 }: StatCardProps) {
   const hasDelta = typeof delta === "number" && Number.isFinite(delta);
@@ -106,7 +123,22 @@ export function StatCard({
                 currency && "text-montant",
               )}
             >
-              {currency ? formatFCFA(value) : nf.format(value)}
+              {currency ? (
+                /* La taille suit la longueur : « 1,11 Md FCFA » ne peut pas
+                   s'afficher au corps prévu pour « 26 ». Voir Amount.tsx. */
+                <Amount value={value} responsive />
+              ) : (
+                <>
+                  {nf.format(value)}
+                  {suffix && (
+                    /* L'unité reste plus discrète que le chiffre : c'est le
+                       nombre qu'on lit, l'unité ne fait que le qualifier. */
+                    <span className="ax-text-muted ms-1 text-base font-normal">
+                      {suffix}
+                    </span>
+                  )}
+                </>
+              )}
             </p>
             {hint && <p className="ax-kpi__meta">{hint}</p>}
           </div>

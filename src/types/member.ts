@@ -9,9 +9,18 @@
 
 export type MemberRole = "admin" | "chef_daara" | "collector" | "member";
 
-export type MemberStatus = "active" | "pending" | "blocked" | "suspended";
+/* `accounts.User.Status` — quatre valeurs, pas cinq. « suspended » n'existe
+   pas cote Django ; c'est « inactive ». */
+export type MemberStatus = "active" | "pending" | "inactive" | "blocked";
 
-export type DocumentStatus = "pending" | "approved" | "rejected";
+/*
+ * `accounts.UserDocument.ValidationStatus`. La valeur validee est
+ * **validated**, pas « approved » — « approved » appartient au vocabulaire de
+ * `TitleRequest.Status`. La confusion rendait `approvedDocs` toujours nul dans
+ * la fiche membre : le compteur « pieces validees » affichait 0 meme avec une
+ * piece validee, et la puce correspondante restait en « en attente ».
+ */
+export type DocumentStatus = "pending" | "validated" | "rejected";
 
 export interface MemberDaara {
   id?: number;
@@ -82,19 +91,22 @@ export interface Member {
   documents?: MemberDocument[];
 }
 
-/** Libellés français des rôles, tels qu'ils doivent apparaître dans l'UI. */
-export const ROLE_LABEL: Record<string, string> = {
-  admin: "Administrateur",
-  chef_daara: "Chef de Daara",
-  collector: "Collecteur",
-  member: "Membre",
-};
+/*
+ * Réexport, et non une table de plus. Celle qui vivait ici disait
+ * `member: "Membre"` quand les huit autres copies du projet disaient
+ * « Talibé » — et elle alimentait la fiche membre et l'en-tête de coque, deux
+ * écrans très vus. Le vocabulaire du produit est « Talibé » (la navigation dit
+ * « Liste des Talibés »), donc c'est celui-là qui gagne.
+ *
+ * L'export est conservé pour ne casser aucun import existant.
+ */
+export { ROLE_LABEL } from "@/lib/roles";
 
 export const STATUS_LABEL: Record<string, string> = {
   active: "Actif",
   pending: "En attente de validation",
+  inactive: "Inactif",
   blocked: "Bloqué",
-  suspended: "Suspendu",
 };
 
 /** Nom d'affichage, avec repli sur l'e-mail puis sur l'identifiant. */

@@ -39,6 +39,14 @@
 @import "../styles/vireo/schemes.css";
 
 /*
+ * ── Surcharges Yessal ──
+ * Chargée EN DERNIER, après toutes les feuilles Vireo, pour l'emporter sans
+ * `!important` : empilement des panneaux au-dessus des modales, respiration
+ * (Vireo n'a pas de mode plus aéré que `regular`), et traitement des modales.
+ */
+@import "../styles/vireo/_yessal-layers.css";
+
+/*
  * Variante dark de Tailwind — deux sélecteurs volontairement.
  * next-themes appose `class="dark"` (dont dépendent les composants shadcn et
  * les pages existantes) ET `data-ax-theme="dark"` (dont dépend tout Vireo).
@@ -165,7 +173,27 @@
   --card: var(--ax-surface);
   --card-foreground: var(--ax-text-strong);
 
-  --popover: var(--ax-surface-overlay);
+  /*
+   * ⚠️ OPAQUE, et c'est délibéré — ne pas remettre --ax-surface-overlay.
+   *
+   * `--ax-surface-overlay` vaut rgba(255,255,255,0.92) : un verre, prévu pour
+   * être posé AVEC un `backdrop-filter`. Or `PopoverContent` de shadcn applique
+   * `bg-popover` par défaut, et cette classe utilitaire (@layer utilities)
+   * l'emporte sur le `background: var(--ax-surface-solid)` que Vireo pose sur
+   * `.ax-combobox__panel`, `.ax-popover__panel` et `.ax-menu` (@layer
+   * components). Les panneaux héritaient donc d'un fond à 92 % SANS flou :
+   * on lisait le formulaire au travers — sélecteur de Daara à l'inscription
+   * comme à la création de compte, et calendrier du DatePicker.
+   *
+   * Vireo écrit trois fois en commentaire que ces panneaux doivent être
+   * opaques et sans backdrop-filter (« solid reads cleaner for option lists »,
+   * components.css §menu/popover/combobox). On aligne le pont shadcn sur cette
+   * intention plutôt que de rhabiller chaque appel.
+   *
+   * Le verre reste disponible via --ax-surface-overlay pour ce qui en veut
+   * vraiment — les modales, qui ont leur propre voile flouté.
+   */
+  --popover: var(--ax-surface-solid);
   --popover-foreground: var(--ax-text-strong);
 
   --primary: var(--ax-accent);

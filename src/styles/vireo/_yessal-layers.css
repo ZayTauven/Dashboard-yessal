@@ -1,0 +1,162 @@
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Surcharges Yessal — empilement, respiration, modales
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Même principe que `_yessal-accent.css` : on ne touche PAS aux feuilles Vireo
+ * portées, on ajoute une couche par-dessus. Une mise à jour du template reste
+ * ainsi absorbable.
+ *
+ * Chargée après les couches applicatives Vireo dans `globals.css`.
+ */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   1 · EMPILEMENT — les panneaux flottants au-dessus des modales
+   ══════════════════════════════════════════════════════════════════════════
+   Vireo échelonne : dropdown 1000 < drawer 1100 < modal 1200. Cohérent tant
+   qu'un menu s'ouvre depuis la PAGE.
+
+   Mais nos formulaires de modale contiennent des sélecteurs — le champ Daara
+   de « Créer un compte », le calendrier d'une fête, la liste de pays du
+   téléphone. Ouverts depuis une modale, leurs panneaux passaient DESSOUS :
+   le champ semblait ne rien faire.
+
+   Radix portalise ses panneaux dans un conteneur marqué
+   `[data-radix-popper-content-wrapper]`. On relève ce conteneur seul, au-dessus
+   de la modale. Les menus hors modale ne sont pas concernés : leur pile
+   d'origine n'a pas de couche supérieure à disputer.
+   ────────────────────────────────────────────────────────────────────────── */
+[data-radix-popper-content-wrapper] {
+  /* Au-dessus de --ax-z-modal (1200), sous --ax-z-toast (1300) : un message
+     d'erreur doit rester visible par-dessus un sélecteur ouvert. */
+  z-index: 1250 !important;
+}
+
+/* La liste de pays de `react-phone-input-2` n'est pas portalisée : elle reste
+   dans le flux, à l'intérieur de la modale. Il lui faut donc seulement passer
+   au-dessus de ses voisins, pas au-dessus de la modale. */
+.react-tel-input .country-list {
+  z-index: 20;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2 · EN-TÊTES DE CARTE À ICÔNE — filet de sécurité
+   ══════════════════════════════════════════════════════════════════════════
+   `.ax-card__header` est `justify-content: space-between`, ce qui suppose deux
+   groupes : le contenu, puis l'action. Vireo n'y met jamais d'icône de tête.
+
+   Nous si — elle porte la couleur de section et aide au repérage. Mais avec
+   `[icône][titres]` comme deux enfants directs, l'espace se répartissait ENTRE
+   EUX : le titre partait à droite, l'icône restait à gauche. C'est ce qu'on
+   voyait sur « 1 · Identifier le membre » de la Collecte.
+
+   `margin-inline-end: auto` sur les titres absorbe l'espace libre APRÈS eux :
+   l'icône et le texte restent collés, et une éventuelle action finale reste
+   bien poussée à droite.
+
+   <CardHeader> compose désormais correctement et reste la voie à suivre pour
+   tout nouvel en-tête. Cette règle est le filet : elle rattrape les en-têtes
+   écrits à la main, présents comme futurs.
+   ────────────────────────────────────────────────────────────────────────── */
+.ax-card__header > .ax-card__kpi-icon + .ax-card__titles {
+  margin-inline-end: auto;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3 · RESPIRATION — NEUTRALISÉE
+   ══════════════════════════════════════════════════════════════════════════
+   Cette section relevait les paddings de page et de carte pour répondre au
+   grief « les vues sont trop compactes ». Le diagnostic était faux.
+
+   La vraie cause était dans `base.css` : son reset et sa typographie vivaient
+   HORS layer, et l'emportaient donc sur tout Tailwind (@layer utilities).
+   Deux conséquences, invisibles tant qu'on regardait les paddings :
+
+     · `* { margin: 0 }` annulait `mb-*`, `mt-*`, `mx-*`… PARTOUT. Les marges
+       écrites dans le JSX ne produisaient aucun espace.
+     · `h1`/`h2` écrasaient `.ax-card__title` et les classes `text-*` : titres
+       de page à 38 px au lieu de 24, titres de carte à 30 px au lieu de 20.
+
+   L'espace ne manquait pas : il était annulé, et ce qui restait était rempli
+   par une typographie 60 % trop grande. `base.css` étant corrigé, ces
+   surcharges feraient double emploi — on revient aux mesures de Vireo, qui
+   sont celles pour lesquelles le template a été dessiné.
+
+   Conservé en commentaire, sans le supprimer : si après vérification visuelle
+   une respiration supplémentaire reste souhaitable, le point de reprise est
+   ici et les valeurs sont déjà calibrées.
+   ──────────────────────────────────────────────────────────────────────────
+
+   @media (min-width: 992px) {
+     .ax-main > :not(.ax-footer) {
+       padding-inline: var(--ax-space-8);
+       padding-block: var(--ax-space-8);
+     }
+   }
+   .ax-card__body   { padding: var(--ax-space-7); }
+   .ax-card__header { padding: var(--ax-space-6) var(--ax-space-7); }
+   .ax-card__footer { padding: var(--ax-space-5) var(--ax-space-7); }
+   .ax-card--compact .ax-card__body { padding: var(--ax-space-4); }
+   .ax-page-head    { margin-block-end: var(--ax-space-8); }
+
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   4 · MODALES
+   ══════════════════════════════════════════════════════════════════════════
+   Le flou de fond était à 2 px : assez pour être coûteux à peindre, trop peu
+   pour détacher la modale. On l'assume — 8 px et un fond plus dense — pour que
+   l'œil comprenne immédiatement que l'arrière-plan est hors service.
+   ────────────────────────────────────────────────────────────────────────── */
+.ax-modal__backdrop {
+  /*
+   * ⚠️ LE z-index EST LA CORRECTION PRINCIPALE, pas le flou.
+   *
+   * Vireo ne donne aucun z-index à `.ax-modal__backdrop` parce que, dans son
+   * markup d'origine, le voile est un ENFANT de `.ax-modal` (z-index 1200) :
+   * il hérite donc de son contexte d'empilement.
+   *
+   * Radix ne permet pas cette imbrication — `Dialog.Overlay` et le conteneur
+   * de placement sont deux frères dans le Portal (voir Modal.tsx). Le voile se
+   * retrouvait donc à `z-index: auto` au niveau du <body>, c'est-à-dire SOUS
+   * la barre latérale (300) et SOUS l'en-tête (200) : le contenu central
+   * s'assombrissait, la navigation restait à pleine luminosité — exactement ce
+   * que montrent les captures de « Créer un compte » et « Nouvel article ».
+   *
+   * On le remet au même plan que `.ax-modal`. À z-index égal, c'est l'ordre du
+   * DOM qui tranche : le voile est déclaré avant le dialogue, donc peint
+   * dessous. Le dialogue reste au-dessus, le reste du châssis passe dessous.
+   */
+  z-index: var(--ax-z-modal);
+  background: rgba(8, 10, 16, 0.72);
+  -webkit-backdrop-filter: blur(8px) saturate(0.9);
+  backdrop-filter: blur(8px) saturate(0.9);
+}
+
+/*
+ * En thème sombre, un voile noir à 72 % sur une page déjà sombre ne se voit
+ * pas : la modale flotte sans qu'on comprenne ce qui est désactivé. On y va
+ * plus franchement, et le flou fait le reste du travail de séparation.
+ */
+[data-ax-theme='dark'] .ax-modal__backdrop {
+  background: rgba(0, 0, 0, 0.78);
+}
+
+/* Les surcharges de padding des modales relevaient de la même erreur de
+   diagnostic que la section 3 : elles sont neutralisées avec elle, pour que la
+   vérification visuelle porte sur du Vireo d'origine plus les deux correctifs
+   racines, sans rien qui brouille la lecture. Reprise ici si besoin :
+
+   .ax-modal__body   { padding: var(--ax-space-7); }
+   .ax-modal__header { padding: var(--ax-space-6) var(--ax-space-7); }
+   .ax-modal__footer { padding: var(--ax-space-5) var(--ax-space-7); } */
+
+/*
+ * Le flou de fond est le premier effet à sacrifier quand l'utilisateur demande
+ * moins d'animation : c'est un traitement coûteux, et purement décoratif.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .ax-modal__backdrop {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

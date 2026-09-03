@@ -35,8 +35,11 @@ export default async function UserDetailPage({
     );
   }
 
+  /* Le fond `bg-muted/10` qui enveloppait la fiche est retire : c'est la coque
+     (`--ax-canvas`) qui peint le fond de page, et cette teinte de plus creait
+     une bande legerement differente du reste du tableau de bord. */
   return (
-    <div className="bg-muted/10">
+    <>
       <UserDetailClient
         user={user}
         stats={stats}
@@ -44,6 +47,6 @@ export default async function UserDetailPage({
         documents={documents}
         tutelle={tutelle}
       />
-    </div>
+    </>
   );
 }
