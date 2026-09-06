@@ -71,16 +71,13 @@ function donationsTitle(role: Role): string {
   if (role === "admin") return "Les Jëfs";
   if (role === "chef_daara") return "Jëfs du Daara";
   /*
-    ⚠ « Mes Jëfs » ÉTAIT FAUX POUR UN COLLECTEUR.
-    `DonationViewSet.get_queryset` lui sert `filter(collector=user)` — ce qu'il
-    a ENCAISSÉ, pas ce qu'il a donné. L'écran lui présentait donc les dons des
-    autres comme les siens.
-
-    ⚠ Corollaire non résolu, porté au registre : un collecteur ne peut voir ses
-    PROPRES Jëfs nulle part, ni ici ni sur le mobile. C'est une décision de
-    portée côté Django, pas un libellé.
+    ⚠ « Mes Jëfs » était faux pour un collecteur : `get_queryset` lui servait
+    `filter(collector=user)` — ce qu'il a ENCAISSÉ, pas ce qu'il a donné. Le
+    corollaire l'était plus encore, et il est corrigé depuis le 2026-09-06 :
+    un collecteur ne pouvait voir ses PROPRES Jëfs nulle part. La portée rend
+    maintenant les deux, et le titre les annonce tous les deux.
   */
-  if (role === "collector") return "Jëfs collectés";
+  if (role === "collector") return "Mes Jëfs et mes collectes";
   return "Mes Jëfs";
 }
 
