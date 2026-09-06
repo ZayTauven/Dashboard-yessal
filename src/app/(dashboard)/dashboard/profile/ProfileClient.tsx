@@ -61,6 +61,7 @@ import { PasswordChangeForm } from "@/components/vireo/PasswordChangeForm";
 import { CoverBand } from "@/components/vireo/CoverBand";
 import { StatusBadge } from "@/components/vireo/StatusBadge";
 import { checkFileSize } from "@/components/vireo/FileDrop";
+import { profileCompletionItems } from "@/lib/profile-completion";
 
 /*
  * Garde de taille commun aux dépôts de cet écran. Ils ont chacun leur propre
@@ -201,24 +202,13 @@ export function ProfileClient({
     .filter(Boolean)
     .join(" · ");
 
-  const completionItems = [
-    {
-      label: "Prénom et nom",
-      done: Boolean(profile?.first_name && profile?.last_name),
-    },
-    { label: "Date de naissance", done: Boolean(profile?.birth_date) },
-    { label: "Genre", done: Boolean(profile?.gender) },
-    {
-      label: "Photo de profil",
-      done: Boolean(profile?.avatar || profile?.avatar_url),
-    },
-    { label: "Pays de résidence", done: Boolean(profile?.residence_country) },
-    {
-      label: "Adresse complète",
-      done: Boolean(profile?.address && profile?.city),
-    },
-    { label: "Pièce d'identité", done: documents.length > 0 },
-  ];
+  /*
+    La liste vient du module partagé, plus d'une copie locale. Elle était
+    écrite ici ET dans `ProfileCompletionBanner`, avec sept critères d'un côté
+    et quatre de l'autre : un membre lisait « 5 sur 7 » sur cette fiche et
+    aucun bandeau de rappel. Voir `@/lib/profile-completion`.
+  */
+  const completionItems = profileCompletionItems(profile, documents.length);
   const completedCount = completionItems.filter((i) => i.done).length;
   const completionPct = Math.round(
     (completedCount / completionItems.length) * 100,
@@ -717,9 +707,19 @@ export function ProfileClient({
                       className="ax-select"
                       defaultValue={profile?.marital_status ?? ""}
                     >
+                      {/*
+                        ⚠ QUATRE VALEURS, pas deux. `User.MaritalStatus`
+                        (`accounts/models.py`) déclare `single`, `married`,
+                        `divorced` et `widowed` ; ce formulaire n'en offrait
+                        que les deux premières. Une personne veuve ou divorcée
+                        ne pouvait donc pas se décrire — et le mobile, lui,
+                        propose les quatre depuis toujours.
+                      */}
                       <option value="">Non renseigné</option>
                       <option value="single">Célibataire</option>
                       <option value="married">Marié(e)</option>
+                      <option value="divorced">Divorcé(e)</option>
+                      <option value="widowed">Veuf / Veuve</option>
                     </select>
                   </div>
                   <div className="ax-field">

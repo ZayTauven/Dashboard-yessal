@@ -70,6 +70,17 @@ export interface NavCounts {
 function donationsTitle(role: Role): string {
   if (role === "admin") return "Les Jëfs";
   if (role === "chef_daara") return "Jëfs du Daara";
+  /*
+    ⚠ « Mes Jëfs » ÉTAIT FAUX POUR UN COLLECTEUR.
+    `DonationViewSet.get_queryset` lui sert `filter(collector=user)` — ce qu'il
+    a ENCAISSÉ, pas ce qu'il a donné. L'écran lui présentait donc les dons des
+    autres comme les siens.
+
+    ⚠ Corollaire non résolu, porté au registre : un collecteur ne peut voir ses
+    PROPRES Jëfs nulle part, ni ici ni sur le mobile. C'est une décision de
+    portée côté Django, pas un libellé.
+  */
+  if (role === "collector") return "Jëfs collectés";
   return "Mes Jëfs";
 }
 

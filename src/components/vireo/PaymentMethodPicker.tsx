@@ -36,26 +36,51 @@ export interface PaymentMethodOption {
   icon: LucideIcon;
 }
 
-/** Aligné sur `contributions.Donation.PaymentMethod`, valeurs héritées comprises. */
+/**
+ * Aligné sur `contributions.Donation.PaymentMethod`.
+ *
+ * ⚠ Les valeurs HÉRITÉES restent lisibles ici — la base en contient encore sur
+ * des dons anciens (migration 0007), et un historique doit savoir les afficher.
+ * Elles ne sont pas PROPOSABLES pour autant : voir `ALL_METHODS`.
+ */
 export const PAYMENT_METHODS: Record<string, PaymentMethodOption> = {
   orange_money: { value: "orange_money", label: "Orange Money", icon: Smartphone },
   wave: { value: "wave", label: "Wave", icon: Smartphone },
+  bictorys: { value: "bictorys", label: "Carte bancaire", icon: CreditCard },
+  virement: { value: "virement", label: "Virement", icon: Landmark },
+  manual: { value: "manual", label: "Espèces (collecteur)", icon: Banknote },
+
+  // ── Héritées : affichables, jamais proposées ──────────────────────────
   visa: { value: "visa", label: "Visa", icon: CreditCard },
   mastercard: { value: "mastercard", label: "Mastercard", icon: CreditCard },
   paypal: { value: "paypal", label: "PayPal", icon: Wallet },
-  virement: { value: "virement", label: "Virement", icon: Landmark },
   collector: { value: "collector", label: "Collecteur", icon: Banknote },
 };
 
-/** Jeu complet, dans l'ordre d'usage réel au Sénégal. */
+/**
+ * Ce qu'on PROPOSE. Cinq, dans l'ordre d'usage réel au Sénégal.
+ *
+ * 🔴 IL Y EN AVAIT SEPT, ET DEUX MENAIENT À UNE IMPASSE. `DonationViewSet.pay`
+ * (`contributions/views.py:154`) n'accepte que `orange_money`, `wave`, `visa`,
+ * `mastercard` et `bictorys` — plus `virement` et `manual`, traités avant. Un
+ * membre qui choisissait **PayPal** ou **Collecteur** recevait donc un 400
+ * « Méthode de paiement non supportée » après avoir saisi son montant.
+ *
+ * `visa` et `mastercard` sont retirées pour une autre raison : le paiement par
+ * carte passe par un seul routage, `bictorys`, qui présente lui-même le choix
+ * de la marque. Deux lignes ici pour un seul parcours faisaient croire à deux
+ * chemins différents.
+ *
+ * Ce jeu est celui que le mobile émet depuis la refonte
+ * (`yessal-mobile/types/donation.types.ts`). Divergence relevée par l'audit de
+ * parité du 2026-09-05.
+ */
 export const ALL_METHODS = [
   "orange_money",
   "wave",
-  "visa",
-  "mastercard",
-  "paypal",
+  "bictorys",
   "virement",
-  "collector",
+  "manual",
 ];
 
 export interface PaymentMethodPickerProps {

@@ -11,10 +11,15 @@
  *
  * Trois corrections :
  *
- *   · Les sept moyens de paiement passent par <PaymentMethodPicker>. Ils
- *     étaient recopiés à l'identique ici ET dans la modale des Ndiguels — et
- *     les deux listes avaient divergé, le virement bancaire n'existant que
- *     dans cet écran-ci.
+ *   · Les moyens de paiement passent par <PaymentMethodPicker>. Ils étaient
+ *     recopiés à l'identique ici ET dans la modale des Ndiguels — et les deux
+ *     listes avaient divergé, le virement bancaire n'existant que dans cet
+ *     écran-ci.
+ *
+ *     ⚠ Ils étaient SEPT jusqu'au 2026-09-06 ; ils sont cinq. PayPal et
+ *     « Collecteur » menaient à un 400 du serveur, et les deux lignes de carte
+ *     ont fusionné dans `bictorys`, qui est le routage réel. Voir
+ *     `ALL_METHODS`.
  *
  *   · Les coordonnées bancaires étaient écrites sans accents (« Coordonnees »,
  *     « Reference », « identite ») et l'IBAN en police proportionnelle. Un IBAN

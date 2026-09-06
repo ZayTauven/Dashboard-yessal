@@ -18,6 +18,14 @@
  * Customizer puisse y revenir explicitement. Aucun autre token n'est touché.
  */
 
+/*
+ * ── ARBITRAGE DU 2026-09-06 : DEUX DIALECTES, ASSUMÉS ───────────────────────
+ * Le bouton principal du MOBILE est lavande (#B79BF3, libellé #2F1966), celui
+ * du web reste #7954D4 sur blanc. Les deux passent AA. La lavande vient des
+ * planches de la refonte mobile ; le web garde son accent. Ce qui est commun
+ * et suffit à faire famille : le violet 400/500/700 et --yessal-montant.
+ * Même arbitrage pour les fontes. Ne pas aligner sans rouvrir la décision.
+ */
 :root,
 [data-ax-accent='yessal'] {
   --ax-accent-50: #f2edfc;
