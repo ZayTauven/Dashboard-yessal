@@ -25,6 +25,34 @@ FROM base AS builder
 ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# ─── Les variables publiques doivent exister ICI, pas au démarrage ──────────
+# Next remplace les `process.env.NEXT_PUBLIC_*` par leur valeur pendant le
+# build : ce qui n'est pas connu à cet instant ne le sera jamais, et un
+# `environment:` posé dans le compose arrive trop tard pour le code envoyé au
+# navigateur.
+#
+# Rien ne le signalait, parce que `.env.local` est exclu par le .dockerignore
+# — donc absent de l'image — et que les valeurs concernées ont toutes un défaut
+# silencieux. `VAPID_KEY` retombe sur la chaîne vide : le push web ne s'inscrit
+# pas, sans lever d'erreur. `PUSHER_KEY` retombe sur une clé codée en dur qui
+# n'est plus la bonne. Une image de production se construisait ainsi sans
+# notification push et avec un temps réel branché ailleurs, en silence.
+#
+# Les valeurs par défaut vides gardent le build fonctionnel sans argument :
+# `docker build` seul continue de marcher, il produit simplement une image
+# sans push web.
+ARG NEXT_PUBLIC_BACKEND_URL=""
+ARG NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_FIREBASE_VAPID_KEY=""
+ARG NEXT_PUBLIC_PUSHER_KEY=""
+ARG NEXT_PUBLIC_PUSHER_CLUSTER="eu"
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
+    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_FIREBASE_VAPID_KEY=$NEXT_PUBLIC_FIREBASE_VAPID_KEY \
+    NEXT_PUBLIC_PUSHER_KEY=$NEXT_PUBLIC_PUSHER_KEY \
+    NEXT_PUBLIC_PUSHER_CLUSTER=$NEXT_PUBLIC_PUSHER_CLUSTER
+
 RUN npm run build
 
 # ─── Runtime de production ──────────────────────────────
