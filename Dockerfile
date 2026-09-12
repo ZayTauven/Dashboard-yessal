@@ -65,6 +65,24 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.ts ./next.config.ts
+
+# ─── Le serveur ne tourne pas en root ───────────────────────────────────────
+# Le backend Django tourne en `appuser`, Postgres redescend sur `postgres` ;
+# seul Next restait en root dans son conteneur. Rien ne l'imposait : l'image
+# node embarque déjà un utilisateur `node` (uid 1000).
+#
+# Ce n'est pas root SUR L'HÔTE — le conteneur n'est ni privilégié ni monté sur
+# le socket Docker. Mais une exécution de code arbitraire dans Next donnerait
+# root DANS le conteneur, donc de quoi réécrire l'application servie aux
+# visiteurs. Descendre d'un cran coûte deux lignes.
+#
+# `chown` avant `USER`, et sur tout /app : `next start` écrit dans
+# `.next/cache` (cache de rendu et de `fetch`). Un /app appartenant à root
+# ferait échouer ces écritures — en silence pour la plupart, et par des pages
+# qui ne se mettent plus jamais à jour pour les autres.
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
   CMD curl -f http://localhost:3000/ || exit 1
