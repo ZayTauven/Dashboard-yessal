@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Calendar, Image as ImageIcon, Youtube } from "lucide-react";
+import { ArrowLeft, Calendar, Image as ImageIcon, Pencil, Youtube } from "lucide-react";
 import { getNewsPost } from "@/app/actions/news";
 import { Avatar } from "@/components/vireo/Avatar";
 import { Gallery } from "@/components/vireo/Gallery";
 import { PageHead } from "@/components/vireo/PageHead";
 import { CoverImage } from "@/components/vireo/CoverImage";
+import { getSessionRole } from "../session-role";
+import { isHtmlContent } from "../types";
 
 /*
  * ═══════════════════════════════════════════════════════════════════════════
@@ -24,6 +26,19 @@ import { CoverImage } from "@/components/vireo/CoverImage";
  *   · Le titre s'affichait en `text-5xl font-black`, une graisse qu'on ne
  *     trouve nulle part ailleurs. Il passe sur l'échelle typographique Aurora
  *     via <PageHead>, comme les vingt-sept autres écrans.
+ *
+ * ── Le corps, depuis l'éditeur riche ──────────────────────────────────────
+ * `content` est du HTML pour tout article écrit avec <RichTextEditor>, et du
+ * texte brut pour ceux d'avant. Les deux cohabitent en base — rien ne migre le
+ * corpus — donc la page reconnaît lequel elle tient et rend en conséquence :
+ * balisage d'un côté, `white-space: pre-wrap` de l'autre, comme avant.
+ *
+ * L'injection est sûre parce que la sortie l'est : `NewsPostSerializer.
+ * validate_content` fait passer tout `content` par `core.richtext.
+ * sanitize_html` À L'ENREGISTREMENT, liste blanche à l'appui. Ce qui est en
+ * base a donc déjà été réduit à une douzaine de balises sans attribut
+ * d'événement — y compris ce qu'un appel direct à l'API aurait tenté d'y
+ * mettre.
  */
 
 type GalleryImage = { id: number; image: string; caption?: string };
@@ -54,6 +69,7 @@ export default async function NewsDetailPage({
 }) {
   const { slug } = await params;
   const { data: post, error, status } = await getNewsPost(slug);
+  const isAdmin = (await getSessionRole()) === "admin";
 
   /*
    * `notFound()` est réservé au vrai 404. Une session expirée (401), un droit
@@ -81,10 +97,25 @@ export default async function NewsDetailPage({
           { label: "Actualités", href: "/dashboard/news" },
         ]}
         actions={
-          <Link href="/dashboard/news" className="ax-btn ax-btn--ghost">
-            <ArrowLeft className="ax-btn__icon" size={16} aria-hidden="true" />
-            <span className="ax-btn__label">Retour aux actualités</span>
-          </Link>
+          <>
+            <Link href="/dashboard/news" className="ax-btn ax-btn--ghost">
+              <ArrowLeft className="ax-btn__icon" size={16} aria-hidden="true" />
+              <span className="ax-btn__label">Retour aux actualités</span>
+            </Link>
+            {/* La modification ne s'atteignait que par le menu « ⋯ » d'une
+                carte de la liste : relire son article puis vouloir corriger une
+                faute obligeait à revenir en arrière et à retrouver la bonne
+                carte. */}
+            {isAdmin && (
+              <Link
+                href={`/dashboard/news/${slug}/edit`}
+                className="ax-btn ax-btn--primary"
+              >
+                <Pencil className="ax-btn__icon" size={16} aria-hidden="true" />
+                <span className="ax-btn__label">Modifier</span>
+              </Link>
+            )}
+          </>
         }
       >
         <div className="ax-cluster ax-text-muted mt-3 gap-4 text-sm">
@@ -117,13 +148,23 @@ export default async function NewsDetailPage({
           <section className="ax-card">
             <div className="ax-card__body">
               {/*
-                `max-w-[68ch]` : au-delà d'environ 70 caractères par ligne,
-                l'œil perd le début de la ligne suivante. La colonne de lecture
-                s'arrête donc avant la largeur de la carte.
+                `.ax-prose` porte la colonne de lecture (68ch : au-delà
+                d'environ 70 caractères par ligne, l'œil perd le début de la
+                ligne suivante) ET la typographie des balises de l'article.
+                Elle est écrite en regard de `.ax-editor__area`, dans
+                `_yessal-layers.css` : un intertitre a le même poids à
+                l'écriture et à la lecture, sinon l'auteur compose à l'aveugle.
               */}
-              <div className="max-w-[68ch] text-base leading-relaxed whitespace-pre-wrap">
-                {post.content}
-              </div>
+              {isHtmlContent(post.content) ? (
+                <div
+                  className="ax-prose"
+                  dangerouslySetInnerHTML={{ __html: post.content }}
+                />
+              ) : (
+                /* Article d'avant l'éditeur : du texte, dont les retours à la
+                   ligne portent toute la structure. */
+                <div className="ax-prose ax-prose--plain">{post.content}</div>
+              )}
             </div>
           </section>
 

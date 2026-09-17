@@ -5,81 +5,47 @@
  * Actualités — le journal de la confrérie
  * ═══════════════════════════════════════════════════════════════════════════
  * Repris du patron `blog/BlogList` de Vireo : un article à la une en pleine
- * largeur, puis une grille de cartes média.
+ * largeur, puis une grille de cartes média. Recherche, filtre publié /
+ * brouillon, auteur et date de parution sur chaque carte.
  *
- * Trois manques que le patron comble :
+ * ── Ce que cet écran ne fait plus ─────────────────────────────────────────
+ * Il portait aussi les DEUX formulaires — création et édition — dans des
+ * <Modal>, plus la galerie éditable, plus les confirmations de suppression.
+ * Soit 700 lignes pour un écran dont le travail est d'afficher une liste.
  *
- *   · Ni AUTEUR ni DATE n'étaient affichés. `created_by_name` et `created_at`
- *     existent dans le type et arrivent de l'API — ils n'étaient simplement
- *     jamais rendus. Un journal sans date de parution n'est pas un journal.
+ * La rédaction est partie sur ses propres routes, `news/new` et
+ * `news/[slug]/edit`, autour de <NewsForm>. Ce qui a motivé le déplacement est
+ * détaillé en tête de ce fichier-là ; le résumé est qu'une confirmation
+ * s'affichait hors de la modale qui l'avait déclenchée, et qu'un article ne se
+ * rédige pas dans une boîte de 800 px qu'un clic à côté referme.
  *
- *   · Aucun article à la une : douze cartes de poids identique, dont la plus
- *     récente ne se distinguait pas.
- *
- *   · Aucune recherche, aucun filtre. Un admin ne pouvait pas retrouver ses
- *     brouillons — le badge « Actualité » était figé et ne disait jamais si
- *     l'article était publié.
- *
- * Correction d'un bug au passage : après l'ajout d'une image à la galerie, le
- * code appelait `fetch("/api/news/posts/<slug>/")`. Cette route n'existe pas —
- * il n'y a pas de dossier `src/app/api`. Le `.json()` levait sur la page 404,
- * donc `setGalleryLoading(false)` n'était jamais atteint et le bouton
- * « Ajouter » restait bloqué en chargement. On passe par l'action serveur
- * `getNewsPost`, qui existe déjà et fait exactement ce travail.
+ * Reste ici une seule action destructrice — supprimer un article — et elle
+ * passe désormais par <ConfirmDialog> plutôt que par un toast : un toast
+ * expire tout seul, ne piège pas le focus, et s'affiche dans un coin que
+ * personne ne regarde au moment du clic.
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
-  ImagePlus,
-  Loader2,
   Newspaper,
   Pencil,
   Plus,
   Search,
   Trash2,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  addGalleryImage,
-  addNewsPost,
-  deleteGalleryImage,
-  deleteNewsPost,
-  getNewsPost,
-  updateNewsPost,
-} from "@/app/actions/news";
+import { deleteNewsPost } from "@/app/actions/news";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Gallery } from "@/components/vireo/Gallery";
 import { Avatar } from "@/components/vireo/Avatar";
-import { FileDrop, checkFileSize } from "@/components/vireo/FileDrop";
-import { Menu } from "@/components/vireo/Menu";
-import { Modal } from "@/components/vireo/Modal";
-import { Pagination } from "@/components/vireo/Pagination";
+import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { CoverImage } from "@/components/vireo/CoverImage";
+import { Menu } from "@/components/vireo/Menu";
+import { Pagination } from "@/components/vireo/Pagination";
 import { ALL, useCollection } from "@/hooks/useCollection";
-
-type NewsGalleryImage = {
-  id: number;
-  image: string;
-  caption?: string;
-};
-
-type NewsPost = {
-  id: number;
-  slug: string;
-  title: string;
-  excerpt?: string | null;
-  content: string;
-  cover_image?: string | null;
-  youtube_url?: string | null;
-  is_published: boolean;
-  created_at: string;
-  created_by_name?: string | null;
-  gallery?: NewsGalleryImage[];
-};
+import type { NewsPost } from "./types";
 
 const dateFmt = new Intl.DateTimeFormat("fr-SN", {
   day: "numeric",
@@ -93,6 +59,27 @@ function formatDate(iso?: string | null): string {
   return Number.isNaN(d.getTime()) ? "—" : dateFmt.format(d);
 }
 
+/**
+ * Aperçu d'un article sur sa carte.
+ *
+ * Le résumé est du texte ; le corps ne l'est plus depuis l'éditeur riche. Le
+ * reprendre tel quel en repli afficherait « <p>Le <strong>Magal</strong>… » sur
+ * la carte. On le déshabille donc — et on en profite pour rendre son espacement
+ * lisible, un `</p><p>` valant une séparation de mots.
+ */
+function preview(post: NewsPost): string {
+  if (post.excerpt) return post.excerpt;
+  return post.content
+    .replace(/<\/(p|h2|h3|h4|li|blockquote)>/gi, " ")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function NewsClient({
   initialPosts,
   isAdmin,
@@ -101,10 +88,7 @@ export function NewsClient({
   isAdmin: boolean;
 }) {
   const router = useRouter();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingPost, setEditingPost] = useState<NewsPost | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const [galleryLoading, setGalleryLoading] = useState(false);
+  const { ask, dialog } = useConfirm();
 
   const searchable = useMemo(
     () => (p: NewsPost) => [p.title, p.excerpt, p.created_by_name],
@@ -119,10 +103,7 @@ export function NewsClient({
     [],
   );
 
-  const sorters = useMemo(
-    () => ({ date: (p: NewsPost) => p.created_at }),
-    [],
-  );
+  const sorters = useMemo(() => ({ date: (p: NewsPost) => p.created_at }), []);
 
   const c = useCollection(initialPosts, {
     searchable,
@@ -147,207 +128,27 @@ export function NewsClient({
     ? c.rows
     : c.rows.filter((p) => p.id !== featured?.id);
 
-  const handleAdd = (formData: FormData) => {
-    startTransition(async () => {
-      const res = await addNewsPost(formData);
-      if (res.error) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success("Article publié avec succès.");
-      setIsCreateOpen(false);
-      router.refresh();
-    });
-  };
-
-  const handleUpdate = (formData: FormData) => {
-    if (!editingPost) return;
-    startTransition(async () => {
-      /*
-       * Le SLUG, pas l'identifiant. `NewsPostViewSet` déclare
-       * `lookup_field = 'slug'` (news/views.py) : `PATCH /api/news/posts/4/`
-       * répond 404 tandis que `PATCH /api/news/posts/<slug>/` répond 200.
-       *
-       * C'est la cause de « la modification ne passe pas ». L'erreur
-       * d'hydratation visible en même temps dans la console n'y est pour rien :
-       * elle vient du Customizer et s'affiche sur toutes les pages.
-       */
-      const res = await updateNewsPost(editingPost.slug, formData);
-      if (res.error) {
-        toast.error(res.error);
-        return;
-      }
-      toast.success("Article mis à jour.");
-      setEditingPost(null);
-      router.refresh();
-    });
-  };
-
-  const handleDelete = (post: NewsPost) => {
-    toast(`Supprimer « ${post.title} » ?`, {
-      action: {
-        label: "Supprimer",
-        onClick: async () => {
-          const { error } = await deleteNewsPost(post.slug);
-          if (error) {
-            toast.error(error);
-            return;
-          }
-          toast.success("Article supprimé.");
-          router.refresh();
-        },
+  const confirmDelete = (post: NewsPost) =>
+    ask({
+      title: `Supprimer « ${post.title} » ?`,
+      description:
+        /* La conséquence, pas une paraphrase du titre : la galerie part avec
+           l'article, et c'est ce qu'on ne devine pas au moment de cliquer. */
+        (post.gallery?.length
+          ? `Les ${post.gallery.length} photos de sa galerie seront supprimées avec lui. `
+          : "") +
+        "L'article disparaîtra du site et de l'application mobile. La suppression ne s'annule pas.",
+      confirmLabel: "Supprimer l'article",
+      onConfirm: async () => {
+        const { error } = await deleteNewsPost(post.slug);
+        if (error) {
+          toast.error(error);
+          return;
+        }
+        toast.success("Article supprimé.");
+        router.refresh();
       },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
-  };
-
-  const handleAddGallery = async (
-    slug: string,
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    /* Ce dépôt part au serveur immédiatement : on le refuse AVANT l'envoi
-       plutôt que de laisser Django répondre par une erreur de validation. */
-    const tooBig = checkFileSize(file);
-    if (tooBig) {
-      toast.error(tooBig);
-      e.target.value = "";
-      return;
-    }
-
-    setGalleryLoading(true);
-    const formData = new FormData();
-    formData.append("image", file);
-
-    try {
-      const { error } = await addGalleryImage(slug, formData);
-      if (error) {
-        toast.error(error);
-        return;
-      }
-      toast.success("Image ajoutée à la galerie.");
-      router.refresh();
-
-      /* On relit l'article pour rafraîchir la galerie sans refermer la modale. */
-      const { data: updated } = await getNewsPost(slug);
-      if (updated) setEditingPost(updated as NewsPost);
-    } finally {
-      /* `finally` : même si la relecture échoue, le bouton doit sortir de son
-         état de chargement. C'est précisément ce qui manquait. */
-      setGalleryLoading(false);
-      e.target.value = "";
-    }
-  };
-
-  const handleDeleteGallery = (imageId: number) => {
-    toast("Supprimer cette image ?", {
-      action: {
-        label: "Supprimer",
-        onClick: async () => {
-          const { error } = await deleteGalleryImage(imageId);
-          if (error) {
-            toast.error(error);
-            return;
-          }
-          toast.success("Image supprimée.");
-          router.refresh();
-          setEditingPost((prev) =>
-            prev
-              ? { ...prev, gallery: prev.gallery?.filter((i) => i.id !== imageId) }
-              : prev,
-          );
-        },
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
-    });
-  };
-
-  /* Corps de formulaire commun création / édition. */
-  const formFields = (post: NewsPost | null) => (
-    <>
-      <div className="ax-field">
-        <label className="ax-field__label" htmlFor={`title-${post?.id ?? "new"}`}>
-          Titre
-          <span className="ax-field__required" aria-hidden="true"> *</span>
-        </label>
-        <input
-          id={`title-${post?.id ?? "new"}`}
-          name="title"
-          className="ax-input"
-          defaultValue={post?.title ?? ""}
-          required
-        />
-      </div>
-
-      <div className="ax-field">
-        <label className="ax-field__label" htmlFor={`excerpt-${post?.id ?? "new"}`}>
-          Résumé court
-        </label>
-        <input
-          id={`excerpt-${post?.id ?? "new"}`}
-          name="excerpt"
-          className="ax-input"
-          defaultValue={post?.excerpt ?? ""}
-          placeholder="La phrase qui donnera envie de lire l'article."
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="ax-field">
-          <span className="ax-field__label">Bannière</span>
-          <FileDrop
-            name="cover_image"
-            accept="image/*"
-            hint="JPG ou PNG"
-            currentPreview={post?.cover_image}
-          />
-        </div>
-        <div className="ax-field">
-          <label
-            className="ax-field__label"
-            htmlFor={`youtube-${post?.id ?? "new"}`}
-          >
-            Vidéo YouTube
-          </label>
-          <input
-            id={`youtube-${post?.id ?? "new"}`}
-            name="youtube_url"
-            className="ax-input"
-            defaultValue={post?.youtube_url ?? ""}
-            placeholder="https://…"
-          />
-        </div>
-      </div>
-
-      <div className="ax-field">
-        <label className="ax-field__label" htmlFor={`content-${post?.id ?? "new"}`}>
-          Contenu
-          <span className="ax-field__required" aria-hidden="true"> *</span>
-        </label>
-        <textarea
-          id={`content-${post?.id ?? "new"}`}
-          name="content"
-          rows={8}
-          className="ax-textarea"
-          defaultValue={post?.content ?? ""}
-          required
-        />
-      </div>
-
-      <label className="ax-check">
-        <input
-          type="checkbox"
-          name="is_published"
-          value="true"
-          className="ax-checkbox"
-          defaultChecked={post ? post.is_published : true}
-        />
-        <span className="ax-toggle__label">Publier immédiatement</span>
-      </label>
-    </>
-  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -389,15 +190,14 @@ export function NewsClient({
             </div>
           )}
 
+          {/* Un lien, plus un bouton : la rédaction a maintenant sa propre
+              adresse. On peut l'ouvrir dans un onglet, la mettre en favori, et
+              le bouton « précédent » ramène à la liste. */}
           {isAdmin && (
-            <button
-              type="button"
-              className="ax-btn ax-btn--primary md:ms-auto"
-              onClick={() => setIsCreateOpen(true)}
-            >
+            <Link href="/dashboard/news/new" className="ax-btn ax-btn--primary md:ms-auto">
               <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
               <span className="ax-btn__label">Publier une actualité</span>
-            </button>
+            </Link>
           )}
         </div>
       </section>
@@ -436,7 +236,7 @@ export function NewsClient({
               </Link>
 
               <p className="ax-text-muted ax-clamp-3 text-sm leading-relaxed">
-                {featured.excerpt || featured.content}
+                {preview(featured)}
               </p>
 
               <div className="ax-cluster ax-text-subtle gap-3 text-xs">
@@ -486,14 +286,10 @@ export function NewsClient({
                     <span className="ax-btn__label">Réinitialiser les filtres</span>
                   </button>
                 ) : isAdmin ? (
-                  <button
-                    type="button"
-                    className="ax-btn ax-btn--primary"
-                    onClick={() => setIsCreateOpen(true)}
-                  >
+                  <Link href="/dashboard/news/new" className="ax-btn ax-btn--primary">
                     <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
                     <span className="ax-btn__label">Publier une actualité</span>
-                  </button>
+                  </Link>
                 ) : undefined
               }
             />
@@ -531,14 +327,14 @@ export function NewsClient({
                         {
                           label: "Modifier",
                           icon: Pencil,
-                          onSelect: () => setEditingPost(post),
+                          href: `/dashboard/news/${post.slug}/edit`,
                         },
                         {
                           label: "Supprimer",
                           icon: Trash2,
                           danger: true,
                           separatorBefore: true,
-                          onSelect: () => handleDelete(post),
+                          onSelect: () => confirmDelete(post),
                         },
                       ]}
                     />
@@ -552,7 +348,7 @@ export function NewsClient({
                 )}
 
                 <p className="ax-text-muted ax-clamp-3 flex-1 text-sm leading-relaxed">
-                  {post.excerpt || post.content}
+                  {preview(post)}
                 </p>
 
                 <div className="ax-cluster ax-text-subtle gap-2 text-xs">
@@ -577,120 +373,7 @@ export function NewsClient({
         itemLabel="articles"
       />
 
-      {/* ── Création ── */}
-      <Modal
-        open={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
-        title="Nouvel article"
-        description="Partagez les moments forts avec les membres."
-        size="lg"
-      >
-        <form action={handleAdd} className="flex flex-col gap-4">
-          {formFields(null)}
-
-          <div className="ax-field">
-            <span className="ax-field__label">Photos de galerie</span>
-            <FileDrop
-              name="gallery_images"
-              accept="image/*"
-              multiple
-              hint="JPG ou PNG"
-            />
-            <p className="ax-field__hint">
-              Elles s&apos;ajoutent sous l&apos;article.
-            </p>
-          </div>
-
-          <button
-            type="submit"
-            className="ax-btn ax-btn--primary ax-btn--block"
-            disabled={isPending}
-          >
-            <span className="ax-btn__label">
-              {isPending ? "Publication…" : "Publier l'article"}
-            </span>
-          </button>
-        </form>
-      </Modal>
-
-      {/* ── Édition ── */}
-      <Modal
-        open={Boolean(editingPost)}
-        onOpenChange={(o) => !o && setEditingPost(null)}
-        title="Modifier l'article"
-        description={editingPost?.title}
-        size="lg"
-      >
-        {editingPost && (
-          <div className="flex flex-col gap-6">
-            <form action={handleUpdate} className="flex flex-col gap-4">
-              {formFields(editingPost)}
-              <button
-                type="submit"
-                className="ax-btn ax-btn--primary ax-btn--block"
-                disabled={isPending}
-              >
-                <span className="ax-btn__label">
-                  {isPending ? "Enregistrement…" : "Sauvegarder"}
-                </span>
-              </button>
-            </form>
-
-            {/*
-              La galerie s'édite hors du formulaire principal : chaque image
-              part immédiatement au serveur, alors que le reste attend la
-              soumission. Les imbriquer donnerait deux régimes d'enregistrement
-              dans un même formulaire.
-            */}
-            <section className="ax-dropzone">
-              <h3 className="ax-eyebrow">Galerie</h3>
-
-              <label className="ax-dropzone__area">
-                {galleryLoading ? (
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                ) : (
-                  <ImagePlus aria-hidden="true" />
-                )}
-                <span className="text-sm">
-                  {galleryLoading
-                    ? "Envoi en cours…"
-                    : "Ajouter une image à la galerie"}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="ax-visually-hidden"
-                  disabled={galleryLoading}
-                  onChange={(e) => handleAddGallery(editingPost.slug, e)}
-                />
-              </label>
-
-              {/*
-                Même visionneuse que côté lecture : une vignette de 80 px ne
-                permet pas de juger d'une photo qu'on s'apprête à publier, ni de
-                décider laquelle retirer. Le bouton de suppression reste posé
-                par-dessus la vignette, hors du bouton d'agrandissement.
-              */}
-              {editingPost.gallery && editingPost.gallery.length > 0 && (
-                <Gallery
-                  images={editingPost.gallery}
-                  columns={4}
-                  overlay={(img) => (
-                    <button
-                      type="button"
-                      className="ax-btn ax-btn--icon ax-btn--soft-danger absolute inset-e-1 top-1"
-                      aria-label="Supprimer cette image"
-                      onClick={() => handleDeleteGallery(img.id as number)}
-                    >
-                      <X size={12} aria-hidden="true" />
-                    </button>
-                  )}
-                />
-              )}
-            </section>
-          </div>
-        )}
-      </Modal>
+      {dialog}
     </div>
   );
 }

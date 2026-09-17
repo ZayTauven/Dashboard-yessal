@@ -17,6 +17,7 @@
  * Tailwind gagne sans `!important`.
  */
 
+import Link from "next/link";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -26,6 +27,16 @@ export interface MenuItem {
   label: string;
   icon?: LucideIcon;
   onSelect?: () => void;
+  /**
+   * Entrée de NAVIGATION. Exclusive de `onSelect`.
+   *
+   * Une entrée qui mène ailleurs doit être un vrai lien, et non un `onSelect`
+   * qui appelle `router.push` : sans `<a href>`, le clic du milieu, le
+   * Ctrl+clic et « ouvrir dans un nouvel onglet » ne font rien, la barre
+   * d'état n'annonce pas la destination, et un lecteur d'écran annonce un
+   * bouton là où il y a un déplacement.
+   */
+  href?: string;
   /** Rend l'entrée en ton d'alerte — suppressions et actions irréversibles. */
   danger?: boolean;
   disabled?: boolean;
@@ -78,15 +89,29 @@ export function Menu({
               <DropdownMenu.Item
                 disabled={item.disabled}
                 onSelect={item.onSelect}
+                /* `asChild` remplace le <div> de Radix par notre <Link> tout en
+                   lui laissant le clavier et la fermeture du menu. */
+                asChild={Boolean(item.href)}
                 className={cn(
                   "ax-menu__item",
                   item.danger && "ax-menu__item--danger",
                 )}
               >
-                {item.icon && (
-                  <item.icon className="ax-menu__icon" aria-hidden="true" />
+                {item.href ? (
+                  <Link href={item.href}>
+                    {item.icon && (
+                      <item.icon className="ax-menu__icon" aria-hidden="true" />
+                    )}
+                    {item.label}
+                  </Link>
+                ) : (
+                  <>
+                    {item.icon && (
+                      <item.icon className="ax-menu__icon" aria-hidden="true" />
+                    )}
+                    {item.label}
+                  </>
                 )}
-                {item.label}
               </DropdownMenu.Item>
             </div>
           ))}

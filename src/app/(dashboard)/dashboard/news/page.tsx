@@ -1,10 +1,8 @@
-import { cookies } from "next/headers";
-import { jwtDecode } from "jwt-decode";
 import { getNews } from "@/app/actions/news";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PageHead } from "@/components/vireo/PageHead";
-import type { Role } from "@/lib/nav";
 import { NewsClient } from "./NewsClient";
+import { getSessionRole } from "./session-role";
 
 export const metadata = {
   title: "Actualités",
@@ -13,22 +11,10 @@ export const metadata = {
 
 export default async function NewsPage() {
   const { data: posts, error } = await getNews();
-
-  /*
-   * `jwt-decode` était importé dynamiquement dans un try/catch. L'import
-   * statique suffit : le paquet est déjà une dépendance et le layout du
-   * dashboard l'utilise de la même façon. Seul le décodage peut échouer, et
-   * c'est lui qu'on garde protégé.
-   */
-  const token = (await cookies()).get("session-yessal")?.value;
-  let role: Role = "member";
-  if (token) {
-    try {
-      role = (jwtDecode<{ role?: string }>(token).role ?? "member") as Role;
-    } catch (e) {
-      console.error("JWT Decode Error:", e);
-    }
-  }
+  /* La lecture du jeton vivait ici, recopiée. Elle est passée dans
+     `session-role.ts` depuis que les pages de création et d'édition en ont
+     besoin du même contrôle. */
+  const role = await getSessionRole();
 
   return (
     <div className="flex flex-col gap-6">

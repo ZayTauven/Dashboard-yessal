@@ -160,3 +160,311 @@
     backdrop-filter: none;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   6 · TEXTE RICHE — l'éditeur et sa lecture
+   ══════════════════════════════════════════════════════════════════════════
+   Vireo décrit un écran `forms/editor`, mais entièrement en styles EN LIGNE :
+   pas une classe `.ax-editor` dans components.css. Impossible donc de s'y
+   brancher — on transpose ici, en classes, les valeurs de ce patron. Les
+   jetons sont les siens ; seule la forme change.
+
+   Deux blocs, et ils doivent rester d'accord :
+
+     · `.ax-editor`  — la surface d'écriture (RichTextEditor.tsx)
+     · `.ax-prose`   — la surface de lecture (page d'article)
+
+   Un intertitre doit avoir le même poids à l'écriture et à la lecture, sinon
+   l'auteur compose à l'aveugle. Les règles typographiques sont donc écrites
+   une fois, pour les deux sélecteurs.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ── L'éditeur ── */
+.ax-editor {
+  display: flex;
+  flex-direction: column;
+}
+
+.ax-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: var(--ax-space-2);
+  background: var(--ax-surface-subtle);
+  border: 1px solid var(--ax-border);
+  border-bottom: 0;
+  border-radius: var(--ax-radius-md) var(--ax-radius-md) 0 0;
+  /* La barre suit le regard sur un article long : sans cela, mettre un mot en
+     gras au bas d'un texte de deux écrans demande de remonter le chercher. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.ax-editor__blocks {
+  width: auto;
+  min-width: 9.5rem;
+  margin-inline-end: var(--ax-space-1);
+}
+
+.ax-editor__sep {
+  height: 22px;
+  margin-inline: var(--ax-space-1);
+}
+
+.ax-editor__spacer {
+  margin-inline-start: auto;
+}
+
+.ax-editor__linkbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ax-space-2);
+  padding: var(--ax-space-2);
+  background: var(--ax-surface-subtle);
+  border: 1px solid var(--ax-border);
+  border-block: 0;
+}
+
+.ax-editor__linkbar .ax-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ax-editor__area {
+  min-height: 20rem;
+  padding: var(--ax-space-5) var(--ax-space-6);
+  background: var(--ax-surface);
+  border: 1px solid var(--ax-border);
+  border-radius: 0 0 var(--ax-radius-md) var(--ax-radius-md);
+  color: var(--ax-text);
+  line-height: 1.7;
+  font-size: var(--ax-text-md);
+  outline: none;
+  /* Un mot collé sans espace — une URL, surtout — élargissait la carte au lieu
+     de revenir à la ligne, et poussait une barre de défilement horizontale sur
+     toute la page. */
+  overflow-wrap: anywhere;
+}
+
+/* L'anneau de focus doit exister : c'est un champ de saisie, même s'il n'en a
+   pas la balise. Sans lui, la navigation au clavier perd sa trace en entrant
+   dans le corps de l'article. */
+.ax-editor__area:focus-visible {
+  border-color: var(--ax-accent);
+  box-shadow: var(--ax-focus-shadow);
+}
+
+/* Substitut de `placeholder`, que `contenteditable` n'a pas. Piloté par
+   `data-empty` plutôt que par `:empty` : dès la première frappe le navigateur
+   y laisse un `<p><br></p>`, qui n'est plus vide au sens de CSS mais reste
+   vide au sens de l'auteur. */
+.ax-editor__area[data-empty]::before {
+  content: attr(data-placeholder);
+  color: var(--ax-text-subtle);
+  pointer-events: none;
+  display: block;
+}
+
+.ax-editor__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ax-space-3);
+  justify-content: space-between;
+  margin-top: var(--ax-space-2);
+  font-size: var(--ax-text-xs);
+  color: var(--ax-text-subtle);
+}
+
+/* ── La lecture ──
+   `max-inline-size` est ici et non sur une classe utilitaire de la page : au
+   delà d'environ 70 caractères par ligne, l'œil perd le début de la ligne
+   suivante. C'est une propriété du texte, pas de l'écran qui l'accueille. */
+.ax-prose {
+  max-inline-size: 68ch;
+  color: var(--ax-text);
+  line-height: 1.7;
+  font-size: var(--ax-text-md);
+  overflow-wrap: anywhere;
+}
+
+/* Repli des articles de l'ancien format : du texte brut, dont les retours à la
+   ligne portent toute la structure. `pre-wrap` les préserve — c'est ce que la
+   page faisait avant l'éditeur, et ce qu'elle doit continuer de faire pour eux. */
+.ax-prose--plain {
+  white-space: pre-wrap;
+}
+
+/* ── Typographie commune aux deux surfaces ── */
+.ax-editor__area > :first-child,
+.ax-prose > :first-child {
+  margin-block-start: 0;
+}
+
+.ax-editor__area > :last-child,
+.ax-prose > :last-child {
+  margin-block-end: 0;
+}
+
+.ax-editor__area p,
+.ax-prose p {
+  margin: 0 0 1em;
+}
+
+.ax-editor__area h2,
+.ax-prose h2 {
+  font-family: var(--ax-font-display);
+  font-size: var(--ax-text-xl);
+  color: var(--ax-text-strong);
+  line-height: 1.3;
+  margin: 1.6em 0 0.5em;
+}
+
+.ax-editor__area h3,
+.ax-prose h3 {
+  font-family: var(--ax-font-display);
+  font-size: var(--ax-text-lg);
+  color: var(--ax-text-strong);
+  line-height: 1.35;
+  margin: 1.4em 0 0.4em;
+}
+
+.ax-editor__area h4,
+.ax-prose h4 {
+  font-size: var(--ax-text-md);
+  font-weight: 600;
+  color: var(--ax-text-strong);
+  margin: 1.2em 0 0.4em;
+}
+
+.ax-editor__area strong, .ax-editor__area b,
+.ax-prose strong, .ax-prose b {
+  font-weight: 600;
+  color: var(--ax-text-strong);
+}
+
+.ax-editor__area ul, .ax-editor__area ol,
+.ax-prose ul, .ax-prose ol {
+  margin: 0 0 1em;
+  padding-inline-start: 1.5em;
+}
+
+/* C'est le preflight de Tailwind qui efface les puces (`ol, ul, menu {
+   list-style: none }`), pas Vireo. On les rétablit sur ces deux surfaces
+   seulement — une liste à puces est la moitié de l'intérêt d'un éditeur, et
+   sans cela l'auteur clique sur « Liste » sans rien voir changer.
+
+   Ces règles l'emportent parce qu'elles sont HORS `@layer` : le preflight,
+   lui, est dans `@layer base`. Toute règle non layerisée bat une règle
+   layerisée, quelle que soit sa spécificité. C'est aussi pourquoi ce fichier
+   ne doit jamais être enveloppé dans un `@layer` sans revoir tout ce qu'il
+   corrige. */
+.ax-editor__area ul,
+.ax-prose ul {
+  list-style: disc;
+}
+
+.ax-editor__area ol,
+.ax-prose ol {
+  list-style: decimal;
+}
+
+.ax-editor__area li,
+.ax-prose li {
+  margin-block: 0.25em;
+  display: list-item;
+}
+
+.ax-editor__area blockquote,
+.ax-prose blockquote {
+  margin: 0 0 1em;
+  padding: var(--ax-space-2) var(--ax-space-5);
+  border-inline-start: 2px solid var(--ax-accent);
+  color: var(--ax-text-muted);
+  font-style: italic;
+}
+
+.ax-editor__area a,
+.ax-prose a {
+  color: var(--ax-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ax-editor__area code,
+.ax-prose code {
+  font-family: var(--ax-font-mono);
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: var(--ax-radius-xs);
+  background: var(--ax-surface-subtle);
+}
+
+.ax-editor__area pre,
+.ax-prose pre {
+  margin: 0 0 1em;
+  padding: var(--ax-space-4);
+  border-radius: var(--ax-radius-sm);
+  background: var(--ax-surface-subtle);
+  overflow-x: auto;
+}
+
+.ax-editor__area hr,
+.ax-prose hr {
+  margin: 1.5em 0;
+  border: 0;
+  border-top: 1px solid var(--ax-border);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   7 · BARRE D'ACTION DE FORMULAIRE
+   ══════════════════════════════════════════════════════════════════════════
+   Les formulaires longs du produit vivaient en modale, où le pied de dialogue
+   (`.ax-modal__footer`) tenait ce rôle : les boutons restaient visibles pendant
+   que le corps défilait. Sorti en page, ce pied n'existe plus — et un bouton
+   « Enregistrer » posé après la galerie oblige à faire défiler tout l'article
+   pour valider une correction de titre.
+
+   La barre reprend donc la fonction du pied de modale : collée en bas de la
+   fenêtre, au-dessus du contenu, avec la même surface de verre que les autres
+   panneaux flottants.
+   ────────────────────────────────────────────────────────────────────────── */
+.ax-form-bar {
+  position: sticky;
+  /* Le châssis a une barre de navigation en bas sur mobile ; `env()` laisse la
+     place à celle du système sur iOS. */
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ax-space-3);
+  margin-block-start: var(--ax-space-2);
+  padding: var(--ax-space-4);
+  padding-bottom: calc(var(--ax-space-4) + env(safe-area-inset-bottom, 0px));
+  background: var(--ax-surface-overlay);
+  border: 1px solid var(--ax-border);
+  border-radius: var(--ax-radius-md);
+  box-shadow: var(--ax-shadow-lg);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+
+/* Sur un écran étroit, deux boutons côte à côte finissent à 40 % de largeur
+   chacun, sous la barre de navigation du navigateur. On les empile, action
+   principale en premier — c'est elle que le pouce atteint. */
+@media (max-width: 575.98px) {
+  .ax-form-bar {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ax-form-bar {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
