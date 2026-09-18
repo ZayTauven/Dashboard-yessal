@@ -50,6 +50,30 @@ type PhoneNumberValidationProps = {
 /** Indicatif + 6 à 15 chiffres — la plage couverte par le plan E.164. */
 const DIGITS = /^[0-9]{6,15}$/;
 
+/**
+ * Ramène un numéro au format attendu par `react-phone-input-2` : CHIFFRES
+ * SEULS, indicatif compris.
+ *
+ * ── Le défaut que cette fonction répare ───────────────────────────────────
+ * L'API stocke et renvoie l'E.164 complet, avec son `+` : « +221781151149 ».
+ * La bibliothèque, elle, travaille sans. Passer la valeur de l'API telle
+ * quelle produisait trois pannes en cascade, toutes sur le MÊME numéro :
+ *
+ *   · `DIGITS.test("+221781151149")` est faux — le `+` n'est pas un chiffre.
+ *     Tout membre ayant un numéro était donc jugé invalide en permanence ;
+ *   · `syncValidity` posait alors `setCustomValidity(...)` sur le champ réel,
+ *     ce qui fait REFUSER LA SOUMISSION par le navigateur. Enregistrer son
+ *     profil devenait impossible — sans message, sans toast, sans rien : le
+ *     clic ne faisait apparemment rien ;
+ *   · le champ caché, lui, faisait `+${valeur}` et envoyait « ++221781151149 ».
+ *
+ * Mesuré sur la base de démonstration : 32 membres sur 33 ont un numéro, donc
+ * 32 sur 33 ne pouvaient pas modifier leur fiche.
+ */
+function toDigits(value: string | undefined | null): string {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
 export default function PhoneNumberValidation({
   name = "phone",
   value,
@@ -61,7 +85,9 @@ export default function PhoneNumberValidation({
   label = "Téléphone",
   hint,
 }: PhoneNumberValidationProps) {
-  const [internalValue, setInternalValue] = useState(value || defaultValue);
+  const [internalValue, setInternalValue] = useState(() =>
+    toDigits(value || defaultValue),
+  );
   const [touched, setTouched] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const errorId = useId();
@@ -100,12 +126,16 @@ export default function PhoneNumberValidation({
   }, [syncValidity]);
 
   useEffect(() => {
-    if (value !== undefined) setInternalValue(value);
+    if (value !== undefined) setInternalValue(toDigits(value));
   }, [value]);
 
   const handleChange = (val: string) => {
-    setInternalValue(val);
-    onChange?.(val);
+    /* `react-phone-input-2` rend deja des chiffres seuls ; on repasse par
+       `toDigits` par securite, pour que l'invariant du composant — la valeur
+       interne ne contient QUE des chiffres — ne depende pas d'elle. */
+    const digits = toDigits(val);
+    setInternalValue(digits);
+    onChange?.(digits);
   };
 
   const handleBlur = () => {

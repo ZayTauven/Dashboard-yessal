@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import type { JsonPayload } from "@/lib/api-result";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
@@ -50,7 +51,7 @@ export async function getAnnouncementsPreview(limit = 3) {
   return { data: data.slice(0, limit) };
 }
 
-export async function createAnnouncement(payload: any) {
+export async function createAnnouncement(payload: JsonPayload) {
   try {
     const sanitized = { ...payload };
     // "NONE" is a UI sentinel meaning "no specific daara" — Django FK requires null or a valid integer

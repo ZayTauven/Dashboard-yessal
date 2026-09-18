@@ -148,3 +148,16 @@ const LABELS: Record<string, string> = {
   message_type: "Type de message",
   illustrative_photo: "Photo d'illustration",
 };
+
+/**
+ * Charge JSON relayée telle quelle à l'API.
+ *
+ * Ces actions ne font que `JSON.stringify` et transmettre : la forme exacte
+ * appartient au sérialiseur Django, pas au front. Inventer ici une interface
+ * par point d'entrée donnerait l'illusion d'un contrat — et cette illusion se
+ * périmerait à la première migration, sans que rien ne le signale.
+ *
+ * `Record<string, unknown>` dit la vérité et apporte le vrai gain sur `any` :
+ * on ne peut plus déréférencer une propriété sans l'avoir vérifiée.
+ */
+export type JsonPayload = Record<string, unknown>;

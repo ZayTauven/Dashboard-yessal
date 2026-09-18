@@ -28,6 +28,7 @@
  * que « PROCHE » laissait deviner.
  */
 
+import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -117,6 +118,11 @@ export function EventsClient({
   initialEvents: Fete[];
   isAdmin: boolean;
 }) {
+  /* Les suppressions se confirment dans un vrai dialogue : un toast
+     expire seul, ne piege pas le focus, et s'affiche dans un coin que
+     personne ne regarde au moment du clic. */
+  const { ask, dialog } = useConfirm();
+
   const router = useRouter();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editing, setEditing] = useState<Fete | null>(null);
@@ -204,10 +210,12 @@ export function EventsClient({
   };
 
   const handleDelete = (fete: Fete) => {
-    toast(`Supprimer « ${fete.name} » ?`, {
-      action: {
-        label: "Confirmer",
-        onClick: async () => {
+    ask({
+      title: `Supprimer « ${fete.name} » ?`,
+        description:
+          "Les Ndiguels rattachés à cette fête la perdront, mais ne seront pas supprimés.",
+      confirmLabel: "Confirmer",
+      onConfirm: async () => {
           const { error } = await deleteEvent(fete.id);
           if (error) {
             toast.error(error);
@@ -216,8 +224,6 @@ export function EventsClient({
           router.refresh();
           toast.success("Fête supprimée.");
         },
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -600,6 +606,7 @@ export function EventsClient({
       >
         {editing && renderForm(editing, handleUpdate)}
       </Modal>
+      {dialog}
     </div>
   );
 }

@@ -28,6 +28,7 @@
  *     n'apparaît maintenant que si la portée le demande.
  */
 
+import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
@@ -101,6 +102,11 @@ export function AnnouncementManagementClient({
   initialAnnouncements: Announcement[];
   daaras: DaaraOption[];
 }) {
+  /* Les suppressions se confirment dans un vrai dialogue : un toast
+     expire seul, ne piege pas le focus, et s'affiche dans un coin que
+     personne ne regarde au moment du clic. */
+  const { ask, dialog } = useConfirm();
+
   const router = useRouter();
   const [announcements, setAnnouncements] = useState(initialAnnouncements);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -135,10 +141,12 @@ export function AnnouncementManagementClient({
   });
 
   const handleDelete = (ann: Announcement) => {
-    toast(`Supprimer « ${ann.title} » ?`, {
-      action: {
-        label: "Supprimer",
-        onClick: async () => {
+    ask({
+      title: `Supprimer « ${ann.title} » ?`,
+        description:
+          "Elle disparaîtra du Hub des annonces et de l'application mobile, y compris pour les membres qui ne l'ont pas encore lue.",
+      confirmLabel: "Supprimer",
+      onConfirm: async () => {
           const { error } = await deleteAnnouncement(ann.id);
           if (error) {
             toast.error("Impossible de supprimer l'annonce.");
@@ -147,8 +155,6 @@ export function AnnouncementManagementClient({
           setAnnouncements((prev) => prev.filter((a) => a.id !== ann.id));
           toast.success("Annonce supprimée.");
         },
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -454,6 +460,7 @@ export function AnnouncementManagementClient({
           </button>
         </form>
       </Modal>
+      {dialog}
     </div>
   );
 }

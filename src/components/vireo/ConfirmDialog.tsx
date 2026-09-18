@@ -26,10 +26,18 @@
  * retour du focus au déclencheur.
  *
  * ── Portée ────────────────────────────────────────────────────────────────
- * Le motif toast-de-confirmation compte encore une douzaine d'appels ailleurs
- * dans le tableau de bord. Ils ne sont pas touchés ici : cette passe porte sur
- * les actualités. Ce composant est écrit pour être leur remplaçant le jour où
- * on les reprendra — d'où la forme générique et le crochet `useConfirm`.
+ * Écrit d'abord pour les actualités, puis étendu le 2026-09-18 aux ONZE autres
+ * confirmations du tableau de bord : annonces, Daaras, zones, titres, comptes,
+ * Ndiguels, fêtes, messages, blocage d'accès. Il ne reste aucun
+ * `toast(..., { cancel })` dans `src/app`.
+ *
+ * ── La description porte la CONSÉQUENCE ───────────────────────────────────
+ * « Cette action est irréversible » n'apprend rien : la personne le sait déjà,
+ * elle vient de cliquer sur « Supprimer ». Ce qu'elle ignore, c'est ce qui
+ * part AVEC — et cela se lit dans les `on_delete` des modèles Django, pas dans
+ * l'intuition. Supprimer un Ndiguel emporte ses dons (CASCADE) ; supprimer un
+ * Daara laisse ses membres inscrits mais sans affiliation (SET_NULL). Les deux
+ * méritaient d'être dits, et aucun ne l'était.
  */
 
 import { useCallback, useState } from "react";
@@ -87,6 +95,16 @@ export function ConfirmDialog({
       description={description}
       status={tone}
       size="sm"
+      /* `bare` toujours : une confirmation n'a PAS de corps. La conséquence est
+         passée à <Modal> en `description`, qui la rend dans l'en-tête — et
+         surtout la relie au dialogue par `aria-describedby`, ce qu'un
+         paragraphe posé dans le corps ne ferait pas.
+
+         Elle a d'abord été rendue AUX DEUX endroits : le texte s'affichait en
+         double, une fois sous le titre et une fois dans le corps. Sans `bare`,
+         le corps vide laissait par ailleurs une bande blanche entre le titre et
+         les boutons. */
+      bare
       footer={
         <>
           <button
@@ -114,14 +132,7 @@ export function ConfirmDialog({
           </button>
         </>
       }
-    >
-      {/*
-        Le corps porte la CONSÉQUENCE, pas une reformulation du titre. « Cette
-        action est irréversible » n'apprend rien ; « les huit photos de la
-        galerie partiront avec » évite un clic regretté.
-      */}
-      {description && <p className="ax-text-muted text-sm">{description}</p>}
-    </Modal>
+    />
   );
 }
 

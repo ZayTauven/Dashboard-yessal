@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef, useMemo } from "react";
+import { useConfirm } from "@/components/vireo/ConfirmDialog";
+import { useState, useTransition, useEffect, useRef, useMemo, useCallback} from "react";
 import Pusher from "pusher-js";
 import { toast } from "sonner";
 import { checkFileSize } from "@/components/vireo/FileDrop";
@@ -101,6 +102,79 @@ type ManualPickUser = {
 
 type DaaraOption = { id: number; name?: string };
 
+/**
+ * Un membre remonte par la recherche d'annuaire.
+ *
+ * Les champs sont ceux que la liste affiche reellement — voir le rendu de
+ * `searchResult`. En declarer davantage donnerait l'illusion d'un contrat que
+ * personne ne verifie.
+ */
+type DirectorySearchUser = {
+  id: number;
+  name: string;
+  role?: string | null;
+  avatar?: string | null;
+  daara_name?: string | null;
+};
+
+/** Preferences de messagerie du membre courant. */
+type MessagingPreferences = {
+  /* Optionnel : l'API rend un objet partiel, et `handlePrefChange` construit
+     `{ ...preferences, [key]: value }` sur un etat possiblement nul — le spread
+     d'un `null` ne produit aucune propriete. */
+  visibility?: string;
+  /* Meme raison que `PilotageConfig` : les reglages sont rendus par une boucle
+     sur une liste de cles, donc lus dynamiquement. */
+  [key: string]: string | number | boolean | null | undefined;
+};
+
+/**
+ * Configuration de pilotage des echanges, par Daara ou globale.
+ *
+ * Tout est optionnel : l'API rend `null` tant qu'aucune configuration n'a ete
+ * posee, et l'ecran teste systematiquement `pilotage &&` avant de lire.
+ */
+type PilotageConfig = {
+  daara_name?: string | null;
+  allow_member_visibility_setting?: boolean;
+  allow_file_sharing?: boolean;
+  /* Les bascules du panneau de pilotage sont rendues par une boucle sur une
+     liste de cles : l'acces est dynamique (`pilotage[key]`), et la signature
+     d'index dit cette verite plutot que de la cacher derriere un `any`. */
+  [key: string]: string | number | boolean | null | undefined;
+};
+
+/** Ce que Pusher transporte pour un membre present sur un canal. */
+type PresenceMember = {
+  name: string;
+  avatar?: string | null;
+};
+
+type PresenceMemberEvent = { id: string; info: PresenceMember };
+
+type PresenceMembers = {
+  each: (fn: (member: PresenceMemberEvent) => void) => void;
+};
+
+/** La reponse d'authentification de canal attendue par Pusher. */
+type PusherAuthResponse = { auth: string; channel_data?: string };
+
+/**
+ * Le canal de presence, reduit a ce que cet ecran en utilise.
+ *
+ * `pusher-js` exporte bien un type complet, mais il decrit toute la surface de
+ * la bibliotheque ; ici on ne se sert que de `bind`, et un type qui dit
+ * exactement cela se relit en une seconde.
+ */
+type PresenceBinding = {
+  bind: (
+    event: string,
+    handler: (payload: PresenceMembers & PresenceMemberEvent) => void,
+  ) => void;
+  /* `trigger` sert aux evenements « client-* » — ici l'indicateur « ecrit… ». */
+  trigger: (event: string, data: unknown) => void;
+};
+
 const CHEF_MODES: { value: ChatInviteMode; label: string }[] = [
   { value: "manual", label: "Choisir des membres manuellement" },
   { value: "daara_all", label: "Tout le Daara (membres, chef, collecteurs)" },
@@ -166,7 +240,7 @@ export function ChatInterface({
   directoryUsers = [],
   daarasForSelect = [],
 }: {
-  initialChats: any[];
+  initialChats: ChatRow[];
   currentUserId: number;
   initialSelectedChatId?: number | null;
   /** Membre à pré-cocher dans la fenêtre de création (lien « Inviter »). */
@@ -180,6 +254,11 @@ export function ChatInterface({
   const isAdmin = viewerRole === "admin";
 
   const [activeTab, setActiveTab] = useState<"chats" | "search" | "invites" | "pilotage" | "settings">("chats");
+  /* Les suppressions se confirment dans un vrai dialogue : un toast
+     expire seul, ne piege pas le focus, et s'affiche dans un coin que
+     personne ne regarde au moment du clic. */
+  const { ask, dialog } = useConfirm();
+
   const [showRightPanel, setShowRightPanel] = useState(false);
 
   const [chatList, setChatList] = useState<ChatRow[]>(initialChats as ChatRow[]);
@@ -197,20 +276,20 @@ export function ChatInterface({
 
   const [chatSearch, setChatSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchResult, setSearchResult] = useState<any[]>([]);
+  const [searchResult, setSearchResult] = useState<DirectorySearchUser[]>([]);
   const [invitations, setInvitations] = useState<ChatInvitationRow[]>([]);
 
-  const [preferences, setPreferences] = useState<any>(null);
-  const [pilotage, setPilotage] = useState<any>(null);
+  const [preferences, setPreferences] = useState<MessagingPreferences | null>(null);
+  const [pilotage, setPilotage] = useState<PilotageConfig | null>(null);
 
-  const [onlineMembers, setOnlineMembers] = useState<Record<string, any>>({});
+  const [onlineMembers, setOnlineMembers] = useState<Record<string, PresenceMember>>({});
   const [typingUsers, setTypingUsers] = useState<Record<string, string>>({});
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const markReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pusherRef = useRef<Pusher | null>(null);
-  const presenceChannelRef = useRef<any>(null);
+  const presenceChannelRef = useRef<PresenceBinding | null>(null);
 
   const [isPending, startTransition] = useTransition();
   const [newOpen, setNewOpen] = useState(false);
@@ -227,6 +306,33 @@ export function ChatInterface({
   const messageGroups = useMemo(() => groupMessagesByDate(messages), [messages]);
 
   // ─── Pusher initialization ────────────────────────────────────────────
+  /*
+   * Memorises, et c'est un correctif, pas une coquetterie.
+   *
+   * `loadPilotage` capture `daaraId`. L'effet de montage ne le listait pas en
+   * dependance : si le Daara changeait, la configuration de pilotage restait
+   * celle du precedent. Le linter ne signalait que celle-la, precisement parce
+   * que les deux autres ne capturent rien de variable.
+   *
+   * En pratique `daaraId` est une prop stable — un autre Daara veut dire une
+   * autre page. L'effet continue donc de ne tourner qu'une fois ; mais si cela
+   * changeait un jour, le rechargement suivrait tout seul.
+   */
+  const loadPreferences = useCallback(async () => {
+    const res = await getMessagingPreferences();
+    if (res.data) setPreferences(res.data);
+  }, []);
+
+  const loadInvitations = useCallback(async () => {
+    const res = await getInvitations();
+    if (res.data) setInvitations(res.data);
+  }, []);
+
+  const loadPilotage = useCallback(async () => {
+    const res = await getPilotageConfig(daaraId || undefined);
+    if (res.data) setPilotage(res.data);
+  }, [daaraId]);
+
   useEffect(() => {
     const pusher = new Pusher(PUSHER_KEY, {
       cluster: PUSHER_CLUSTER,
@@ -234,8 +340,9 @@ export function ChatInterface({
         customHandler: async ({ channelName, socketId }, callback) => {
           try {
             const res = await getPusherAuthSignature(channelName, socketId);
-            if ((res as any).auth) {
-              callback(null, res as any);
+            const signature = res as Partial<PusherAuthResponse>;
+            if (typeof signature.auth === "string") {
+              callback(null, signature as PusherAuthResponse);
             } else {
               callback(new Error("Pusher auth failed"), null);
             }
@@ -255,7 +362,10 @@ export function ChatInterface({
       pusher.disconnect();
       pusherRef.current = null;
     };
-  }, [currentUserId]);
+    /* `loadInvitations` est memorise et sans dependance : l'ajouter ne
+       rabonne pas le canal a chaque rendu, cela dit seulement la verite sur
+       ce que cet effet utilise. */
+  }, [currentUserId, loadInvitations]);
 
   // ─── Chat channel listeners ───────────────────────────────────────────
   useEffect(() => {
@@ -317,13 +427,13 @@ export function ChatInterface({
     const presenceChannel = pusher.subscribe(`presence-chat.${selectedChat.id}`);
     presenceChannelRef.current = presenceChannel;
 
-    presenceChannel.bind("pusher:subscription_succeeded", (members: any) => {
-      const active: Record<string, any> = {};
-      members.each((member: any) => { active[member.id] = member.info; });
+    presenceChannel.bind("pusher:subscription_succeeded", (members: PresenceMembers) => {
+      const active: Record<string, PresenceMember> = {};
+      members.each((member: PresenceMemberEvent) => { active[member.id] = member.info; });
       setOnlineMembers(active);
     });
-    presenceChannel.bind("pusher:member_added", (member: any) => setOnlineMembers((prev) => ({ ...prev, [member.id]: member.info })));
-    presenceChannel.bind("pusher:member_removed", (member: any) => {
+    presenceChannel.bind("pusher:member_added", (member: PresenceMemberEvent) => setOnlineMembers((prev) => ({ ...prev, [member.id]: member.info })));
+    presenceChannel.bind("pusher:member_removed", (member: PresenceMemberEvent) => {
       setOnlineMembers((prev) => { const next = { ...prev }; delete next[member.id]; return next; });
       setTypingUsers((prev) => { const next = { ...prev }; delete next[member.id]; return next; });
     });
@@ -347,20 +457,18 @@ export function ChatInterface({
     };
   }, [selectedChat, currentUserId]);
 
+
   useEffect(() => {
     loadPreferences();
     loadInvitations();
     loadPilotage();
     return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
-  }, []);
+  }, [loadPreferences, loadInvitations, loadPilotage]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, typingUsers]);
 
-  const loadPreferences = async () => { const res = await getMessagingPreferences(); if (res.data) setPreferences(res.data); };
-  const loadInvitations = async () => { const res = await getInvitations(); if (res.data) setInvitations(res.data); };
-  const loadPilotage = async () => { const res = await getPilotageConfig(daaraId || undefined); if (res.data) setPilotage(res.data); };
   const reloadMessages = async (chatId: string | number) => { const { data } = await getMessagesForChat(String(chatId)); setMessages((data as MessageRow[]) || []); };
 
   const handleSend = (e: React.FormEvent) => {
@@ -410,10 +518,12 @@ export function ChatInterface({
   };
 
   const handleDeleteMsg = (msgId: number) => {
-    toast("Supprimer ce message ?", {
-      action: {
-        label: "Confirmer",
-        onClick: async () => {
+    ask({
+      title: "Supprimer ce message ?",
+        description:
+          "Il restera visible pour les autres participants, remplacé par « Message supprimé ».",
+      confirmLabel: "Confirmer",
+      onConfirm: async () => {
           const res = await deleteMessage(msgId);
           if (res.error) {
             toast.error(res.error);
@@ -427,8 +537,6 @@ export function ChatInterface({
             );
           }
         },
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -456,19 +564,20 @@ export function ChatInterface({
       const chatsRes = await getChats();
       if (chatsRes.data) {
         setChatList(chatsRes.data);
-        if (accept && (res.data as any)?.chat) { setSelectedChat((res.data as any).chat); setActiveTab("chats"); }
+        const accepted = res.data as { chat?: ChatRow } | undefined;
+        if (accept && accepted?.chat) { setSelectedChat(accepted.chat); setActiveTab("chats"); }
       }
     }
   };
 
-  const handlePrefChange = async (key: string, value: any) => {
+  const handlePrefChange = async (key: string, value: string | number | boolean) => {
     const updated = { ...preferences, [key]: value };
     setPreferences(updated);
     const res = await updateMessagingPreferences({ [key]: value });
     if (res.error) { toast.error(res.error); loadPreferences(); }
   };
 
-  const handlePilotageChange = async (key: string, value: any) => {
+  const handlePilotageChange = async (key: string, value: string | number | boolean) => {
     const updated = { ...pilotage, [key]: value };
     setPilotage(updated);
     const res = await updatePilotageConfig({ ...updated, daara: daaraId || null });
@@ -797,7 +906,7 @@ export function ChatInterface({
                     <span className="text-xs font-semibold block">{label}</span>
                     <p className="text-[10px] text-muted-foreground">{desc}</p>
                   </div>
-                  <Checkbox checked={pilotage[key]} onCheckedChange={(checked) => handlePilotageChange(key, !!checked)} />
+                  <Checkbox checked={Boolean(pilotage[key])} onCheckedChange={(checked) => handlePilotageChange(key, !!checked)} />
                 </div>
               ))}
             </div>
@@ -820,7 +929,7 @@ export function ChatInterface({
                   style={{ borderColor: "var(--border)" }}
                   value={preferences.visibility}
                   onChange={(e) => handlePrefChange("visibility", e.target.value)}
-                  disabled={pilotage && !pilotage.allow_member_visibility_setting}
+                  disabled={Boolean(pilotage) && !pilotage?.allow_member_visibility_setting}
                 >
                   <option value="all">Tout le monde</option>
                   <option value="daara_only">Mon Daara uniquement</option>
@@ -841,7 +950,7 @@ export function ChatInterface({
                     <span className="text-xs font-semibold block">{label}</span>
                     <p className="text-[10px] text-muted-foreground">{desc}</p>
                   </div>
-                  <Checkbox checked={preferences[key]} onCheckedChange={(checked) => handlePrefChange(key, !!checked)} />
+                  <Checkbox checked={Boolean(preferences[key])} onCheckedChange={(checked) => handlePrefChange(key, !!checked)} />
                 </div>
               ))}
             </div>
@@ -1121,7 +1230,7 @@ export function ChatInterface({
           </div>
 
           <div className="flex flex-col items-center text-center px-5 py-6 gap-3">
-            <Avatar className="h-16 w-16 ring-4" style={{ '--tw-ring-color': 'color-mix(in srgb, var(--primary) 20%, transparent)' } as any}>
+            <Avatar className="h-16 w-16 ring-4" style={{ '--tw-ring-color': 'color-mix(in srgb, var(--primary) 20%, transparent)' } as React.CSSProperties}>
               {selectedChat.avatar ? <AvatarImage src={selectedChat.avatar} /> : null}
               <AvatarFallback className="text-xl font-bold text-white" style={{ background: "var(--primary)" }}>
                 {selectedChat.display_name[0].toUpperCase()}
@@ -1141,7 +1250,7 @@ export function ChatInterface({
             <div className="px-5 py-4 space-y-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Membres connectés</span>
               <div className="space-y-2">
-                {Object.values(onlineMembers).map((m: any, idx) => (
+                {Object.values(onlineMembers).map((m, idx) => (
                   <div key={idx} className="flex items-center gap-2.5">
                     <span className="ax-avatar__status ax-avatar__status--online shrink-0" />
                     <span className="text-xs font-medium truncate">{m.name}</span>
@@ -1234,6 +1343,7 @@ export function ChatInterface({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {dialog}
     </div>
   );
 }

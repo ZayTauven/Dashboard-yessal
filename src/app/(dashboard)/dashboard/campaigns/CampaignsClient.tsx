@@ -27,6 +27,7 @@
  *     fin.
  */
 
+import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -113,6 +114,11 @@ export function CampaignsClient({
   isAdmin: boolean;
   canUseDonationPage: boolean;
 }) {
+  /* Les suppressions se confirment dans un vrai dialogue : un toast
+     expire seul, ne piege pas le focus, et s'affiche dans un coin que
+     personne ne regarde au moment du clic. */
+  const { ask, dialog } = useConfirm();
+
   const router = useRouter();
   const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [isManageOpen, setIsManageOpen] = useState(false);
@@ -283,10 +289,12 @@ export function CampaignsClient({
   };
 
   const handleDeleteCampaign = (campaignId: number, campaignName: string) => {
-    toast(`Supprimer « ${campaignName} » ? Cette action est irréversible.`, {
-      action: {
-        label: "Supprimer",
-        onClick: () => {
+    ask({
+      title: `Supprimer « ${campaignName} » ?`,
+        description:
+          "Les dons enregistrés sur ce Ndiguel seront supprimés avec lui, ainsi que ses tâches de suivi.",
+      confirmLabel: "Supprimer",
+      onConfirm: () => {
           startTransition(async () => {
             const res = await deleteCampaign(campaignId);
             if (res.error) {
@@ -297,8 +305,6 @@ export function CampaignsClient({
             router.refresh();
           });
         },
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -774,6 +780,7 @@ export function CampaignsClient({
           </form>
         )}
       </Modal>
+      {dialog}
     </div>
   );
 }

@@ -30,6 +30,7 @@
  *   · Les `any` de l'interface sont remplacés par des formes explicites.
  */
 
+import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -205,6 +206,11 @@ export default function UserDetailClient({
   documents,
   tutelle,
 }: UserDetailClientProps) {
+  /* Les suppressions se confirment dans un vrai dialogue : un toast
+     expire seul, ne piege pas le focus, et s'affiche dans un coin que
+     personne ne regarde au moment du clic. */
+  const { ask, dialog } = useConfirm();
+
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [tab, setTab] = useState<Tab>("stats");
@@ -360,10 +366,14 @@ export default function UserDetailClient({
   };
 
   const handleBlock = () => {
-    toast(`Bloquer l'accès de ${fullName} ?`, {
-      action: {
-        label: "Confirmer",
-        onClick: () =>
+    ask({
+      title: `Bloquer l'accès de ${fullName} ?`,
+        description:
+          "Il ne pourra plus se connecter. Ses données et ses contributions sont conservées, et l'accès peut lui être rendu à tout moment.",
+        tone: "warning",
+        cancelLabel: "Ne pas bloquer",
+      confirmLabel: "Confirmer",
+      onConfirm: () =>
           startTransition(async () => {
             const res = await updateUserStatus(user.id, "block");
             if (res.error) {
@@ -373,17 +383,16 @@ export default function UserDetailClient({
             toast.success("Accès bloqué.");
             router.refresh();
           }),
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
   const handleDelete = () => {
-    toast(`Supprimer définitivement le compte de ${fullName} ?`, {
-      description: "Cette action est irréversible.",
-      action: {
-        label: "Supprimer",
-        onClick: () =>
+    ask({
+      title: `Supprimer définitivement le compte de ${fullName} ?`,
+      description:
+          "Tous ses dons seront supprimés du registre avec son compte, ainsi que les tutelles dont il a la charge. Pour retirer l'accès en conservant l'historique, bloquez le compte plutôt que de le supprimer.",
+      confirmLabel: "Supprimer",
+      onConfirm: () =>
           startTransition(async () => {
             const res = await deleteUserAction(user.id);
             if (res.error) {
@@ -393,8 +402,6 @@ export default function UserDetailClient({
             toast.success("Compte supprimé.");
             router.push("/dashboard/members");
           }),
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -1020,6 +1027,7 @@ export default function UserDetailClient({
           </p>
         </div>
       </Modal>
+      {dialog}
     </div>
   );
 }

@@ -30,8 +30,8 @@
  *     anneaux de focus étaient écrits champ par champ.
  */
 
+import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -95,6 +95,11 @@ export function AdminDaaraClient({
 }: {
   initialDaaras: Daara[];
 }) {
+  /* Les suppressions se confirment dans un vrai dialogue : un toast
+     expire seul, ne piege pas le focus, et s'affiche dans un coin que
+     personne ne regarde au moment du clic. */
+  const { ask, dialog } = useConfirm();
+
   const router = useRouter();
   const [daaras, setDaaras] = useState(initialDaaras);
   const [isPending, startTransition] = useTransition();
@@ -201,10 +206,12 @@ export function AdminDaaraClient({
   };
 
   const handleDeleteDaara = (daara: Daara) => {
-    toast(`Supprimer « ${daara.name} » ?`, {
-      action: {
-        label: "Supprimer",
-        onClick: () =>
+    ask({
+      title: `Supprimer « ${daara.name} » ?`,
+        description:
+          "Les membres qui y sont rattachés perdront leur affiliation : ils restent inscrits, mais sans Daara.",
+      confirmLabel: "Supprimer",
+      onConfirm: () =>
           startTransition(async () => {
             const res = await deleteDaara(daara.id);
             if (res.error) {
@@ -214,8 +221,6 @@ export function AdminDaaraClient({
             setDaaras((prev) => prev.filter((d) => d.id !== daara.id));
             toast.success("Daara supprimé.");
           }),
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -242,11 +247,12 @@ export function AdminDaaraClient({
   };
 
   const handleZoneDelete = (ldd: Ldd) => {
-    toast(`Supprimer la zone « ${ldd.name} » ?`, {
-      description: "La suppression échoue si des Daaras y sont rattachés.",
-      action: {
-        label: "Supprimer",
-        onClick: () =>
+    ask({
+      title: `Supprimer la zone « ${ldd.name} » ?`,
+      description:
+          "Attention : cette action échoue systématiquement — l'API ne permet pas de supprimer une zone (HTTP 405). Le message d'erreur évoque à tort des Daaras rattachés.",
+      confirmLabel: "Supprimer",
+      onConfirm: () =>
           startTransition(async () => {
             const res = await deleteLDD(ldd.id);
             if (res.error) {
@@ -256,8 +262,6 @@ export function AdminDaaraClient({
             setLdds((prev) => prev.filter((l) => l.id !== ldd.id));
             toast.success("Zone supprimée.");
           }),
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -764,6 +768,7 @@ export function AdminDaaraClient({
           </button>
         </form>
       </Modal>
+      {dialog}
     </div>
   );
 }

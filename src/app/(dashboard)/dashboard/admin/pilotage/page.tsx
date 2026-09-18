@@ -27,6 +27,7 @@
  *     collées au titre ; ils deviennent les badges des onglets.
  */
 
+import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { useEffect, useState, useTransition } from "react";
 import {
   createTitle,
@@ -152,6 +153,11 @@ type RefusalTarget =
 
 export default function PilotagePage() {
   const [settings, setSettings] = useState<PilotageSettings | null>(null);
+  /* Les suppressions se confirment dans un vrai dialogue : un toast
+     expire seul, ne piege pas le focus, et s'affiche dans un coin que
+     personne ne regarde au moment du clic. */
+  const { ask, dialog } = useConfirm();
+
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [tab, setTab] = useState<Tab>("queue");
@@ -228,10 +234,12 @@ export default function PilotagePage() {
   };
 
   const handleDeleteTitle = (title: Title) => {
-    toast(`Supprimer le titre « ${title.name} » ?`, {
-      action: {
-        label: "Supprimer",
-        onClick: () =>
+    ask({
+      title: `Supprimer le titre « ${title.name} » ?`,
+        description:
+          "Les membres qui le portent le perdront, et les demandes en attente pour ce titre seront supprimées.",
+      confirmLabel: "Supprimer",
+      onConfirm: () =>
           startTransition(async () => {
             const res = await deleteTitle(title.id);
             if (res.error) {
@@ -241,8 +249,6 @@ export default function PilotagePage() {
             toast.success("Titre supprimé.");
             void loadAll();
           }),
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -1085,6 +1091,7 @@ export default function PilotagePage() {
           </div>
         )}
       </Modal>
+      {dialog}
     </div>
   );
 }

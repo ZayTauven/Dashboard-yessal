@@ -113,6 +113,10 @@ export function DaaraCombobox({
             type="button"
             role="combobox"
             aria-expanded={open}
+            /* `aria-controls` est REQUIS par le role combobox, au meme titre
+               qu'`aria-expanded` : sans lui, un lecteur d'ecran annonce le
+               controle mais ne peut pas designer la liste qu'il ouvre. */
+            aria-controls={`${id}-listbox`}
             className="ax-combobox__trigger"
           >
             <span className="ax-combobox__value">
@@ -137,6 +141,7 @@ export function DaaraCombobox({
           lui, ouvert depuis une modale, il en débordait sur la droite.
         */}
         <PopoverContent
+          id={`${id}-listbox`}
           align="start"
           collisionPadding={12}
           /*

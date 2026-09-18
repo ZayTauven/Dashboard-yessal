@@ -21,7 +21,6 @@
  * montants gardent le vert Yessal quel que soit l'accent.
  */
 
-import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
@@ -31,7 +30,6 @@ import {
   Clock,
   Droplet,
   FileText,
-  Heart,
   Mail,
   MapPin,
   Phone,

@@ -26,6 +26,7 @@
  *     `useCollection`, avec le tri sur l'ensemble et non sur la page.
  */
 
+import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -153,6 +154,11 @@ export function UserManagementClient({
   initialTitles?: unknown[];
   initialTitleRequests: TitleRequest[];
 }) {
+  /* Les suppressions se confirment dans un vrai dialogue : un toast
+     expire seul, ne piege pas le focus, et s'affiche dans un coin que
+     personne ne regarde au moment du clic. */
+  const { ask, dialog } = useConfirm();
+
   const router = useRouter();
   const [users, setUsers] = useState(initialUsers);
   const [pendingDocs, setPendingDocs] = useState(initialPendingDocs);
@@ -282,12 +288,11 @@ export function UserManagementClient({
    * se retrouverait dehors sans comprendre pourquoi.
    */
   const handleResetPassword = (user: User) => {
-    toast(`Réinitialiser le mot de passe de ${fullName(user)} ?`, {
-      description:
-        "Son mot de passe actuel cessera aussitôt de fonctionner. Le nouveau ne s'affichera qu'une fois.",
-      action: {
-        label: "Réinitialiser",
-        onClick: () =>
+    ask({
+      title: `Réinitialiser le mot de passe de ${fullName(user)} ?`,
+      description: "Son mot de passe actuel cessera aussitôt de fonctionner. Le nouveau ne s'affichera qu'une fois.",
+      confirmLabel: "Réinitialiser",
+      onConfirm: () =>
           startTransition(async () => {
             const res = await resetMemberPasswordAction(user.id);
             if (res.error) {
@@ -296,17 +301,16 @@ export function UserManagementClient({
             }
             setIssued({ name: fullName(user), password: res.password ?? "" });
           }),
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
   const handleDeleteUser = (user: User) => {
-    toast(`Supprimer définitivement le compte de ${fullName(user)} ?`, {
-      description: "Cette action est irréversible.",
-      action: {
-        label: "Supprimer",
-        onClick: async () => {
+    ask({
+      title: `Supprimer définitivement le compte de ${fullName(user)} ?`,
+      description:
+          "Tous ses dons seront supprimés du registre avec son compte, ainsi que les tutelles dont il a la charge. Pour retirer l'accès en conservant l'historique, bloquez le compte plutôt que de le supprimer.",
+      confirmLabel: "Supprimer",
+      onConfirm: async () => {
           const { error } = await deleteUserAction(user.id);
           if (error) {
             toast.error(error);
@@ -315,8 +319,6 @@ export function UserManagementClient({
           setUsers((prev) => prev.filter((u) => u.id !== user.id));
           toast.success("Compte supprimé.");
         },
-      },
-      cancel: { label: "Annuler", onClick: () => {} },
     });
   };
 
@@ -1319,6 +1321,7 @@ export function UserManagementClient({
           </p>
         </div>
       </Modal>
+      {dialog}
     </div>
   );
 }

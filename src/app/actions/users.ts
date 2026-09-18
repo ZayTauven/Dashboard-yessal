@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { generateProvisionalPassword } from "@/lib/password";
 import { stripEmptyFiles } from "@/lib/form-data";
-import { messageForErrors } from "@/lib/api-result";
+import { messageForErrors, type JsonPayload } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -133,7 +133,7 @@ export async function updateUserStatus(
   }
 }
 
-export async function createUserByAdmin(userData: any) {
+export async function createUserByAdmin(userData: JsonPayload) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/users/`, {
       method: "POST",
@@ -202,7 +202,7 @@ export async function updateProfile(formData: FormData) {
   }
 }
 
-export async function updateUserAction(userId: number, userData: any) {
+export async function updateUserAction(userId: number, userData: JsonPayload) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/users/${userId}/`, {
       method: "PATCH",
@@ -237,7 +237,7 @@ export async function deleteUserAction(userId: number) {
   }
 }
 
-export async function updatePilotageSettings(data: any) {
+export async function updatePilotageSettings(data: JsonPayload) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/settings/pilotage/`, {
       method: "POST",

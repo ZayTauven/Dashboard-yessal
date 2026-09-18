@@ -71,6 +71,14 @@ export function Avatar({
       title={name ?? undefined}
     >
       {showImage ? (
+        /*
+          `<img>` et non `next/image`, comme <CoverImage> : la source est une
+          URL de media servie par Django, inconnue a la compilation et hors des
+          domaines declares. `next/image` refuserait de l'optimiser, et la
+          faire passer par son proxy ajouterait un aller-retour pour une
+          vignette de quarante pixels.
+        */
+        /* eslint-disable-next-line @next/next/no-img-element */
         <img
           className="ax-avatar__img"
           src={src as string}

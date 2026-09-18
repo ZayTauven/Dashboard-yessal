@@ -127,7 +127,7 @@ export function Customizer({ open, onClose }: { open: boolean; onClose: () => vo
       <div className="ax-customizer__body">
         {/* COLOR MODE */}
         <section className="ax-customizer__section">
-          <p className="ax-eyebrow">Mode d'affichage</p>
+          <p className="ax-eyebrow">Mode d&apos;affichage</p>
           <Segmented
             label="Mode d'affichage"
             value={c.mode}
@@ -144,7 +144,7 @@ export function Customizer({ open, onClose }: { open: boolean; onClose: () => vo
 
         {/* ACCENT PRESETS */}
         <section className="ax-customizer__section">
-          <p className="ax-eyebrow">Couleur d'accent</p>
+          <p className="ax-eyebrow">Couleur d&apos;accent</p>
           <div className="ax-swatch-grid" role="radiogroup" aria-label="Couleur d'accent">
             {PRESETS.map((p) => (
               <button
@@ -189,7 +189,7 @@ export function Customizer({ open, onClose }: { open: boolean; onClose: () => vo
               <button key={hex} type="button" className="ax-tint" style={{ ['--sw' as string]: hex }} aria-label={label} onClick={() => c.setCustomBg(hex)} />
             ))}
           </div>
-          {c.bgLowContrast && <p className="ax-note ax-note--warn">Contraste faible — le texte risque d'être difficile à lire.</p>}
+          {c.bgLowContrast && <p className="ax-note ax-note--warn">Contraste faible — le texte risque d&apos;être difficile à lire.</p>}
         </section>
 
         {/* NAVIGATION */}

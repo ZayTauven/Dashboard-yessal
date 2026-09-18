@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { stripEmptyFiles } from "@/lib/form-data";
-import { messageForErrors } from "@/lib/api-result";
+import { messageForErrors, type JsonPayload } from "@/lib/api-result";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
@@ -270,7 +270,7 @@ export async function getMessagingPreferences() {
   }
 }
 
-export async function updateMessagingPreferences(payload: any) {
+export async function updateMessagingPreferences(payload: JsonPayload) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/comms/preferences/`, {
       method: "PATCH",
@@ -310,7 +310,7 @@ export async function getPilotageConfig(daaraId?: number) {
   }
 }
 
-export async function updatePilotageConfig(payload: any) {
+export async function updatePilotageConfig(payload: JsonPayload) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/comms/pilotage/`, {
       method: "PATCH",

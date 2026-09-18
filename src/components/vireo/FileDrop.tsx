@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 
 /** Plafond commun à tous les dépôts du produit. Aligné sur Django. */
 export const MAX_FILE_SIZE_MB = 15;
-const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 /** 2411724 → « 2,3 Mo ». Le séparateur décimal est la virgule, en français. */
 export function formatFileSize(bytes: number): string {
