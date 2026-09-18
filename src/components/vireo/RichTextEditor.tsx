@@ -183,7 +183,18 @@ export function RichTextEditor({
    */
   useEffect(() => {
     const el = areaRef.current;
-    if (el && !el.innerHTML) el.innerHTML = html;
+    /*
+     * Un `contentEditable` vide n'a AUCUN bloc : la première ligne saisie
+     * reste un nœud de texte nu, et l'article s'enregistre sous la forme
+     * « Premier paragraphe.<h2>… ». Ce texte-là n'est dans aucun `<p>`, donc
+     * aucune des règles de `.ax-prose` ne l'atteint — il se colle à
+     * l'intertitre qui suit, et la mise en page du premier paragraphe diffère
+     * de celle de tous les autres.
+     *
+     * On amorce donc avec un paragraphe vide, ce que fait tout éditeur : la
+     * saisie commence à l'intérieur d'un bloc.
+     */
+    if (el && !el.innerHTML) el.innerHTML = html || "<p><br></p>";
     /* Le champ caché est aligné explicitement plutôt que laissé au seul
        `defaultValue` : un article ouvert puis enregistré sans être touché doit
        partir avec son contenu, et non avec une chaîne vide. */

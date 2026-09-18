@@ -131,6 +131,28 @@ export default function RootLayout({
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
       <head>
+        {/*
+          ── Un <script> nu, et c'est délibéré ────────────────────────────────
+          Next 16 avertit en développement : « Encountered a script tag while
+          rendering React component. Scripts inside React components are never
+          executed when rendering on the client. »
+
+          L'avertissement est exact mais hors sujet ici. Il vise le cas d'un
+          script rendu lors d'une navigation CLIENT, où React n'exécute pas la
+          balise. Ce script-ci n'a besoin de tourner qu'une fois, sur le HTML
+          initial, et c'est précisément ce qu'il fait.
+
+          La voie canonique — <Script strategy="beforeInteractive"> — a été
+          essayée puis écartée sur mesure : Next place alors le script DANS LE
+          CORPS du document. Vérifié sur la page rendue, il tombe à l'index
+          9706 quand <body> ouvre à 2234. Le thème s'appliquerait donc APRÈS le
+          début de la peinture, et la page s'afficherait en clair avant de
+          basculer en sombre sous les yeux du visiteur — exactement ce que ce
+          script existe pour empêcher.
+
+          Un avertissement de développement contre un clignotement à chaque
+          chargement : on garde l'avertissement.
+        */}
         <script dangerouslySetInnerHTML={{ __html: RESTORE_AX_ATTRS }} />
       </head>
       <body className="antialiased">

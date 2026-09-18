@@ -134,9 +134,12 @@ export default async function NewsDetailPage({
 
       {post.cover_image && (
         <div className="ax-card ax-card--media overflow-hidden">
+          {/* Pas de prop `icon` : cette page est un composant SERVEUR, et une
+              icône Lucide est une fonction — React refuse de la sérialiser
+              jusqu'au client et fait tomber la page entière. <CoverImage>
+              retombe sur la même icône par défaut. */}
           <CoverImage
             src={post.cover_image}
-            icon={ImageIcon}
             className="aspect-21/9 w-full object-cover"
             fallbackClassName="aspect-21/9 w-full"
           />

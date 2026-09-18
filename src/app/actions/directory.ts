@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { messageForErrors } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -22,8 +23,7 @@ export async function getDirectoryUsers() {
       const err = await res.json().catch(() => ({}));
       return {
         error:
-          (err as { detail?: string }).detail ||
-          "Impossible de charger l’annuaire.",
+          messageForErrors(err, "Impossible de charger l’annuaire."),
         data: [],
       };
     }
@@ -47,7 +47,7 @@ export async function promoteUserToCollector(userId: number) {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       return {
-        error: (err as { detail?: string }).detail || "Action refusée.",
+        error: messageForErrors(err, "Action refusée."),
       };
     }
     revalidatePath("/dashboard/members");

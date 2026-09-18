@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { messageForErrors } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -58,7 +59,7 @@ export async function loginAction(formData: FormData) {
     const data = await response.json();
 
     if (!response.ok) {
-      return { error: data.detail || "Identifiants invalides." };
+      return { error: messageForErrors(data, "Identifiants invalides.") };
     }
 
     const cookiesList = await cookies();
@@ -135,7 +136,7 @@ export async function forgotPasswordAction(email: string) {
       body: JSON.stringify({ email }),
     });
     const result = await res.json();
-    if (!res.ok) return { error: result.detail || "Échec de la demande." };
+    if (!res.ok) return { error: messageForErrors(result, "Échec de la demande.") };
     return { success: true, message: result.detail };
   } catch (err) {
     console.error(err);

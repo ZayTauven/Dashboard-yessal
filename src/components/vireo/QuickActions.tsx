@@ -87,7 +87,20 @@ export function QuickActions({ role = "member", open, onOpenChange }: QuickActio
      l'utilisateur est probablement en train d'écrire. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== "k" || !(e.metaKey || e.ctrlKey)) return;
+      /*
+       * Le modificateur est testé EN PREMIER, et `key` est vérifié avant
+       * d'être lu.
+       *
+       * `KeyboardEvent.key` est typé `string` par TypeScript, mais la garantie
+       * ne tient que pour les événements émis par le navigateur. Un
+       * gestionnaire de mots de passe, une saisie automatique ou un clavier
+       * virtuel distribuent des `keydown` FABRIQUÉS, parfois sans `key` — et
+       * `undefined.toLowerCase()` fait alors tomber le raccourci, donc la
+       * palette de commandes, sur toutes les pages à la fois puisque
+       * l'écouteur est posé sur `document`.
+       */
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (typeof e.key !== "string" || e.key.toLowerCase() !== "k") return;
       const el = document.activeElement;
       const typing =
         el instanceof HTMLElement &&

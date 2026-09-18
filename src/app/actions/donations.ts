@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { messageForErrors } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -89,7 +90,7 @@ export async function confirmWireDonation(donationId: number) {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       return {
-        error: (data as { detail?: string }).detail || "Confirmation échouée.",
+        error: messageForErrors(data, "Confirmation échouée."),
       };
     }
     revalidatePath("/dashboard/donations");
@@ -118,7 +119,7 @@ export async function createDonationArchive(name: string, description = "") {
       const data = await res.json().catch(() => ({}));
       return {
         error:
-          (data as { detail?: string }).detail || "Création d'archive échouée.",
+          messageForErrors(data, "Création d'archive échouée."),
       };
     }
 
@@ -212,8 +213,7 @@ export async function makeDonation(formData: FormData) {
       const data = await res.json().catch(() => ({}));
       return {
         error:
-          (data as { detail?: string }).detail ||
-          "La création du don a échoué côté serveur.",
+          messageForErrors(data, "La création du don a échoué côté serveur."),
       };
     }
 

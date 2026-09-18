@@ -42,7 +42,7 @@ import {
   getNewsPost,
   updateNewsPost,
 } from "@/app/actions/news";
-import { FileDrop, checkFileSize } from "@/components/vireo/FileDrop";
+import { FileDrop, MAX_FILE_SIZE_MB, checkFileSize } from "@/components/vireo/FileDrop";
 import { Gallery } from "@/components/vireo/Gallery";
 import { RichTextEditor, isRichTextEmpty } from "@/components/vireo/RichTextEditor";
 import { useConfirm } from "@/components/vireo/ConfirmDialog";
@@ -58,7 +58,10 @@ export function NewsForm({ post }: { post?: NewsPost | null }) {
      serveur à la seconde où on la dépose, alors que le reste du formulaire
      attend la soumission. On tient donc sa liste à part. */
   const [gallery, setGallery] = useState<NewsGalleryImage[]>(post?.gallery ?? []);
-  const [galleryLoading, setGalleryLoading] = useState(false);
+  /* Un booléen ne sait pas dire « 2 sur 5 ». Sur un dépôt de huit photos prises
+     au téléphone, l'attente se compte en dizaines de secondes : sans compteur,
+     l'auteur croit que rien ne se passe et reclique. */
+  const [upload, setUpload] = useState<{ done: number; total: number } | null>(null);
 
   const [content, setContent] = useState(post?.content ?? "");
   const [contentError, setContentError] = useState(false);
@@ -126,40 +129,71 @@ export function NewsForm({ post }: { post?: NewsPost | null }) {
     });
   };
 
-  const addImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !post) return;
+  const addImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosen = Array.from(e.target.files ?? []);
+    if (chosen.length === 0 || !post) return;
 
-    /* Ce dépôt part au serveur immédiatement : on le refuse AVANT l'envoi
-       plutôt que de laisser Django répondre par une erreur de validation. */
-    const tooBig = checkFileSize(file);
-    if (tooBig) {
-      toast.error(tooBig);
+    /* Ces dépôts partent au serveur immédiatement : on les refuse AVANT
+       l'envoi plutôt que de laisser Django répondre par une erreur de
+       validation. Les fichiers trop lourds sont écartés, les autres passent —
+       un seul refus ne doit pas annuler la sélection entière. */
+    const tooBig = chosen.map(checkFileSize);
+    const files = chosen.filter((_, i) => !tooBig[i]);
+    tooBig.filter(Boolean).forEach((msg) => toast.error(msg as string));
+
+    if (files.length === 0) {
       e.target.value = "";
       return;
     }
 
-    setGalleryLoading(true);
-    const formData = new FormData();
-    formData.append("image", file);
+    setUpload({ done: 0, total: files.length });
+    let ok = 0;
+    const failed: string[] = [];
 
     try {
-      const { error } = await addGalleryImage(post.slug, formData);
-      if (error) {
-        toast.error(error);
-        return;
+      /*
+       * En série, et non en `Promise.all`. L'API n'accepte qu'une image par
+       * appel (`POST /posts/<slug>/gallery/`), et huit envois simultanés
+       * depuis une connexion de Dakar se gênent plus qu'ils ne s'aident — sans
+       * compter que le serveur redimensionne chaque image à la réception.
+       * La progression, elle, n'a de sens que séquentielle.
+       */
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append("image", file);
+        const { error } = await addGalleryImage(post.slug, formData);
+        if (error) failed.push(file.name);
+        else ok += 1;
+        setUpload((u) => (u ? { ...u, done: u.done + 1 } : u));
       }
-      toast.success("Image ajoutée à la galerie.");
 
-      /* On relit l'article pour récupérer l'identifiant de l'image que le
-         serveur vient de créer — sans lui, on ne saurait pas la supprimer. */
-      const { data: updated } = await getNewsPost(post.slug);
-      if (updated?.gallery) setGallery(updated.gallery as NewsGalleryImage[]);
-      router.refresh();
+      if (ok > 0) {
+        toast.success(
+          ok === 1 ? "Photo ajoutée à la galerie." : `${ok} photos ajoutées à la galerie.`,
+        );
+      }
+      /* Nommer les fichiers en échec : « 2 échecs » n'aide pas à savoir
+         lesquels redéposer. */
+      if (failed.length > 0) {
+        toast.error(
+          failed.length === 1
+            ? `« ${failed[0]} » n'a pas pu être envoyée.`
+            : `${failed.length} photos n'ont pas pu être envoyées : ${failed.join(", ")}.`,
+        );
+      }
+
+      /* Une seule relecture pour tout le lot : c'est elle qui donne les
+         identifiants créés par le serveur, sans lesquels on ne saurait pas
+         supprimer les images. */
+      if (ok > 0) {
+        const { data: updated } = await getNewsPost(post.slug);
+        if (updated?.gallery) setGallery(updated.gallery as NewsGalleryImage[]);
+        router.refresh();
+      }
     } finally {
-      /* `finally` : même si la relecture échoue, le bouton doit sortir de son
+      /* `finally` : même si la relecture échoue, la zone doit sortir de son
          état de chargement. */
-      setGalleryLoading(false);
+      setUpload(null);
       e.target.value = "";
     }
   };
@@ -413,22 +447,31 @@ export function NewsForm({ post }: { post?: NewsPost | null }) {
             <div className="ax-card__body flex flex-col gap-4">
               <div className="ax-dropzone">
                 <label className="ax-dropzone__area">
-                  {galleryLoading ? (
+                  {upload ? (
                     <Loader2 className="animate-spin" aria-hidden="true" />
                   ) : (
                     <ImagePlus aria-hidden="true" />
                   )}
                   <span className="text-sm font-medium">
-                    {galleryLoading
-                      ? "Envoi en cours…"
-                      : "Ajouter une photo à la galerie"}
+                    {upload
+                      ? `Envoi ${upload.done + 1} sur ${upload.total}…`
+                      : "Ajouter des photos à la galerie"}
+                  </span>
+                  <span className="ax-text-subtle text-xs">
+                    Plusieurs photos à la fois · {MAX_FILE_SIZE_MB} Mo maximum par photo
                   </span>
                   <input
                     type="file"
                     accept="image/*"
+                    /* `multiple` manquait : la galerie d'un article existant
+                       s'alimentait une photo à la fois, alors que la création
+                       en acceptait déjà plusieurs. Rien ne justifiait l'écart —
+                       et c'est en édition qu'on ajoute des photos, après
+                       l'événement. */
+                    multiple
                     className="ax-visually-hidden"
-                    disabled={galleryLoading}
-                    onChange={addImage}
+                    disabled={Boolean(upload)}
+                    onChange={addImages}
                   />
                 </label>
               </div>

@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { messageForErrors } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -61,7 +62,7 @@ export async function addTutelle(formData: FormData) {
 
     if (!res.ok) {
       const data = await res.json();
-      return { error: data.detail || "Erreur lors de l'ajout de la tutelle." };
+      return { error: messageForErrors(data, "Erreur lors de l'ajout de la tutelle.") };
     }
 
     revalidatePath("/dashboard/tutelles");

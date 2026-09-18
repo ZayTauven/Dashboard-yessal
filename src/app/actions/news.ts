@@ -2,7 +2,8 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { messageForStatus } from "@/lib/api-result";
+import { messageForErrors, messageForStatus } from "@/lib/api-result";
+import { stripEmptyFiles } from "@/lib/form-data";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
@@ -53,23 +54,33 @@ export async function getNewsPost(slug: string) {
 }
 
 export async function addNewsPost(formData: FormData) {
-  // We send the FormData directly to support file uploads
   const authHeader = await getAuthHeader();
+
+  /* `stripEmptyFiles` : un champ fichier laissé vide arrive jusqu'ici sous
+     forme de `File` de taille nulle, que le `fetch` de Node renomme en
+     traversant — Django y voit alors un téléversement vide et refuse tout
+     l'article. Créer une actualité sans bannière était impossible. */
+  const body = stripEmptyFiles(formData);
 
   try {
     const res = await fetch(`${BACKEND_URL}/api/news/posts/`, {
       method: "POST",
       headers: {
         ...authHeader,
-        // Let the browser/Next.js set the correct boundary for FormData
+        // La frontière multipart est posée par fetch : ne pas fixer
+        // Content-Type à la main.
       },
-      body: formData,
+      body,
     });
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
+      /* `messageForErrors` et non `data.detail` : une erreur de VALIDATION a la
+         forme `{"champ": ["message"]}` et n'a pas de `detail`. Le message
+         générique masquait donc toujours la vraie cause. */
       return {
-        error: (data as { detail?: string }).detail || "Erreur lors de la création de l'article.",
+        error: messageForErrors(data, "Erreur lors de la création de l'article."),
+        status: res.status,
       };
     }
 
@@ -98,16 +109,22 @@ export async function deleteNewsPost(slug: string) {
 
 export async function updateNewsPost(idOrSlug: string | number, formData: FormData) {
   const authHeader = await getAuthHeader();
+  /* Même piège qu'à la création : sans ce nettoyage, enregistrer une
+     modification sans TOUCHER à la bannière échouait. */
+  const body = stripEmptyFiles(formData);
   try {
     const res = await fetch(`${BACKEND_URL}/api/news/posts/${idOrSlug}/`, {
       method: "PATCH",
       headers: { ...authHeader },
-      body: formData,
+      body,
     });
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      return { error: data.detail || "Échec de la mise à jour." };
+      return {
+        error: messageForErrors(data, "Échec de la mise à jour."),
+        status: res.status,
+      };
     }
 
     revalidatePath("/dashboard/news");
@@ -120,14 +137,18 @@ export async function updateNewsPost(idOrSlug: string | number, formData: FormDa
 
 export async function addGalleryImage(slug: string, formData: FormData) {
   const authHeader = await getAuthHeader();
+  const body = stripEmptyFiles(formData);
   try {
     const res = await fetch(`${BACKEND_URL}/api/news/posts/${slug}/gallery/`, {
       method: "POST",
       headers: { ...authHeader },
-      body: formData,
+      body,
     });
 
-    if (!res.ok) return { error: "Échec de l'ajout de l'image." };
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { error: messageForErrors(data, "Échec de l'ajout de l'image.") };
+    }
 
     revalidatePath("/dashboard/news");
     return { success: true };

@@ -244,22 +244,40 @@ export function ShellHeader({
       {/* ── Notifications ── */}
       <NotificationBell items={notificationPreview} />
 
-      {/* ── Bascule rapide clair / sombre ── */}
+      {/* ── Bascule rapide clair / sombre ──────────────────────────────────
+          L'icône et le libellé sont rendus TOUS LES DEUX, et c'est le CSS qui
+          révèle le bon selon `[data-ax-theme]` sur <html>.
+
+          Le rendu conditionnel sur `resolvedTheme` provoquait une erreur
+          d'hydratation à chaque chargement : `next-themes` ne PEUT pas
+          connaître le thème sur le serveur — il vit dans le localStorage du
+          visiteur. Le serveur rendait donc toujours « Passer en mode sombre »
+          et la lune, le client « Passer en mode clair » et le soleil dès que
+          le thème sombre était actif. React signalait l'écart et régénérait
+          l'arbre.
+
+          Le verrou `mounted` habituel corrigerait l'erreur mais ferait
+          clignoter le bouton au premier rendu. Ici c'est inutile : le script
+          anti-FOUC de `layout.tsx` pose déjà `data-ax-theme` sur <html> AVANT
+          la peinture. Le CSS connaît donc le thème plus tôt que React.
+
+          Les libellés sont du texte masqué plutôt qu'un `aria-label` : un
+          `display: none` retire son contenu de l'arbre d'accessibilité, donc
+          seul le libellé visible nomme le bouton. Un `aria-label`, lui, ne
+          peut pas être piloté par le CSS. */}
       <button
         type="button"
-        className="ax-icon-btn"
+        className="ax-icon-btn ax-theme-toggle"
         onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-        aria-label={
-          resolvedTheme === "dark"
-            ? "Passer en mode clair"
-            : "Passer en mode sombre"
-        }
       >
-        {resolvedTheme === "dark" ? (
-          <Sun className="ax-icon" size={19} aria-hidden="true" />
-        ) : (
+        <span className="ax-theme-toggle__to-dark">
           <Moon className="ax-icon" size={19} aria-hidden="true" />
-        )}
+          <span className="ax-visually-hidden">Passer en mode sombre</span>
+        </span>
+        <span className="ax-theme-toggle__to-light">
+          <Sun className="ax-icon" size={19} aria-hidden="true" />
+          <span className="ax-visually-hidden">Passer en mode clair</span>
+        </span>
       </button>
 
       {/* ── Panneau Apparence ── */}

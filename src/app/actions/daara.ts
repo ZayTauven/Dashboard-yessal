@@ -2,6 +2,8 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { stripEmptyFiles } from "@/lib/form-data";
+import { messageForErrors } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -135,7 +137,7 @@ export async function createDaara(formData: FormData) {
 
     if (!res.ok) {
       const errorData = await res.json();
-      return { error: errorData.error || errorData.detail || "Erreur lors de la création." };
+      return { error: messageForErrors(errorData, "Erreur lors de la création.") };
     }
     revalidatePath("/dashboard/admin/daara");
     return { data: await res.json() };
@@ -182,8 +184,7 @@ export async function updateDaara(
       const err = await res.json().catch(() => ({}));
       return {
         error:
-          (err as { detail?: string }).detail ||
-          "Mise à jour refusée.",
+          messageForErrors(err, "Mise à jour refusée."),
       };
     }
     revalidatePath("/dashboard/admin/daara");
@@ -225,11 +226,19 @@ export async function getDaaraEtat(id: number) {
 }
 
 export async function importDaaraExcel(formData: FormData) {
+  /* Garde-fou de frontiere, PAS un correctif : aucun appelant actuel n'envoie
+     de fichier vide — tous construisent leur FormData a la main, sous garde
+     (`if (file) …`). Le filtre est ici pour le jour ou ce formulaire passera
+     en soumission native (`<form action={…}>`), ou le navigateur inclut TOUS
+     les champs, y compris un champ fichier non rempli. C'est ce qui rendait
+     impossible la creation d'un article sans banniere — voir lib/form-data.ts. */
+  const body = stripEmptyFiles(formData);
+
   try {
     const res = await fetch(`${BACKEND_URL}/api/daara/import-excel/`, {
       method: "POST",
       headers: await getAuthHeader(),
-      body: formData,
+      body,
     });
     
     if (!res.ok) {

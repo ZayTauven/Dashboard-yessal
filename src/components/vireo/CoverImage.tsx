@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Image as ImageIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,8 +33,25 @@ import { cn } from "@/lib/utils";
 interface CoverImageProps {
   src?: string | null;
   alt?: string;
-  /** Icône affichée en l'absence d'image — ou quand elle ne charge pas. */
-  icon: LucideIcon;
+  /**
+   * Icône affichée en l'absence d'image — ou quand elle ne charge pas.
+   *
+   * OPTIONNELLE, et c'est ce qui rend le composant utilisable depuis un
+   * composant SERVEUR. Une icône Lucide est une fonction : React refuse de la
+   * sérialiser à travers la frontière serveur → client, et l'échec n'est pas
+   * discret — la page entière part en erreur :
+   *
+   *   Functions cannot be passed directly to Client Components
+   *   <... src=... icon={{$$typeof: ..., render: function Image}} ...>
+   *
+   * C'est ce qui rendait la page de lecture d'un article inaccessible : elle
+   * est le seul appelant serveur du produit, tous les autres sont des
+   * composants client, où passer l'icône ne pose aucun problème.
+   *
+   * Un serveur omet donc `icon` et hérite du repli ci-dessous ; un client
+   * garde le choix.
+   */
+  icon?: LucideIcon;
   iconSize?: number;
   /** Classes de la balise <img>. */
   className?: string;
@@ -44,7 +62,7 @@ interface CoverImageProps {
 export function CoverImage({
   src,
   alt = "",
-  icon: Icon,
+  icon: Icon = ImageIcon,
   iconSize = 56,
   className,
   fallbackClassName,

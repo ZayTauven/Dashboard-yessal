@@ -2,6 +2,8 @@
 
 import { cookies } from "next/headers";
 import { generateProvisionalPassword } from "@/lib/password";
+import { stripEmptyFiles } from "@/lib/form-data";
+import { messageForErrors } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -143,7 +145,7 @@ export async function createUserByAdmin(userData: any) {
     });
     if (!res.ok) {
       const err = await res.json();
-      return { error: err.detail || "Échec de création de l'utilisateur." };
+      return { error: messageForErrors(err, "Échec de création de l'utilisateur.") };
     }
     return { data: await res.json() };
   } catch (err) {
@@ -171,22 +173,27 @@ export async function updateUserRole(userId: number, role: string) {
 }
 
 export async function updateProfile(formData: FormData) {
+  /* Garde-fou de frontiere, PAS un correctif : aucun appelant actuel n'envoie
+     de fichier vide — tous construisent leur FormData a la main, sous garde
+     (`if (file) …`). Le filtre est ici pour le jour ou ce formulaire passera
+     en soumission native (`<form action={…}>`), ou le navigateur inclut TOUS
+     les champs, y compris un champ fichier non rempli. C'est ce qui rendait
+     impossible la creation d'un article sans banniere — voir lib/form-data.ts. */
+  const body = stripEmptyFiles(formData);
+
   try {
     const res = await fetch(`${BACKEND_URL}/api/profile/`, {
       method: "PATCH",
       headers: await getAuthHeader(),
-      body: formData,
+      body,
     });
     if (!res.ok) {
-      const err = await res.json();
-      // Return field-specific errors if available
-      if (typeof err === "object" && !err.detail) {
-        const firstError = Object.entries(err)[0];
-        if (firstError) {
-          return { error: `${firstError[0]}: ${firstError[1]}` };
-        }
-      }
-      return { error: err.detail || "Mise à jour du profil échouée." };
+      /* L'extraction maison qui vivait ici affichait le nom de champ BRUT et
+         en anglais — « avatar: The submitted file is empty. » Elle ne gardait
+         par ailleurs que la premiere erreur. `messageForErrors` traduit les
+         noms de champ et les joint toutes. */
+      const err = await res.json().catch(() => ({}));
+      return { error: messageForErrors(err, "Mise à jour du profil échouée.") };
     }
     return { data: await res.json() };
   } catch (err) {
@@ -207,7 +214,7 @@ export async function updateUserAction(userId: number, userData: any) {
     });
     if (!res.ok) {
       const err = await res.json();
-      return { error: err.detail || "Échec de modification." };
+      return { error: messageForErrors(err, "Échec de modification.") };
     }
     return { data: await res.json() };
   } catch (err) {
@@ -242,7 +249,7 @@ export async function updatePilotageSettings(data: any) {
     });
     if (!res.ok) {
       const err = await res.json();
-      return { error: err.detail || "Mise à jour échouée." };
+      return { error: messageForErrors(err, "Mise à jour échouée.") };
     }
     return { data: await res.json() };
   } catch (err) {
@@ -358,8 +365,7 @@ export async function submitTitleRequest(titleId: number, note = "") {
       const err = await res.json().catch(() => ({}));
       return {
         error:
-          (err as { detail?: string }).detail ||
-          "Soumission de la demande echouee.",
+          messageForErrors(err, "Soumission de la demande echouee."),
       };
     }
     return { data: await res.json() };
@@ -410,18 +416,25 @@ export async function getUserDocuments(userId: number) {
 }
 
 export async function createUserDocument(userId: number, formData: FormData) {
+  /* Garde-fou de frontiere, PAS un correctif : aucun appelant actuel n'envoie
+     de fichier vide — tous construisent leur FormData a la main, sous garde
+     (`if (file) …`). Le filtre est ici pour le jour ou ce formulaire passera
+     en soumission native (`<form action={…}>`), ou le navigateur inclut TOUS
+     les champs, y compris un champ fichier non rempli. C'est ce qui rendait
+     impossible la creation d'un article sans banniere — voir lib/form-data.ts. */
+  const body = stripEmptyFiles(formData);
+
   try {
     const res = await fetch(`${BACKEND_URL}/api/users/${userId}/documents/`, {
       method: "POST",
       headers: await getAuthHeader(),
-      body: formData,
+      body,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       return {
         error:
-          (err as { detail?: string }).detail ||
-          "Soumission du document echouee.",
+          messageForErrors(err, "Soumission du document echouee."),
       };
     }
     return { data: await res.json() };
@@ -436,13 +449,21 @@ export async function updateUserDocument(
   documentId: number,
   formData: FormData,
 ) {
+  /* Garde-fou de frontiere, PAS un correctif : aucun appelant actuel n'envoie
+     de fichier vide — tous construisent leur FormData a la main, sous garde
+     (`if (file) …`). Le filtre est ici pour le jour ou ce formulaire passera
+     en soumission native (`<form action={…}>`), ou le navigateur inclut TOUS
+     les champs, y compris un champ fichier non rempli. C'est ce qui rendait
+     impossible la creation d'un article sans banniere — voir lib/form-data.ts. */
+  const body = stripEmptyFiles(formData);
+
   try {
     const res = await fetch(
       `${BACKEND_URL}/api/users/${userId}/documents/${documentId}/`,
       {
         method: "PATCH",
         headers: await getAuthHeader(),
-        body: formData,
+        body,
       },
     );
     if (!res.ok) return { error: "Mise a jour du document echouee." };

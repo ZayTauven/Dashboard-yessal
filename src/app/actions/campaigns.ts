@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { messageForStatus } from "@/lib/api-result";
+import { messageForErrors, messageForStatus } from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -126,8 +126,7 @@ export async function addCampaign(formData: FormData) {
       const data = await res.json().catch(() => ({}));
       return {
         error:
-          (data as { detail?: string }).detail ||
-          "Erreur lors de la création de la campagne.",
+          messageForErrors(data, "Erreur lors de la création de la campagne."),
       };
     }
 
@@ -154,8 +153,7 @@ export async function getCampaignOrganizerDirectory(campaignId: number) {
       const err = await res.json().catch(() => ({}));
       return {
         error:
-          (err as { detail?: string }).detail ||
-          "Impossible de charger les membres pour l'organisation.",
+          messageForErrors(err, "Impossible de charger les membres pour l'organisation."),
       };
     }
 
@@ -214,8 +212,7 @@ export async function updateCampaign(campaignId: number, formData: FormData) {
       const data = await res.json().catch(() => ({}));
       return {
         error:
-          (data as { detail?: string }).detail ||
-          "Erreur lors de la mise à jour de la campagne.",
+          messageForErrors(data, "Erreur lors de la mise à jour de la campagne."),
       };
     }
 
@@ -242,8 +239,7 @@ export async function deleteCampaign(campaignId: number) {
       const data = await res.json().catch(() => ({}));
       return {
         error:
-          (data as { detail?: string }).detail ||
-          "Erreur lors de la suppression de la campagne.",
+          messageForErrors(data, "Erreur lors de la suppression de la campagne."),
       };
     }
 

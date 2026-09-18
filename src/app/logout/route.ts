@@ -20,10 +20,41 @@ export async function GET(request: Request) {
   cookiesList.delete("session-yessal");
   cookiesList.delete("refresh-yessal");
 
-  const url = new URL("/login", request.url);
-  if (new URL(request.url).searchParams.get("reason") === "revoked") {
-    url.searchParams.set("reason", "revoked");
-  }
+  /*
+   * ── Une Location RELATIVE, et c'est tout l'objet de ce correctif ─────────
+   * `NextResponse.redirect(new URL("/login", request.url))` renvoyait
+   *
+   *     location: http://0.0.0.0:3000/login?reason=revoked
+   *
+   * `request.url` porte l'adresse de LIAISON du serveur, pas l'hôte par lequel
+   * le visiteur est arrivé. `0.0.0.0` signifie « toutes les interfaces » côté
+   * serveur ; côté navigateur, ce n'est pas une adresse joignable — Chromium
+   * répond ERR_ADDRESS_INVALID.
+   *
+   * Et cette route est le chemin NORMAL d'une session expirée : le jeton vit
+   * une heure, après quoi le middleware envoie tout le monde ici. Au lieu de
+   * retomber sur l'écran de connexion, on atterrissait donc sur une page
+   * d'erreur du navigateur.
+   *
+   * Le middleware, lui, n'a pas ce défaut : Next normalise ses redirections
+   * de même origine en chemin relatif. Ce n'est pas le cas d'un Route Handler,
+   * d'où la construction à la main.
+   *
+   * Une Location relative est valide (RFC 7231 §7.1.2) et se résout contre
+   * l'URL courante — donc contre l'hôte réel du visiteur, quel que soit le
+   * proxy devant.
+   */
+  const revoked =
+    new URL(request.url).searchParams.get("reason") === "revoked";
+  const target = revoked ? "/login?reason=revoked" : "/login";
 
-  return NextResponse.redirect(url);
+  /* Les cookies sont posés sur CETTE réponse, et pas seulement via
+     `cookies()` : c'est elle qui part au navigateur. */
+  const response = new NextResponse(null, {
+    status: 307,
+    headers: { Location: target },
+  });
+  response.cookies.delete("session-yessal");
+  response.cookies.delete("refresh-yessal");
+  return response;
 }

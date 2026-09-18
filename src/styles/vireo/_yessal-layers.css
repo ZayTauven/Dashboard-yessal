@@ -452,14 +452,38 @@
   backdrop-filter: blur(10px) saturate(1.1);
 }
 
-/* Sur un écran étroit, deux boutons côte à côte finissent à 40 % de largeur
-   chacun, sous la barre de navigation du navigateur. On les empile, action
-   principale en premier — c'est elle que le pouce atteint. */
+/* Le prix du collage, et pourquoi il ne se paie pas sur téléphone.
+   ──────────────────────────────────────────────────────────────────────────
+   Une barre collée en bas RECOUVRE ce qui passe dessous. Mesuré sur la page de
+   rédaction : 72 px de la zone d'écriture masqués sur un écran de 1440, et
+   122 px sur un écran de 390 — soit 38 % de la surface de saisie, en
+   permanence, sur l'appareil où l'espace manque déjà.
+
+   Le compromis n'est donc pas le même selon la largeur. Sur grand écran, le
+   gain — ne pas parcourir deux écrans pour corriger un titre — vaut les 72 px,
+   d'autant que `scroll-margin` plus bas garde le curseur au-dessus de la
+   barre. Sur téléphone, il ne les vaut pas : la barre redevient un simple pied
+   de formulaire, qu'on atteint en finissant de faire défiler — ce qu'on fait
+   de toute façon. */
 @media (max-width: 575.98px) {
   .ax-form-bar {
+    position: static;
     flex-direction: column-reverse;
     align-items: stretch;
+    /* Sans le collage, l'ombre et le flou n'ont plus d'objet : la barre ne
+       flotte plus au-dessus de rien. */
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
+}
+
+/* Le curseur ne doit jamais se retrouver SOUS la barre. Quand le navigateur
+   fait défiler pour ramener la zone d'écriture dans le champ de vision — au
+   focus, ou en tapant près du bas — il s'arrête à cette marge près, donc
+   au-dessus de la barre plutôt que derrière. */
+.ax-editor__area {
+  scroll-margin-block-end: 6rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -467,4 +491,38 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   8 · BASCULE DE THÈME — sortir de l'erreur d'hydratation
+   ══════════════════════════════════════════════════════════════════════════
+   `next-themes` ne peut pas connaître le thème côté serveur : il est dans le
+   localStorage du visiteur. Tout rendu conditionné par `resolvedTheme` diffère
+   donc entre serveur et client, et React régénère l'arbre en le signalant.
+
+   Le bouton rend maintenant ses DEUX états, et le CSS révèle le bon. Il le
+   peut parce que le script anti-FOUC de `layout.tsx` pose `data-ax-theme` sur
+   <html> avant la peinture : le CSS connaît le thème plus tôt que React.
+
+   Conséquence accessible voulue : `display: none` retire le contenu de l'arbre
+   d'accessibilité, donc un seul des deux libellés masqués nomme le bouton à un
+   instant donné.
+   ────────────────────────────────────────────────────────────────────────── */
+.ax-theme-toggle__to-dark,
+.ax-theme-toggle__to-light {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Thème clair (défaut) : on propose de passer en sombre. */
+.ax-theme-toggle__to-light {
+  display: none;
+}
+
+[data-ax-theme='dark'] .ax-theme-toggle__to-dark {
+  display: none;
+}
+
+[data-ax-theme='dark'] .ax-theme-toggle__to-light {
+  display: inline-flex;
 }

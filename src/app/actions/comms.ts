@@ -2,6 +2,8 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { stripEmptyFiles } from "@/lib/form-data";
+import { messageForErrors } from "@/lib/api-result";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
 
@@ -60,18 +62,26 @@ export async function sendMessage(chatId: string, content: string) {
 }
 
 export async function sendChatMessage(formData: FormData) {
+  /* Garde-fou de frontiere, PAS un correctif : aucun appelant actuel n'envoie
+     de fichier vide — tous construisent leur FormData a la main, sous garde
+     (`if (file) …`). Le filtre est ici pour le jour ou ce formulaire passera
+     en soumission native (`<form action={…}>`), ou le navigateur inclut TOUS
+     les champs, y compris un champ fichier non rempli. C'est ce qui rendait
+     impossible la creation d'un article sans banniere — voir lib/form-data.ts. */
+  const body = stripEmptyFiles(formData);
+
   try {
     const res = await fetch(`${BACKEND_URL}/api/comms/messages/`, {
       method: "POST",
       headers: {
         ...(await getAuthHeader() as Record<string, string>),
       },
-      body: formData,
+      body,
     });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      return { error: err.detail || "Impossible d'envoyer le message." };
+      return { error: messageForErrors(err, "Impossible d'envoyer le message.") };
     }
 
     revalidatePath("/dashboard/chat");
@@ -216,7 +226,7 @@ export async function createInvitation(recipientId: number) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      return { error: err.detail || (Array.isArray(err) ? err[0] : "Impossible d'envoyer l'invitation.") };
+      return { error: messageForErrors(err, "Impossible d'envoyer l'invitation.") };
     }
     return { success: true, data: await res.json() };
   } catch (err) {
@@ -234,7 +244,7 @@ export async function respondToInvitation(invitationId: number, accept: boolean)
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      return { error: err.detail || "Action impossible." };
+      return { error: messageForErrors(err, "Action impossible.") };
     }
     revalidatePath("/dashboard/chat");
     return { success: true, data: await res.json() };
@@ -272,7 +282,7 @@ export async function updateMessagingPreferences(payload: any) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      return { error: err.detail || "Impossible de sauvegarder les préférences." };
+      return { error: messageForErrors(err, "Impossible de sauvegarder les préférences.") };
     }
     return { success: true, data: await res.json() };
   } catch (err) {
@@ -312,7 +322,7 @@ export async function updatePilotageConfig(payload: any) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      return { error: err.detail || "Action impossible." };
+      return { error: messageForErrors(err, "Action impossible.") };
     }
     return { success: true, data: await res.json() };
   } catch (err) {
@@ -333,7 +343,7 @@ export async function getPusherAuthSignature(channelName: string, socketId: stri
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      return { error: err.detail || "Authentification Pusher impossible." };
+      return { error: messageForErrors(err, "Authentification Pusher impossible.") };
     }
     return await res.json();
   } catch (err) {
@@ -388,8 +398,7 @@ export async function createChat(payload: {
       const err = await res.json().catch(() => ({}));
       return {
         error:
-          (err as { detail?: string }).detail ||
-          "Impossible de créer le salon.",
+          messageForErrors(err, "Impossible de créer le salon."),
       };
     }
     revalidatePath("/dashboard/chat");
