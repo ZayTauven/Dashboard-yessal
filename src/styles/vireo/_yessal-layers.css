@@ -526,3 +526,65 @@
 [data-ax-theme='dark'] .ax-theme-toggle__to-light {
   display: inline-flex;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   9 · MOYENS DE PAIEMENT — le logo plutôt que le nom
+   ══════════════════════════════════════════════════════════════════════════
+   Les cinq visuels ne partagent aucun style : deux logos de marque (Wave,
+   Orange Money), un logo Visa rectangulaire, une pastille plate pour la
+   banque, une illustration isométrique pour les espèces. Côte à côte dans une
+   colonne de tableau, ils formeraient une brocante.
+
+   La tuile est ce qui les rend comparables : même gabarit, même fond, même
+   rayon, et `object-fit: contain` pour qu'aucun ne soit rogné ni déformé.
+   C'est le fond commun qui fait la cohérence, pas les images.
+   ────────────────────────────────────────────────────────────────────────── */
+.ax-paymethod {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ax-space-2);
+  vertical-align: middle;
+}
+
+.ax-paymethod__tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  inline-size: 30px;
+  block-size: 30px;
+  padding: 2px;
+  /* Blanc FIXE, et non `--ax-surface`.
+     Ces logos sont des marques dessinées pour un fond clair : le Visa est bleu
+     nuit, le pingouin de Wave est noir. Sur la surface sombre du thème nuit,
+     ils s'effaceraient dans le fond. La tuile leur fournit donc le support
+     qu'ils attendent, quel que soit le thème de la page. */
+  background: #fff;
+  border: 1px solid var(--ax-border);
+  border-radius: var(--ax-radius-sm);
+  overflow: hidden;
+}
+
+/* Le logo apporte son propre fond opaque — voir `bleed` dans le registre des
+   moyens de paiement. On retire la marge pour qu'il aille au bord : c'est alors
+   la tuile qui l'arrondit, au lieu de l'encadrer. */
+.ax-paymethod__tile--bleed {
+  padding: 0;
+}
+
+.ax-paymethod__logo {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.ax-paymethod__icon {
+  inline-size: 16px;
+  block-size: 16px;
+  color: var(--ax-text-muted);
+}
+
+.ax-paymethod__label {
+  font-size: var(--ax-text-sm);
+  color: var(--ax-text);
+}

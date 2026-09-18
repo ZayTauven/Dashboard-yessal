@@ -20,68 +20,20 @@
  * dédoublerait l'élément pour les technologies d'assistance.
  */
 
-import {
-  Banknote,
-  CreditCard,
-  Landmark,
-  Smartphone,
-  Wallet,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export interface PaymentMethodOption {
-  value: string;
-  label: string;
-  icon: LucideIcon;
-}
-
-/**
- * Aligné sur `contributions.Donation.PaymentMethod`.
- *
- * ⚠ Les valeurs HÉRITÉES restent lisibles ici — la base en contient encore sur
- * des dons anciens (migration 0007), et un historique doit savoir les afficher.
- * Elles ne sont pas PROPOSABLES pour autant : voir `ALL_METHODS`.
+/*
+ * Le registre a demenage dans `lib/payment-methods.ts` : il etait ecrit ici ET
+ * dans `StatusBadge`, et deux catalogues finissent toujours par diverger. On le
+ * reexporte pour ne casser aucun import existant.
  */
-export const PAYMENT_METHODS: Record<string, PaymentMethodOption> = {
-  orange_money: { value: "orange_money", label: "Orange Money", icon: Smartphone },
-  wave: { value: "wave", label: "Wave", icon: Smartphone },
-  bictorys: { value: "bictorys", label: "Carte bancaire", icon: CreditCard },
-  virement: { value: "virement", label: "Virement", icon: Landmark },
-  manual: { value: "manual", label: "Espèces (collecteur)", icon: Banknote },
+import {
+  ALL_METHODS,
+  PAYMENT_METHODS,
+  type PaymentMethodOption,
+} from "@/lib/payment-methods";
 
-  // ── Héritées : affichables, jamais proposées ──────────────────────────
-  visa: { value: "visa", label: "Visa", icon: CreditCard },
-  mastercard: { value: "mastercard", label: "Mastercard", icon: CreditCard },
-  paypal: { value: "paypal", label: "PayPal", icon: Wallet },
-  collector: { value: "collector", label: "Collecteur", icon: Banknote },
-};
-
-/**
- * Ce qu'on PROPOSE. Cinq, dans l'ordre d'usage réel au Sénégal.
- *
- * 🔴 IL Y EN AVAIT SEPT, ET DEUX MENAIENT À UNE IMPASSE. `DonationViewSet.pay`
- * (`contributions/views.py:154`) n'accepte que `orange_money`, `wave`, `visa`,
- * `mastercard` et `bictorys` — plus `virement` et `manual`, traités avant. Un
- * membre qui choisissait **PayPal** ou **Collecteur** recevait donc un 400
- * « Méthode de paiement non supportée » après avoir saisi son montant.
- *
- * `visa` et `mastercard` sont retirées pour une autre raison : le paiement par
- * carte passe par un seul routage, `bictorys`, qui présente lui-même le choix
- * de la marque. Deux lignes ici pour un seul parcours faisaient croire à deux
- * chemins différents.
- *
- * Ce jeu est celui que le mobile émet depuis la refonte
- * (`yessal-mobile/types/donation.types.ts`). Divergence relevée par l'audit de
- * parité du 2026-09-05.
- */
-export const ALL_METHODS = [
-  "orange_money",
-  "wave",
-  "bictorys",
-  "virement",
-  "manual",
-];
+export { ALL_METHODS, PAYMENT_METHODS };
+export type { PaymentMethodOption };
 
 export interface PaymentMethodPickerProps {
   value: string;

@@ -35,6 +35,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
+  ArrowRightLeft,
   Building2,
   CheckCircle,
   Layers,
@@ -51,8 +52,11 @@ import {
   deleteLDD,
   getLDDs,
   importDaaraExcel,
+  transferLDDDaaras,
   updateLDD,
+  type RapportImport,
 } from "@/app/actions/daara";
+import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DataTable, type Column } from "@/components/vireo/DataTable";
 import { FilterBar } from "@/components/vireo/FilterBar";
@@ -67,6 +71,14 @@ export interface Ldd {
   id: number;
   code?: string | null;
   name?: string | null;
+  /**
+   * Compté par le SERVEUR, sur l'ensemble des Daaras.
+   *
+   * L'écran le recomptait depuis `daaras`, la liste qu'il a sous la main. Elle
+   * ne contient que ce que la page a chargé : le chiffre affiché sous une zone
+   * décrivait donc la page, pas la zone.
+   */
+  daaras_count?: number;
 }
 
 export interface Daara {
@@ -90,6 +102,60 @@ function unwrap<T>(data: unknown): T[] {
 
 const memberCountOf = (d: Daara) => d.members_count ?? d.memberCount ?? 0;
 
+/**
+ * Une rubrique du rapport d'import.
+ *
+ * Repliée au-delà de six entrées : le rapport du fichier sénégalais en compte
+ * quatre-vingts, et les dérouler toutes noierait les trois qui demandent une
+ * décision. Le COMPTE, lui, reste toujours visible — c'est ce qu'on lit
+ * d'abord.
+ */
+function ListeRapport({
+  titre,
+  items,
+  ton,
+}: {
+  titre: string;
+  items: string[];
+  ton?: "danger" | "warn";
+}) {
+  const [deplie, setDeplie] = useState(false);
+  if (!items.length) return null;
+
+  const apercu = deplie ? items : items.slice(0, 6);
+
+  return (
+    <div>
+      <h3
+        className={cn(
+          "text-sm font-semibold",
+          ton === "danger" && "ax-text-danger",
+          ton === "warn" && "ax-text-warning",
+        )}
+      >
+        {titre}{" "}
+        <span className="ax-text-subtle font-normal">({items.length})</span>
+      </h3>
+      <ul className="ax-text-subtle mt-1 flex flex-col gap-1 text-xs">
+        {apercu.map((ligne) => (
+          <li key={ligne}>{ligne}</li>
+        ))}
+      </ul>
+      {items.length > 6 && (
+        <button
+          type="button"
+          className="ax-btn ax-btn--ghost ax-btn--sm mt-1"
+          onClick={() => setDeplie((v) => !v)}
+        >
+          <span className="ax-btn__label">
+            {deplie ? "Replier" : `Voir les ${items.length - 6} autres`}
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function AdminDaaraClient({
   initialDaaras,
 }: {
@@ -108,6 +174,13 @@ export function AdminDaaraClient({
 
   const [isImporting, setIsImporting] = useState(false);
   const [importMsg, setImportMsg] = useState("");
+  const [rapport, setRapport] = useState<RapportImport | null>(null);
+  /* Réconciliation NON COCHÉE par défaut : un import de routine ne doit pas
+     déplacer des Daaras sans qu'on l'ait demandé. */
+  const [reconcilier, setReconcilier] = useState(false);
+
+  const [zoneATransferer, setZoneATransferer] = useState<Ldd | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const [ldds, setLdds] = useState<Ldd[]>([]);
   const [lddsLoading, setLddsLoading] = useState(true);
@@ -169,18 +242,25 @@ export function AdminDaaraClient({
       return;
     }
 
+    setIsImportModalOpen(false);
     setIsImporting(true);
     setImportMsg("");
     setErrorMsg("");
+    setRapport(null);
 
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("mode", reconcilier ? "reconciliation" : "strict");
 
     const res = await importDaaraExcel(formData);
+    /* Le rapport se lit dans les DEUX cas : en échec, il nomme les lignes
+       fautives ; en succès, ce qui a été créé, déplacé, et ce sur quoi le
+       serveur a refusé de trancher. */
+    setRapport(res.rapport ?? res.data ?? null);
     if (res.error) {
       setErrorMsg(res.error);
     } else {
-      setImportMsg(res.data?.success || "Importation réussie.");
+      setImportMsg(res.data?.message || "Importation réussie.");
       /* Rafraîchissement des données serveur, sans rechargement complet. */
       router.refresh();
       await refreshLdds();
@@ -247,11 +327,19 @@ export function AdminDaaraClient({
   };
 
   const handleZoneDelete = (ldd: Ldd) => {
+    const rattaches = ldd.daaras_count ?? 0;
+
+    /* Le texte disait, mot pour mot : « cette action échoue systématiquement —
+       l'API ne permet pas de supprimer une zone (HTTP 405) ». C'était exact :
+       `LDDViewSet` était en lecture seule. Il ne l'est plus, et la seule chose
+       qui puisse encore bloquer est nommée ici AVANT le clic — un aller-retour
+       serveur n'apprend rien qu'on ne sache déjà. */
     ask({
       title: `Supprimer la zone « ${ldd.name} » ?`,
-      description:
-          "Attention : cette action échoue systématiquement — l'API ne permet pas de supprimer une zone (HTTP 405). Le message d'erreur évoque à tort des Daaras rattachés.",
-      confirmLabel: "Supprimer",
+      description: rattaches
+        ? `Cette zone regroupe ${rattaches} Daara${rattaches > 1 ? "s" : ""}. La suppression sera refusée tant qu'ils y sont rattachés : déplacez-les d'abord vers une autre zone.`
+        : "Cette zone ne regroupe aucun Daara. La suppression est définitive.",
+      confirmLabel: rattaches ? "Essayer quand même" : "Supprimer",
       onConfirm: () =>
           startTransition(async () => {
             const res = await deleteLDD(ldd.id);
@@ -262,6 +350,46 @@ export function AdminDaaraClient({
             setLdds((prev) => prev.filter((l) => l.id !== ldd.id));
             toast.success("Zone supprimée.");
           }),
+    });
+  };
+
+  /**
+   * 🔴 CE DÉPLACEMENT S'EST D'ABORD FAIT SUR UN SEUL CLIC.
+   *
+   * La première version envoyait le transfert dès qu'on touchait une zone de
+   * la liste. Sept Daaras ont changé de territoire par mégarde dans l'heure
+   * qui a suivi sa mise en ligne — le clic destiné à LIRE la liste des
+   * destinations l'a exécutée.
+   *
+   * Un transfert n'est pas destructeur, mais il touche TOUS les Daaras d'une
+   * zone d'un coup, et rien dans l'interface ne permet de le défaire : il faut
+   * rejouer un import de réconciliation, ce qu'un administrateur ne devinera
+   * pas. D'où la confirmation, qui nomme le nombre et la destination.
+   */
+  const handleZoneTransfer = (cible: Ldd) => {
+    if (!zoneATransferer) return;
+    const source = zoneATransferer;
+    const nombre = source.daaras_count ?? 0;
+
+    ask({
+      title: `Déplacer ${nombre} Daara${nombre > 1 ? "s" : ""} vers « ${cible.name} » ?`,
+      description:
+        `Tous les Daaras de « ${source.name} » passeront sous « ${cible.name} ». ` +
+        "Ils gardent leurs membres, leurs dons et leurs Ndiguels, mais l'opération " +
+        "ne se défait pas depuis cet écran.",
+      confirmLabel: "Déplacer",
+      onConfirm: () =>
+        startTransition(async () => {
+          const res = await transferLDDDaaras(source.id, cible.id);
+          if (res.error) {
+            toast.error(res.error);
+            return;
+          }
+          toast.success(res.detail || `${res.moved} Daara(s) déplacé(s).`);
+          setZoneATransferer(null);
+          router.refresh();
+          await refreshLdds();
+        }),
     });
   };
 
@@ -400,6 +528,61 @@ export function AdminDaaraClient({
         </div>
       )}
 
+      {/* ── Le rapport d'import ──────────────────────────────────────────
+          Un import qui touche quatre cents Daaras ne se résume pas à
+          « réussi ». L'ancien écran n'affichait qu'une phrase ; quand
+          l'import mourait à mi-course — ce qu'il faisait, faute de
+          transaction — elle disait « échec » alors que les données étaient
+          en partie écrites, et rien ne permettait de savoir quoi. */}
+      {rapport && (
+        <section className="ax-card" aria-label="Rapport d'import">
+          <div className="ax-card__header">
+            <div className="ax-card__titles">
+              <h2 className="ax-card__title">Rapport d&apos;import</h2>
+              <p className="ax-card__subtitle">
+                {rapport.mode === "reconciliation"
+                  ? "Mode réconciliation"
+                  : "Mode strict"}
+                {" · "}
+                {rapport.zones_reconnues} zone(s) déjà connue(s),{" "}
+                {rapport.daaras_inchanges} Daara(s) inchangé(s)
+              </p>
+            </div>
+            <button
+              type="button"
+              className="ax-btn ax-btn--ghost ax-btn--icon"
+              aria-label="Masquer le rapport"
+              onClick={() => setRapport(null)}
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="ax-card__body flex flex-col gap-4">
+            <ListeRapport titre="Lignes refusées" items={rapport.erreurs} ton="danger" />
+            <ListeRapport
+              titre="À arbitrer"
+              items={rapport.avertissements}
+              ton="warn"
+            />
+            <ListeRapport titre="Zones créées" items={rapport.zones_creees} />
+            <ListeRapport
+              titre="Daaras réaffectés"
+              items={rapport.daaras_deplaces}
+            />
+            <ListeRapport
+              titre="Orthographes alignées"
+              items={rapport.orthographes_alignees}
+            />
+            <ListeRapport titre="Daaras créés" items={rapport.daaras_crees} />
+            <ListeRapport
+              titre="Lignes ignorées"
+              items={rapport.lignes_ignorees}
+            />
+          </div>
+        </section>
+      )}
+
       {/* ══ Daaras ══ */}
       {tab === "daaras" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3" role="tabpanel">
@@ -504,9 +687,17 @@ export function AdminDaaraClient({
                   <h2 className="ax-card__title">Nouveau Daara</h2>
                 </div>
 
-                <label
-                  className="ax-btn ax-btn--ghost ax-btn--icon cursor-pointer"
+                {/* Un BOUTON, et non plus un champ fichier déguisé.
+                    Le fichier partait au serveur dès qu'il était choisi : rien
+                    ne s'interposait entre un clic distrait et quatre cents
+                    Daaras modifiés, et le mode d'import — qui décide si des
+                    Daaras sont DÉPLACÉS — n'avait nulle part où se choisir. */}
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--ghost ax-btn--icon"
                   title="Importer un fichier Excel"
+                  onClick={() => setIsImportModalOpen(true)}
+                  disabled={isImporting}
                 >
                   {isImporting ? (
                     <span className="ax-spinner ax-spinner--sm" aria-label="Import en cours" />
@@ -516,14 +707,7 @@ export function AdminDaaraClient({
                   <span className="ax-visually-hidden">
                     Importer un fichier Excel
                   </span>
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    className="ax-visually-hidden"
-                    onChange={handleImport}
-                    disabled={isImporting}
-                  />
-                </label>
+                </button>
               </div>
 
               <div className="ax-card__body">
@@ -649,7 +833,12 @@ export function AdminDaaraClient({
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {ldds.map((ldd) => {
-                const count = daaras.filter((d) => d.ldd?.id === ldd.id).length;
+                /* Le serveur compte sur TOUS les Daaras ; `daaras` ne
+                   contient que ce que la page a chargé. Le repli couvre une
+                   réponse d'API plus ancienne. */
+                const count =
+                  ldd.daaras_count ??
+                  daaras.filter((d) => d.ldd?.id === ldd.id).length;
                 return (
                   <article key={ldd.id} className="ax-card">
                     <div className="ax-card__header">
@@ -680,6 +869,12 @@ export function AdminDaaraClient({
                             },
                           },
                           {
+                            label: "Déplacer les Daaras…",
+                            icon: ArrowRightLeft,
+                            disabled: count === 0,
+                            onSelect: () => setZoneATransferer(ldd),
+                          },
+                          {
                             label: "Supprimer",
                             icon: Trash2,
                             danger: true,
@@ -703,6 +898,113 @@ export function AdminDaaraClient({
           )}
         </div>
       )}
+
+      {/* ── Import : le mode se choisit AVANT le fichier ── */}
+      <Modal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
+        title="Importer des Daaras"
+        description="Classeur à trois colonnes : DAARA, LDD, CODE LDD."
+        size="sm"
+      >
+        <div className="flex flex-col gap-4">
+          <fieldset className="ax-field">
+            <legend className="ax-field__label">Que faire des écarts ?</legend>
+
+            {/* `items-start` : `.ax-check` centre verticalement, ce qui
+                renvoie la puce au milieu d'un intitulé de quatre lignes,
+                loin du titre qu'elle désigne. Les utilitaires Tailwind
+                l'emportent sur `@layer components`. */}
+            <label className="ax-check items-start">
+              <input
+                type="radio"
+                name="mode-import"
+                className="ax-radio"
+                checked={!reconcilier}
+                onChange={() => setReconcilier(false)}
+              />
+              <span>
+                N&apos;ajouter que ce qui manque
+                <span className="ax-text-subtle block text-xs">
+                  Les zones et Daaras absents sont créés. Rien n&apos;est déplacé
+                  ni renommé : un rattachement inattendu est signalé, pas corrigé.
+                </span>
+              </span>
+            </label>
+
+            <label className="ax-check items-start">
+              <input
+                type="radio"
+                name="mode-import"
+                className="ax-radio"
+                checked={reconcilier}
+                onChange={() => setReconcilier(true)}
+              />
+              <span>
+                Réconcilier avec le fichier
+                <span className="ax-text-subtle block text-xs">
+                  Réaffecte en plus les Daaras dont le rattachement est
+                  manifestement fautif, et aligne les orthographes. Un Daara
+                  n&apos;est déplacé que si le fichier ne laisse aucun doute ; les
+                  cas ambigus restent signalés pour arbitrage.
+                </span>
+              </span>
+            </label>
+          </fieldset>
+
+          <label className="ax-btn ax-btn--primary cursor-pointer self-start">
+            <Upload className="ax-btn__icon" size={16} aria-hidden="true" />
+            <span className="ax-btn__label">Choisir le fichier…</span>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              className="ax-visually-hidden"
+              onChange={handleImport}
+              disabled={isImporting}
+            />
+          </label>
+        </div>
+      </Modal>
+
+      {/* ── Transfert en bloc des Daaras d'une zone ── */}
+      <Modal
+        open={zoneATransferer !== null}
+        onOpenChange={(o) => {
+          if (!o) setZoneATransferer(null);
+        }}
+        title={`Déplacer les Daaras de « ${zoneATransferer?.name ?? ""} »`}
+        description="Les Daaras gardent leurs membres, leurs dons et leurs Ndiguels : seule leur zone change."
+        size="sm"
+      >
+        <div className="flex flex-col gap-3">
+          <p className="ax-text-subtle text-sm">
+            {zoneATransferer?.daaras_count ?? 0} Daara
+            {(zoneATransferer?.daaras_count ?? 0) > 1 ? "s" : ""} à déplacer.
+            Choisissez la zone de destination.
+          </p>
+          <div className="flex flex-col gap-1">
+            {ldds
+              .filter((z) => z.id !== zoneATransferer?.id)
+              .map((z) => (
+                <button
+                  key={z.id}
+                  type="button"
+                  className="ax-btn ax-btn--ghost justify-start"
+                  disabled={isPending}
+                  onClick={() => handleZoneTransfer(z)}
+                >
+                  <span className="ax-badge ax-badge--accent ax-badge--sm font-mono">
+                    {z.code}
+                  </span>
+                  <span className="ax-btn__label ms-2">{z.name}</span>
+                  <span className="ax-text-subtle ms-auto text-xs">
+                    {z.daaras_count ?? 0}
+                  </span>
+                </button>
+              ))}
+          </div>
+        </div>
+      </Modal>
 
       {/* ── Zone : création / édition ── */}
       <Modal

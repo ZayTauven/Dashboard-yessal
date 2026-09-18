@@ -1,3 +1,4 @@
+import { donorName, rankDonors } from "@/lib/donor-ranking";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Percent, Target, TrendingUp, Users } from "lucide-react";
@@ -47,9 +48,6 @@ function formatDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? "—" : dateFmt.format(d);
 }
 
-/** Un don anonyme ne porte ni nom ni initiales — pas même celles du donateur. */
-const displayName = (c: Contribution) =>
-  c.is_anonymous ? "Contributeur anonyme" : c.member_name || "—";
 
 export default async function CampaignEtatPage({
   params,
@@ -97,36 +95,10 @@ export default async function CampaignEtatPage({
    * reviendrait à dire combien une même personne anonyme a donné, ce que
    * l'anonymat interdit précisément de laisser deviner.
    */
-  const byDonor = new Map<
-    string,
-    { key: string; name: string; amount: number; count: number; anonymous: boolean }
-  >();
+  const topDonors = rankDonors(contributions);
 
-  contributions.forEach((c, i) => {
-    const anonymous = Boolean(c.is_anonymous);
-    const key = anonymous ? `anon-${i}` : `member-${c.member_id ?? c.member_name}`;
-    const entry = byDonor.get(key);
-
-    if (entry) {
-      entry.amount += Number(c.amount) || 0;
-      entry.count += 1;
-    } else {
-      byDonor.set(key, {
-        key,
-        name: displayName(c),
-        amount: Number(c.amount) || 0,
-        count: 1,
-        anonymous,
-      });
-    }
-  });
-
-  const topDonors = [...byDonor.values()]
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 5);
-
-  /* Barre relative au PREMIER, pas à l'objectif : sur un Ndiguel à 17 % de sa
-     cible, toutes les barres seraient écrасées et le classement illisible. */
+  /* Barre relative au PREMIER, pas au total : sinon, des qu'un contributeur
+     domine, toutes les autres barres sont ecrasees et le classement illisible. */
   const topAmount = topDonors[0]?.amount ?? 0;
 
   return (
@@ -265,6 +237,14 @@ export default async function CampaignEtatPage({
                       <div className="flex items-baseline justify-between gap-3">
                         <span className="ax-truncate text-sm font-medium">
                           {d.name}
+                          {/* Le Daara n'apparait que si un homonyme figure au
+                              classement — voir `rankDonors`. */}
+                          {d.hint && (
+                            <span className="ax-text-subtle font-normal">
+                              {" "}
+                              · {d.hint}
+                            </span>
+                          )}
                         </span>
                         <span className="text-montant shrink-0 font-mono tabular text-sm font-semibold">
                           {formatFCFA(d.amount)}
@@ -343,7 +323,7 @@ export default async function CampaignEtatPage({
                           name={row.is_anonymous ? undefined : row.member_name}
                           size="sm"
                         />
-                        <span className="font-medium">{displayName(row)}</span>
+                        <span className="font-medium">{donorName(row)}</span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-text-muted hidden md:table-cell">

@@ -1,3 +1,4 @@
+import { donorName, rankDonors } from "@/lib/donor-ranking";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -93,9 +94,6 @@ function fmt(iso?: string | null, long = false): string {
   return long ? longDate.format(d) : shortDate.format(d);
 }
 
-/** Un don anonyme ne porte ni nom ni initiales. */
-const displayName = (c: Contribution) =>
-  c.is_anonymous ? "Contributeur anonyme" : c.member_name || "—";
 
 export default async function FeteDetailPage({
   params,
@@ -120,9 +118,28 @@ export default async function FeteDetailPage({
   const contributions: Contribution[] = etat.contributions || [];
   const campaigns: CampaignRow[] = etat.campaigns || [];
   const totalCollected = Number(etat.total_collected || 0);
-  const topDonors = [...contributions]
-    .sort((a, b) => Number(b.amount) - Number(a.amount))
-    .slice(0, 3);
+  /*
+   * ── Le classement des contributeurs ──
+   *
+   * On cumule PAR PERSONNE. La version precedente triait les contributions
+   * individuelles et gardait les trois plus grosses : quelqu'un qui avait verse
+   * trois fois occupait les trois places du podium, et un contributeur regulier
+   * de 3 x 40 000 FCFA passait derriere un versement unique de 50 000. Ce
+   * n'etait pas un classement des donateurs, mais un classement des dons.
+   *
+   * Le meme correctif avait deja ete apporte a la page d'etat d'un Ndiguel ; il
+   * n'avait jamais ete reporte ici. Les deux ecrans montrent desormais la meme
+   * chose de la meme maniere.
+   *
+   * Les dons anonymes restent groupes separement, un par un : les cumuler
+   * reviendrait a dire combien une meme personne anonyme a donne, ce que
+   * l'anonymat interdit precisement de laisser deviner.
+   */
+  const topDonors = rankDonors(contributions);
+
+  /* Barre relative au PREMIER, pas au total : sinon, des qu'un contributeur
+     domine, toutes les autres barres sont ecrasees et le classement illisible. */
+  const topAmount = topDonors[0]?.amount ?? 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -167,8 +184,12 @@ export default async function FeteDetailPage({
           icon={TrendingUp}
           tone="montant"
         />
+        {/* « Donateurs » comptait en realite `donation_count`, c'est-a-dire des
+            CONTRIBUTIONS. Verifie sur les donnees : la fete « Kazu Rajab »
+            affichait 10 donateurs pour 9 personnes distinctes. Le libelle dit
+            desormais ce que le chiffre mesure, dans le vocabulaire du projet. */}
         <StatCard
-          label="Donateurs"
+          label="Jëfs recus"
           value={Number(etat.donation_count ?? 0)}
           icon={Users}
           tone="info"
@@ -200,24 +221,77 @@ export default async function FeteDetailPage({
               <h2 className="ax-card__title">Top contributeurs</h2>
             </div>
           </div>
-          <div className="ax-card__body flex flex-wrap gap-3">
-            {topDonors.map((d, i) => (
-              <div
-                key={`${d.member_id}-${i}`}
-                className="ax-card ax-card--compact flex items-center gap-3 px-3 py-2"
-              >
-                <Avatar
-                  name={d.is_anonymous ? undefined : d.member_name}
-                  size="sm"
-                />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">{displayName(d)}</span>
-                  <span className="text-montant font-mono tabular text-xs font-semibold">
-                    {formatFCFA(Number(d.amount))}
-                  </span>
-                </div>
-              </div>
-            ))}
+          <div className="ax-card__body">
+            {/*
+              Une rangee de cartes cote a cote ne dit pas qui est premier : rien
+              ne distinguait 100 000 FCFA de 15 000 sinon le chiffre lui-meme,
+              qu'il fallait lire et comparer. Un classement se lit d'un coup
+              d'oeil — d'ou le rang, la barre proportionnelle au premier, et la
+              part du total collecte.
+            */}
+            <ol className="flex flex-col gap-3">
+              {topDonors.map((d, i) => {
+                const share =
+                  totalCollected > 0
+                    ? Math.round((d.amount / totalCollected) * 100)
+                    : 0;
+                const width = topAmount > 0 ? (d.amount / topAmount) * 100 : 0;
+
+                return (
+                  <li key={d.key} className="flex items-center gap-3">
+                    <span
+                      className={`ax-badge ax-badge--pill shrink-0 font-mono tabular ${
+                        i === 0
+                          ? "ax-badge--soft ax-badge--accent"
+                          : "ax-badge--neutral"
+                      }`}
+                      aria-label={`Rang ${i + 1}`}
+                    >
+                      {i + 1}
+                    </span>
+
+                    <Avatar
+                      name={d.anonymous ? undefined : d.name}
+                      size="sm"
+                      className="shrink-0"
+                    />
+
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="ax-truncate text-sm font-medium">
+                          {d.name}
+                          {/* Le Daara n'apparait que si un homonyme figure au
+                              classement — voir `rankDonors`. */}
+                          {d.hint && (
+                            <span className="ax-text-subtle font-normal">
+                              {" "}
+                              · {d.hint}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-montant shrink-0 font-mono tabular text-sm font-semibold">
+                          {formatFCFA(d.amount)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="ax-progress ax-progress--xs flex-1">
+                          <div className="ax-progress__track">
+                            <div
+                              className="ax-progress__fill"
+                              style={{ width: `${width}%` }}
+                            />
+                          </div>
+                        </div>
+                        <span className="ax-text-subtle shrink-0 font-mono tabular text-xs">
+                          {share} % · {d.count} Jëf{d.count > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
         </section>
       )}
@@ -351,7 +425,7 @@ export default async function FeteDetailPage({
                           name={row.is_anonymous ? undefined : row.member_name}
                           size="sm"
                         />
-                        <span className="font-medium">{displayName(row)}</span>
+                        <span className="font-medium">{donorName(row)}</span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-text-muted hidden lg:table-cell">

@@ -25,8 +25,9 @@
  *   · `any` partout — la forme des membres et des Ndiguels est désormais typée.
  */
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
+  AlertTriangle,
   Banknote,
   CheckCircle2,
   Copy,
@@ -44,6 +45,12 @@ import { roleLabelLong } from "@/lib/roles";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import PhoneNumberValidation from "@/components/PhoneNumberValidation";
 import { Avatar } from "@/components/vireo/Avatar";
+import {
+  homonymIds,
+  identityLine,
+  memberFullName,
+  phoneTail,
+} from "@/lib/member-identity";
 import { CardHeader } from "@/components/vireo/CardHeader";
 import { Modal } from "@/components/vireo/Modal";
 
@@ -56,6 +63,13 @@ export interface CollectMember {
   role?: string | null;
   avatar?: string | null;
   avatar_url?: string | null;
+  /**
+   * `daara_name` et `title_name` étaient DÉJÀ rendus par
+   * `DirectoryUserSerializer` — cet écran ne les déclarait simplement pas, et
+   * les jetait donc à la lecture. Ce sont eux qui distinguent deux homonymes.
+   */
+  daara_name?: string | null;
+  title_name?: string | null;
 }
 
 export interface CollectCampaign {
@@ -64,14 +78,17 @@ export interface CollectCampaign {
   status?: string | null;
 }
 
-const fullName = (m: CollectMember) =>
-  `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim();
+const fullName = memberFullName;
 
 export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
   const [query, setQuery] = useState("");
   const [members, setMembers] = useState<CollectMember[]>([]);
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<CollectMember | null>(null);
+
+  /* Calculé sur les RÉSULTATS affichés : deux homonymes dont un seul remonte
+     ne posent au collecteur aucune question. Voir `lib/member-identity.ts`. */
+  const ambigus = useMemo(() => homonymIds(members), [members]);
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -177,7 +194,7 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
             icon={UserSearch}
             tone="c1"
             title="1 · Identifier le membre"
-            subtitle="Nom, prénom, e-mail ou téléphone."
+            subtitle="Nom, prénom, Daara ou téléphone."
           />
 
           <div className="ax-card__body flex flex-col gap-3">
@@ -218,10 +235,23 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
                         size="sm"
                       />
                       <span className="ax-list__content">
-                        <span className="ax-list__title">{fullName(m)}</span>
-                        <span className="ax-list__meta">
-                          {m.email || m.phone || "—"}
+                        <span className="ax-list__title">
+                          {fullName(m)}
+                          {/* Le badge n'apparaît QUE si le nom est réellement
+                              porté deux fois dans ces résultats : deux lignes
+                              voisines au libellé identique sont précisément ce
+                              que l'œil saute. */}
+                          {ambigus.has(m.id) && (
+                            <span className="ax-badge ax-badge--warning ax-badge--sm ms-2">
+                              Homonyme
+                            </span>
+                          )}
                         </span>
+                        {/* Le Daara puis les derniers chiffres du téléphone, à
+                            la place de l'e-mail : le collecteur connaît le
+                            premier et peut faire confirmer les seconds à voix
+                            haute. Un e-mail ne se vérifie pas sur le terrain. */}
+                        <span className="ax-list__meta">{identityLine(m)}</span>
                       </span>
                     </button>
                   </li>
@@ -285,6 +315,32 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
                 <input type="hidden" name="beneficiaryId" value="" />
                 <input type="hidden" name="donorId" value={selected.id} />
 
+                {/*
+                  Un don mal imputé ne se VOIT PAS : il s'affiche normalement,
+                  du côté de celui qui n'a rien donné. Personne ne viendra le
+                  signaler. L'avertissement est donc ici, avant la saisie du
+                  montant, et pas après.
+                */}
+                {ambigus.has(selected.id) && (
+                  <div className="ax-alert ax-alert--warning">
+                    <AlertTriangle className="ax-alert__icon" aria-hidden="true" />
+                    <div className="ax-alert__content">
+                      <p className="ax-alert__title">
+                        Un autre membre porte le même nom
+                      </p>
+                      <p className="ax-alert__message">
+                        Faites confirmer le Daara
+                        {selected.daara_name ? ` (${selected.daara_name})` : ""} ou
+                        les quatre derniers chiffres du téléphone
+                        {phoneTail(selected.phone)
+                          ? ` (${phoneTail(selected.phone)})`
+                          : ""}{" "}
+                        avant d&apos;enregistrer.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="ax-list__row px-0">
                   <Avatar
                     className="ax-list__leading"
@@ -294,8 +350,21 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
                   />
                   <span className="ax-list__content">
                     <span className="ax-list__title">{fullName(selected)}</span>
+                    {/*
+                      🔴 CETTE LIGNE AFFICHAIT LE RÔLE — « Membre ».
+
+                      C'est-à-dire la seule chose que deux homonymes ont
+                      forcément en commun. La liste de l'étape 1 montrait au
+                      moins l'e-mail ; ici, à l'instant précis où le collecteur
+                      valide un versement, le discriminant DISPARAISSAIT.
+
+                      Le rôle reste lisible, mais après ce qui identifie la
+                      personne : son Daara et les derniers chiffres de son
+                      numéro.
+                    */}
                     <span className="ax-list__meta">
-                      {roleLabelLong(selected.role ?? "")}
+                      {identityLine(selected)}
+                      {selected.role ? ` · ${roleLabelLong(selected.role)}` : ""}
                     </span>
                   </span>
                   <button

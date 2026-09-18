@@ -17,17 +17,19 @@
  * l'identité de marque, pas aux états.
  */
 
+import Image from "next/image";
+import {
+  PAYMENT_METHODS,
+  paymentMethodLabel as paymentMethodLabelFromRegistry,
+} from "@/lib/payment-methods";
 import {
   AlertCircle,
   Ban,
-  Banknote,
-  Building2,
   Check,
   CheckCircle2,
   Clock,
   CreditCard,
   Hourglass,
-  Smartphone,
   X,
   XCircle,
 } from "lucide-react";
@@ -164,33 +166,71 @@ export function StatusBadge({
  * la distinction — c'est aussi ce qui permet d'en aligner cinq dans une
  * colonne sans que le tableau vire au sapin de Noël.
  */
-const METHOD: Record<string, { label: string; icon: LucideIcon }> = {
-  orange_money: { label: "Orange Money", icon: Smartphone },
-  wave: { label: "Wave", icon: Smartphone },
-  bictorys: { label: "Carte bancaire", icon: CreditCard },
-  virement: { label: "Virement", icon: Building2 },
-  manual: { label: "Espèces", icon: Banknote },
-  /* Valeurs héritées, conservées côté backend pour compatibilité. */
-  collector: { label: "Espèces", icon: Banknote },
-  paypal: { label: "PayPal", icon: CreditCard },
-  visa: { label: "Visa", icon: CreditCard },
-  mastercard: { label: "Mastercard", icon: CreditCard },
-};
+/*
+ * Le catalogue etait recopie ici. Il vit desormais dans
+ * `lib/payment-methods.ts`, avec les logos de marque.
+ */
 
+/**
+ * Le moyen de paiement, par son LOGO.
+ *
+ * « Orange Money », « Wave » : ces noms se lisent, ils ne se reconnaissent pas.
+ * Dans un tableau de trente Jëfs, l'œil retrouve une marque bien plus vite
+ * qu'il ne parcourt une colonne de texte.
+ *
+ * Le nom n'est pas perdu pour autant : il reste en infobulle au survol
+ * (`title`) et dans le nom accessible (`aria-label`), de sorte qu'un lecteur
+ * d'écran annonce « Wave » et non « image ». `showLabel` le ramène à l'écran
+ * pour les endroits où le logo seul manquerait de contexte — une fiche isolée,
+ * par exemple, où il n'y a pas de colonne pour l'expliquer.
+ */
 export function PaymentMethodBadge({
   value,
   className,
+  showLabel = false,
 }: {
   value?: string | null;
   className?: string;
+  /** Affiche le nom À CÔTÉ du logo, au lieu de le réserver à l'infobulle. */
+  showLabel?: boolean;
 }) {
-  const entry = METHOD[(value ?? "").toLowerCase()];
+  const entry = PAYMENT_METHODS[(value ?? "").toLowerCase()];
+  const label = entry?.label ?? value ?? "—";
   const Icon = entry?.icon ?? CreditCard;
 
   return (
-    <span className={cn("ax-badge ax-badge--outline ax-badge--sm", className)}>
-      <Icon className="ax-badge__icon" aria-hidden="true" />
-      {entry?.label ?? value ?? "—"}
+    <span
+      className={cn("ax-paymethod", className)}
+      title={label}
+      aria-label={showLabel ? undefined : label}
+      role={showLabel ? undefined : "img"}
+    >
+      <span
+        className={cn(
+          "ax-paymethod__tile",
+          entry?.bleed && "ax-paymethod__tile--bleed",
+        )}
+        aria-hidden={showLabel || undefined}
+      >
+        {entry?.logo ? (
+          /*
+            `next/image` et non `<img>` : ces logos sont des fichiers LOCAUX de
+            `public/`, de dimensions connues — exactement le cas que Next sait
+            optimiser, contrairement aux médias distants servis par Django.
+          */
+          <Image
+            src={entry.logo}
+            alt=""
+            width={28}
+            height={28}
+            className="ax-paymethod__logo"
+          />
+        ) : (
+          <Icon className="ax-paymethod__icon" aria-hidden="true" />
+        )}
+      </span>
+
+      {showLabel && <span className="ax-paymethod__label">{label}</span>}
     </span>
   );
 }
@@ -201,7 +241,7 @@ export function statusLabel(domain: StatusDomain, value?: string | null): string
 }
 
 export function paymentMethodLabel(value?: string | null): string {
-  return METHOD[(value ?? "").toLowerCase()]?.label ?? value ?? "";
+  return paymentMethodLabelFromRegistry(value);
 }
 
 export default StatusBadge;

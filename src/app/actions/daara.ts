@@ -35,6 +35,29 @@ export async function getMyDaara() {
   }
 }
 
+/**
+ * Ce que l'import rend, en succès comme en échec.
+ *
+ * Le rapport est la raison d'être de ce point d'entrée : un import qui touche
+ * quatre cents Daaras ne se résume pas à « réussi » ou « échoué ». Il dit ce
+ * qui a été créé, ce qui a été réaffecté, et ce sur quoi il refuse de trancher.
+ * Voir `accounts/services/ldd_import.py`.
+ */
+export interface RapportImport {
+  success: boolean;
+  mode: string;
+  message: string;
+  zones_creees: string[];
+  zones_reconnues: number;
+  daaras_crees: string[];
+  daaras_deplaces: string[];
+  orthographes_alignees: string[];
+  daaras_inchanges: number;
+  lignes_ignorees: string[];
+  avertissements: string[];
+  erreurs: string[];
+}
+
 export async function getLDDs() {
   try {
     const res = await fetch(`${BACKEND_URL}/api/ldd/`, {
@@ -59,7 +82,13 @@ export async function createLDD(payload: { name: string; code: string }) {
       },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return { error: "Échec de création de la Zone." };
+    if (!res.ok) {
+      const corps = await res.json().catch(() => null);
+      /* Le serveur dit précisément ce qui cloche — « Ldd avec ces Code et Name
+         existe déjà », par exemple. Le taire obligeait l'administrateur à
+         deviner, et c'est la dette déjà corrigée partout ailleurs. */
+      return { error: messageForErrors(corps, "Échec de création de la Zone.") };
+    }
     revalidatePath("/dashboard/admin/daara");
     return { data: await res.json() };
   } catch (err) {
@@ -78,7 +107,10 @@ export async function updateLDD(id: number, payload: { name?: string; code?: str
       },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) return { error: "Échec de mise à jour de la Zone." };
+    if (!res.ok) {
+      const corps = await res.json().catch(() => null);
+      return { error: messageForErrors(corps, "Échec de mise à jour de la Zone.") };
+    }
     revalidatePath("/dashboard/admin/daara");
     return { data: await res.json() };
   } catch (err) {
@@ -93,11 +125,60 @@ export async function deleteLDD(id: number) {
       method: "DELETE",
       headers: await getAuthHeader(),
     });
-    if (!res.ok) return { error: "Suppression de la Zone impossible (Daaras rattachés ?)." };
+    if (!res.ok) {
+      const corps = (await res.json().catch(() => null)) as
+        | { detail?: string; daaras_count?: number; daaras_apercu?: string[] }
+        | null;
+      /* 🔴 CE MESSAGE ÉTAIT UNE DEVINETTE — « (Daaras rattachés ?) », point
+         d'interrogation compris — parce que la réponse n'était jamais lue. Et
+         elle ne pouvait rien dire : le point d'entrée répondait 405 à toute
+         suppression. Le serveur nomme maintenant le nombre de Daaras et les
+         premiers d'entre eux, ce qu'il faut pour savoir quoi faire ensuite. */
+      return {
+        error: messageForErrors(corps, "Suppression de la Zone impossible."),
+        daarasCount: corps?.daaras_count,
+        daarasApercu: corps?.daaras_apercu,
+      };
+    }
     revalidatePath("/dashboard/admin/daara");
     return { success: true };
   } catch (err) {
     console.error("deleteLDD:", err);
+    return { error: "Erreur réseau." };
+  }
+}
+
+/**
+ * Déplace en bloc tous les Daaras d'une zone vers une autre.
+ *
+ * Vider une zone de vingt-neuf Daaras demandait sinon vingt-neuf modifications
+ * à la main — et sa suppression restait donc hors d'atteinte en pratique. Le
+ * déplacement PRÉSERVE les Daaras : membres, dons et Ndiguels suivent, là où
+ * supprimer puis recréer les perdrait.
+ */
+export async function transferLDDDaaras(id: number, targetId: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/ldd/${id}/transferer-daaras/`, {
+      method: "POST",
+      headers: {
+        ...((await getAuthHeader()) as object),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ target_ldd: targetId }),
+    });
+    const corps = (await res.json().catch(() => null)) as
+      | { detail?: string; moved?: number; collisions?: string[] }
+      | null;
+    if (!res.ok) {
+      return {
+        error: messageForErrors(corps, "Déplacement impossible."),
+        collisions: corps?.collisions,
+      };
+    }
+    revalidatePath("/dashboard/admin/daara");
+    return { success: true, moved: corps?.moved ?? 0, detail: corps?.detail };
+  } catch (err) {
+    console.error("transferLDDDaaras:", err);
     return { error: "Erreur réseau." };
   }
 }
@@ -241,16 +322,19 @@ export async function importDaaraExcel(formData: FormData) {
       body,
     });
     
+    const corps = (await res.json().catch(() => null)) as RapportImport | null;
+
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      /* Un import refusé rend un RAPPORT, pas un message : la liste des lignes
+         fautives est ce qui permet de corriger le fichier. On la fait donc
+         remonter telle quelle jusqu'à l'écran. */
       return {
-        error:
-          (err as { error?: string }).error ||
-          "Erreur lors de l'importation.",
+        error: messageForErrors(corps, "Erreur lors de l'importation."),
+        rapport: corps ?? undefined,
       };
     }
     revalidatePath("/dashboard/admin/daara");
-    return { success: true, data: await res.json() };
+    return { success: true, data: corps ?? undefined };
   } catch (err) {
     console.error(err);
     return { error: "Erreur de connexion lors de l'importation." };
