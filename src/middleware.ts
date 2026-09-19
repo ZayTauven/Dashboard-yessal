@@ -68,7 +68,33 @@ const COOKIE_BASE = {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isDashboardRoute = pathname.startsWith("/dashboard");
+  /*
+   * `/guide` est protégé au même titre que `/dashboard`.
+   *
+   * Yessal Gui est un outil interne à la confrérie : sa documentation décrit
+   * l'organisation, les rôles et les circuits de collecte, et n'a pas à se
+   * lire depuis l'extérieur. Un visiteur non connecté est donc renvoyé vers
+   * la connexion, exactement comme sur un écran de l'application.
+   *
+   * La prolongation de session vaut aussi pour lui : on lit un chapitre
+   * plusieurs minutes durant, et il serait absurde de sortir de session en
+   * lisant le guide pour se retrouver dehors en revenant au tableau de bord.
+   */
+  /*
+   * ⚠ `startsWith("/guide")` seul attraperait aussi `/guide-assets/…`, où
+   * vivent les captures et les pictos du guide. Next sert ces fichiers depuis
+   * `public/`, et son optimiseur d'images les redemande par HTTP : interceptés,
+   * ils repartaient en 307 vers la connexion, et l'optimiseur rendait 400 —
+   * toutes les illustrations du guide disparaissaient d'un coup.
+   *
+   * On teste donc le segment entier. Les fichiers de `public/` restent servis
+   * tels quels, comme ceux de `/assets/` ou de `/payment/` : ce sont des
+   * images, et ce sont les PAGES qui demandent une session.
+   */
+  const isProtectedRoute =
+    pathname.startsWith("/dashboard") ||
+    pathname === "/guide" ||
+    pathname.startsWith("/guide/");
   const isLoginRoute = pathname.startsWith("/login");
 
   let accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
@@ -79,7 +105,7 @@ export async function middleware(request: NextRequest) {
    * solliciter le backend pour la page d'accueil ou un fichier statique.
    */
   let renewed: string | null = null;
-  if (isDashboardRoute && refreshToken && (!accessToken || isExpiringSoon(accessToken))) {
+  if (isProtectedRoute && refreshToken && (!accessToken || isExpiringSoon(accessToken))) {
     try {
       const res = await fetch(`${BACKEND_URL}/api/auth/refresh/`, {
         method: "POST",
@@ -111,7 +137,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (isDashboardRoute && !accessToken) {
+  if (isProtectedRoute && !accessToken) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

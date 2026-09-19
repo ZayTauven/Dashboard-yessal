@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import {
+  BookOpen,
   CalendarDays,
   Grid3x3,
   HandCoins,
@@ -340,6 +341,17 @@ export function ShellHeader({
             className="cursor-pointer gap-2"
           >
             <Settings size={16} aria-hidden="true" /> Apparence
+          </DropdownMenuItem>
+
+          {/*
+            Le guide se range ici autant que dans le rail : c'est sous son
+            propre avatar qu'on cherche « comment on fait, déjà ? », pas dans
+            le menu des écrans.
+          */}
+          <DropdownMenuItem asChild>
+            <Link href="/guide" className="cursor-pointer gap-2">
+              <BookOpen size={16} aria-hidden="true" /> Yessal Guide
+            </Link>
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />

@@ -16,6 +16,7 @@
 
 import {
   Bell,
+  BookOpen,
   Building2,
   CalendarDays,
   HandCoins,
@@ -111,6 +112,20 @@ export function navSections(role: Role): NavSection[] {
           href: "/dashboard/notifications",
           icon: Bell,
           badgeKey: "notifications",
+        },
+        /*
+         * Le guide vit hors de `/dashboard` — il a sa propre coque de lecture —
+         * mais il se range ici parce que c'est là qu'on le cherche : dans le
+         * menu, avec le reste. La règle d'activation de `isActiveHref` ne
+         * l'allumera jamais, et c'est sans conséquence : la barre latérale ne
+         * se rend pas dans le guide.
+         */
+        {
+          id: "guide",
+          title: "Yessal Guide",
+          href: "/guide",
+          icon: BookOpen,
+          keywords: ["aide", "documentation", "manuel", "prise en main", "lexique"],
         },
       ],
     },

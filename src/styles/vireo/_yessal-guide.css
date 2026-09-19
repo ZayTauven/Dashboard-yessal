@@ -1,0 +1,2117 @@
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Yessal Guide — la feuille du module de documentation
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Le guide n'est pas une page du dashboard : c'est un LIEU. Il a sa coque
+ * (en-tête fin, rail de chapitres, colonne de lecture), sa typographie plus
+ * ample, et son décor — ornements dessinés, photographies, pictos à la main.
+ *
+ * Tout est bâti sur les jetons Aurora (--ax-*), donc les deux thèmes, les
+ * douze accents du Customizer et la préférence « moins de transparence »
+ * fonctionnent sans une ligne de plus.
+ *
+ * Emplacement dans la cascade : @layer components, comme le reste de Vireo.
+ * Les classes utilitaires Tailwind (@layer utilities) l'emportent donc, ce qui
+ * permet d'ajuster une marge au cas par cas depuis le JSX sans !important.
+ * Voir le préambule de components.css pour la règle générale.
+ *
+ * Préfixe : .yg-* (Yessal Guide), pour ne jamais croiser .ax-* de Vireo.
+ */
+
+@layer components {
+  /* ═════════════════════════════════════════════════════════════════════
+     1 · La coque
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg {
+    --yg-header-h: 4rem;
+    --yg-side-w: 17.5rem;
+    --yg-toc-w: 13rem;
+    --yg-read: 44rem;
+
+    position: relative;
+    min-height: 100dvh;
+    background: var(--ax-canvas);
+    color: var(--ax-text);
+    isolation: isolate;
+  }
+
+  /* Les trois halos ambiants d'Aurora, mais posés très bas : le guide se lit,
+     il ne doit pas scintiller derrière le texte. */
+  .yg__glow {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(60rem 40rem at 12% -10%, var(--ax-glow-3), transparent 70%),
+      radial-gradient(45rem 35rem at 105% 10%, var(--ax-glow-2), transparent 70%);
+    opacity: 0.75;
+  }
+
+  /* ── En-tête ── */
+  .yg-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    height: var(--yg-header-h);
+    border-bottom: 1px solid var(--ax-border);
+    background: var(--ax-surface-raised);
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+  }
+
+  .yg-header__inner {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    height: 100%;
+    max-width: 96rem;
+    margin-inline: auto;
+    padding-inline: 0.75rem;
+  }
+
+  @media (min-width: 576px) {
+    .yg-header__inner {
+      gap: 1rem;
+      padding-inline: 1rem;
+    }
+  }
+
+  /* Le nom de la marque se tronque plutôt que de pousser ses voisins dehors. */
+  .yg-header__name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 768px) {
+    .yg-header__inner {
+      padding-inline: 1.75rem;
+    }
+  }
+
+  .yg-header__brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+    color: var(--ax-text-strong);
+    text-decoration: none;
+  }
+
+  .yg-header__mark {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    padding: 0.25rem;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-sm);
+    background: var(--ax-surface-solid);
+    flex: none;
+  }
+
+  .yg-header__mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .yg-header__name {
+    font-family: var(--ax-font-display);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  /*
+   * Le surtitre disparaît sous 576 px, et ce n'est pas un détail : avec le
+   * bouton de sommaire, la marque, la recherche, le thème et le retour au
+   * tableau de bord, l'en-tête tenait sur 390 px À CONDITION que rien ne
+   * cherche à s'y replier. « PRISE EN MAIN » passait à la ligne, poussait le
+   * nom hors du cadre, et l'en-tête se chevauchait lui-même.
+   */
+  .yg-header__tag {
+    display: none;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ax-accent);
+    white-space: nowrap;
+  }
+
+  @media (min-width: 576px) {
+    .yg-header__tag {
+      display: block;
+    }
+  }
+
+  .yg-header__brand > span {
+    min-width: 0;
+  }
+
+  .yg-header__spacer {
+    flex: 1 1 auto;
+  }
+
+  .yg-header__links {
+    display: none;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  @media (min-width: 992px) {
+    .yg-header__links {
+      display: flex;
+    }
+  }
+
+  .yg-header__link {
+    padding: 0.4rem 0.7rem;
+    border-radius: var(--ax-radius-sm);
+    color: var(--ax-text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.16s ease, background-color 0.16s ease;
+  }
+
+  .yg-header__link:hover {
+    background: var(--ax-fill-hover);
+    color: var(--ax-text-strong);
+  }
+
+  .yg-header__link.is-active {
+    color: var(--ax-accent);
+  }
+
+  .yg-header__cta {
+    flex: none;
+  }
+
+  .yg-header__cta .ax-btn__label {
+    display: none;
+  }
+
+  @media (min-width: 576px) {
+    .yg-header__cta .ax-btn__label {
+      display: inline;
+    }
+  }
+
+  /* Le déclencheur de recherche : une fausse barre, qui ouvre la palette. */
+  .yg-search-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.25rem;
+    padding-inline: 0.7rem;
+    border: 1px solid var(--ax-border-strong);
+    border-radius: var(--ax-radius-pill);
+    background: var(--ax-surface-solid);
+    color: var(--ax-text-subtle);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .yg-search-trigger:hover {
+    border-color: var(--ax-accent);
+    box-shadow: var(--ax-focus-shadow);
+  }
+
+  .yg-search-trigger__label {
+    display: none;
+  }
+
+  /* Le rappel du raccourci ne sert à rien sur un téléphone : pas de clavier. */
+  .yg-search-trigger .yg-kbd {
+    display: none;
+  }
+
+  @media (min-width: 576px) {
+    .yg-search-trigger__label {
+      display: inline;
+      min-width: 8rem;
+      text-align: start;
+    }
+
+    .yg-search-trigger .yg-kbd {
+      display: inline-grid;
+    }
+  }
+
+  /* ── Grille générale ── */
+  /*
+   * `minmax(0, 1fr)` et non `1fr` : une piste `1fr` vaut `minmax(auto, 1fr)`,
+   * et son minimum automatique est le contenu le plus large. Le tableau de
+   * droits du chapitre « Qui fait quoi » porte un `min-width: 34rem` — sur un
+   * téléphone de 390 px, il élargissait donc la colonne, puis la page, et le
+   * navigateur dézoomait tout l'écran pour la faire entrer. Le `0` autorise la
+   * piste à rétrécir, et le tableau défile dans son propre cadre.
+   */
+  .yg-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 96rem;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 992px) {
+    .yg-layout {
+      grid-template-columns: var(--yg-side-w) minmax(0, 1fr);
+      gap: 2.5rem;
+      padding-inline: 1.75rem;
+    }
+  }
+
+  @media (min-width: 1400px) {
+    .yg-layout {
+      grid-template-columns: var(--yg-side-w) minmax(0, 1fr) var(--yg-toc-w);
+      gap: 3rem;
+    }
+  }
+
+  .yg-main {
+    min-width: 0;
+    padding-block: 2rem 5rem;
+  }
+
+  @media (min-width: 992px) {
+    .yg-main {
+      padding-block: 3rem 6rem;
+    }
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     2 · Le rail des chapitres
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-side {
+    display: none;
+  }
+
+  @media (min-width: 992px) {
+    .yg-side {
+      display: block;
+      position: sticky;
+      top: var(--yg-header-h);
+      align-self: start;
+      max-height: calc(100dvh - var(--yg-header-h));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding-block: 2rem 3rem;
+      padding-inline-end: 0.5rem;
+      scrollbar-width: thin;
+    }
+  }
+
+  .yg-side__section + .yg-side__section {
+    margin-top: 1.6rem;
+  }
+
+  .yg-side__label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-inline-start: 0.7rem;
+    color: var(--ax-text-subtle);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .yg-side__label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--ax-border);
+  }
+
+  .yg-side__link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: var(--ax-radius-sm);
+    color: var(--ax-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.35;
+    text-decoration: none;
+    transition: color 0.16s ease, background-color 0.16s ease;
+  }
+
+  .yg-side__link:hover {
+    background: var(--ax-fill-hover);
+    color: var(--ax-text-strong);
+  }
+
+  .yg-side__link.is-active {
+    background: rgba(var(--ax-accent-rgb), 0.1);
+    color: var(--ax-accent);
+    font-weight: 600;
+  }
+
+  .yg-side__link.is-active::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    top: 50%;
+    width: 3px;
+    height: 1.1rem;
+    border-radius: 3px;
+    background: var(--ax-accent);
+    transform: translateY(-50%);
+  }
+
+  .yg-side__icon {
+    flex: none;
+    color: var(--ax-text-subtle);
+  }
+
+  .yg-side__link.is-active .yg-side__icon {
+    color: var(--ax-accent);
+  }
+
+  .yg-side__text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* La pastille « lu » — discrète, à droite. */
+  .yg-side__done {
+    flex: none;
+    margin-inline-start: auto;
+    color: var(--yessal-montant);
+    opacity: 0.85;
+  }
+
+  /* ── Avancement ── */
+  .yg-progress {
+    margin-bottom: 1.5rem;
+    padding: 0.85rem 0.9rem;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-md);
+    background: var(--ax-surface-subtle);
+  }
+
+  .yg-progress__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .yg-progress__label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ax-text-subtle);
+  }
+
+  .yg-progress__count {
+    font-family: var(--ax-font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ax-text-strong);
+  }
+
+  .yg-progress__track {
+    height: 5px;
+    border-radius: 999px;
+    background: var(--ax-fill-active);
+    overflow: hidden;
+  }
+
+  .yg-progress__fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      var(--ax-accent),
+      color-mix(in srgb, var(--ax-accent) 55%, var(--yessal-or))
+    );
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .yg-progress__reset {
+    margin-top: 0.55rem;
+    border: 0;
+    background: none;
+    padding: 0;
+    color: var(--ax-text-subtle);
+    font-size: 0.7rem;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .yg-progress__reset:hover {
+    color: var(--ax-text);
+  }
+
+  /* ── Tiroir mobile ── */
+  .yg-drawer {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    grid-template-columns: min(20rem, 88vw) 1fr;
+  }
+
+  /*
+   * Fond OPAQUE, et c'est délibéré — ne pas remettre le verre d'Aurora.
+   *
+   * Le tiroir du sommaire porte treize entrées de texte fin. Posé sur
+   * `--ax-surface-overlay` (blanc à 92 %), on lisait le chapitre au travers :
+   * les titres du menu se mélangeaient aux paragraphes de la page en dessous.
+   * Vireo prend le même parti pour ses listes d'options — « solid reads
+   * cleaner for option lists », components.css §menu. Le verre reste pour ce
+   * qui se survole, pas pour ce qui se lit.
+   */
+  .yg-drawer__panel {
+    height: 100dvh;
+    overflow-y: auto;
+    padding: 1.25rem 1rem 3rem;
+    border-inline-end: 1px solid var(--ax-border);
+    background: var(--ax-surface-solid);
+    box-shadow: var(--ax-shadow-lg);
+    animation: yg-slide-in 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .yg-drawer__backdrop {
+    border: 0;
+    background: var(--ax-backdrop, rgba(10, 12, 17, 0.45));
+    backdrop-filter: blur(2px);
+  }
+
+  .yg-drawer .yg-side {
+    display: block;
+    position: static;
+    max-height: none;
+    padding: 0;
+  }
+
+  @keyframes yg-slide-in {
+    from {
+      transform: translateX(-100%);
+      opacity: 0.4;
+    }
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     3 · Sommaire de page (colonne de droite)
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-toc {
+    display: none;
+  }
+
+  @media (min-width: 1400px) {
+    .yg-toc {
+      display: block;
+      position: sticky;
+      top: var(--yg-header-h);
+      align-self: start;
+      max-height: calc(100dvh - var(--yg-header-h));
+      overflow-y: auto;
+      padding-block: 3rem;
+    }
+  }
+
+  .yg-toc__title {
+    margin-bottom: 0.7rem;
+    color: var(--ax-text-subtle);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .yg-toc__link {
+    display: block;
+    padding: 0.3rem 0 0.3rem 0.75rem;
+    border-inline-start: 2px solid var(--ax-border);
+    color: var(--ax-text-muted);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    text-decoration: none;
+    transition: color 0.16s ease, border-color 0.16s ease;
+  }
+
+  .yg-toc__link:hover {
+    color: var(--ax-text-strong);
+  }
+
+  .yg-toc__link.is-active {
+    border-color: var(--ax-accent);
+    color: var(--ax-accent);
+    font-weight: 600;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     4 · Bandeau d'accueil
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-xl);
+    box-shadow: var(--ax-shadow-lg);
+    isolation: isolate;
+  }
+
+  .yg-hero__media {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+  }
+
+  .yg-hero__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 42%;
+  }
+
+  /*
+   * Le voile. Deux couches : un dégradé d'accent profond qui part du bas à
+   * gauche — là où se pose le texte — et un assombrissement général. Sans lui,
+   * une photo de foule en plein soleil rend tout titre illisible.
+   */
+  .yg-hero__veil {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(
+        105deg,
+        rgba(44, 27, 85, 0.96) 0%,
+        rgba(44, 27, 85, 0.88) 38%,
+        rgba(44, 27, 85, 0.45) 68%,
+        rgba(44, 27, 85, 0.25) 100%
+      ),
+      linear-gradient(0deg, rgba(10, 8, 20, 0.5), rgba(10, 8, 20, 0.15));
+  }
+
+  .yg-hero__body {
+    position: relative;
+    padding: 2.5rem 1.5rem 2.25rem;
+    color: #fff;
+  }
+
+  @media (min-width: 768px) {
+    .yg-hero__body {
+      max-width: 40rem;
+      padding: 4rem 3rem 3.5rem;
+    }
+  }
+
+  .yg-hero__eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 1.1rem;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: var(--ax-radius-pill);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .yg-hero__eyebrow::before {
+    content: "";
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+    animation: yg-pulse 2.6s ease-in-out infinite;
+  }
+
+  @keyframes yg-pulse {
+    50% {
+      box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
+    }
+  }
+
+  .yg-hero__title {
+    margin: 0 0 0.9rem;
+    color: #fff;
+    font-family: var(--ax-font-display);
+    font-size: clamp(2.1rem, 6vw, 3.4rem);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.04;
+  }
+
+  .yg-hero__title em {
+    display: block;
+    font-style: normal;
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  .yg-hero__lead {
+    margin: 0;
+    max-width: 34rem;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 1.02rem;
+    line-height: 1.65;
+  }
+
+  .yg-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 1.75rem;
+  }
+
+  /* Boutons posés sur la photo : ils ne peuvent pas emprunter les jetons de
+     surface, qui supposent un fond de page. */
+  .yg-hero__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    height: 2.75rem;
+    padding-inline: 1.15rem;
+    border: 1px solid transparent;
+    border-radius: var(--ax-radius-pill);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.16s ease, background-color 0.16s ease;
+  }
+
+  .yg-hero__btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .yg-hero__btn--solid {
+    background: #fff;
+    color: #2c1b55;
+  }
+
+  .yg-hero__btn--ghost {
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+
+  .yg-hero__btn--ghost:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  /* L'ornement flottant, en haut à droite du bandeau. */
+  .yg-hero__ornament {
+    position: absolute;
+    top: -3rem;
+    inset-inline-end: -3rem;
+    width: 16rem;
+    opacity: 0.16;
+    filter: brightness(0) invert(1);
+    pointer-events: none;
+    animation: yg-float 12s ease-in-out infinite;
+  }
+
+  @keyframes yg-float {
+    50% {
+      transform: translateY(0.75rem) rotate(4deg);
+    }
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     5 · En-tête de chapitre
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-chead {
+    display: grid;
+    gap: 1.5rem;
+    padding-bottom: 1.75rem;
+    margin-bottom: 2.25rem;
+    border-bottom: 1px solid var(--ax-border);
+  }
+
+  @media (min-width: 768px) {
+    .yg-chead {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+    }
+  }
+
+  .yg-chead__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+    color: var(--ax-accent);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .yg-chead__title {
+    margin: 0 0 0.75rem;
+    font-family: var(--ax-font-display);
+    font-size: clamp(1.9rem, 4.5vw, 2.6rem);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--ax-text-strong);
+  }
+
+  .yg-chead__lead {
+    margin: 0;
+    max-width: 38rem;
+    color: var(--ax-text-muted);
+    font-size: 1.05rem;
+    line-height: 1.65;
+  }
+
+  .yg-chead__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 1.1rem;
+  }
+
+  .yg-chead__art {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .yg-chead__art {
+      display: grid;
+      place-items: center;
+      width: 7.5rem;
+      height: 7.5rem;
+      border-radius: var(--ax-radius-lg);
+      background: radial-gradient(
+        circle at 30% 25%,
+        rgba(var(--ax-accent-rgb), 0.16),
+        rgba(var(--ax-accent-rgb), 0.04)
+      );
+    }
+
+    .yg-chead__art img {
+      width: 68%;
+      height: 68%;
+      object-fit: contain;
+    }
+  }
+
+  /*
+   * Les pictos sont des traits violets sur fond transparent. En thème sombre
+   * ils disparaissent : on les éclaircit plutôt que d'en maintenir un second
+   * jeu de fichiers.
+   */
+  [data-ax-theme="dark"] .yg-picto {
+    filter: brightness(0) invert(1) opacity(0.82);
+  }
+
+  /* ── Pastilles de rôle et de durée ── */
+  .yg-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--ax-border-strong);
+    border-radius: var(--ax-radius-pill);
+    background: var(--ax-surface-subtle);
+    color: var(--ax-text-muted);
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+
+  .yg-pill--accent {
+    border-color: transparent;
+    background: rgba(var(--ax-accent-rgb), 0.12);
+    color: var(--ax-accent);
+    font-weight: 600;
+  }
+
+  .yg-pill--gold {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--yessal-or) 14%, transparent);
+    color: var(--yessal-or);
+    font-weight: 600;
+  }
+
+  .yg-pill--green {
+    border-color: transparent;
+    background: var(--yessal-montant-wash);
+    color: var(--yessal-montant);
+    font-weight: 600;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     6 · Corps de texte
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-prose {
+    max-width: var(--yg-read);
+    font-size: 1rem;
+    line-height: 1.75;
+    color: var(--ax-text);
+  }
+
+  .yg-prose > * + * {
+    margin-top: 1.1rem;
+  }
+
+  .yg-prose h2 {
+    margin-top: 3rem;
+    margin-bottom: 0.85rem;
+    font-family: var(--ax-font-display);
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ax-text-strong);
+    scroll-margin-top: calc(var(--yg-header-h) + 1.5rem);
+  }
+
+  .yg-prose h3 {
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+    font-family: var(--ax-font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--ax-text-strong);
+    scroll-margin-top: calc(var(--yg-header-h) + 1.5rem);
+  }
+
+  .yg-prose strong {
+    color: var(--ax-text-strong);
+    font-weight: 600;
+  }
+
+  .yg-prose a:not([class]) {
+    color: var(--ax-link);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
+
+  .yg-prose ul,
+  .yg-prose ol {
+    padding-inline-start: 1.15rem;
+  }
+
+  .yg-prose li + li {
+    margin-top: 0.4rem;
+  }
+
+  .yg-prose ul > li {
+    list-style: none;
+    position: relative;
+  }
+
+  .yg-prose ul > li::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: -0.95rem;
+    top: 0.72em;
+    width: 0.32rem;
+    height: 0.32rem;
+    border-radius: 999px;
+    background: var(--ax-accent);
+    opacity: 0.65;
+  }
+
+  /* Une liste qui porte déjà sa propre puce (cases à cocher, drapeaux) ne doit
+     pas hériter du point d'accent. */
+  .yg-prose ul.yg-plain,
+  .yg-prose ol.yg-plain,
+  ul.yg-plain,
+  ol.yg-plain {
+    padding-inline-start: 0;
+    list-style: none;
+  }
+
+  .yg-prose ul.yg-plain > li::before,
+  ul.yg-plain > li::before {
+    content: none;
+  }
+
+  .yg-prose ol.yg-plain > li,
+  ol.yg-plain > li {
+    list-style: none;
+  }
+
+  .yg-prose ol > li {
+    list-style: decimal;
+  }
+
+  .yg-prose ol > li::marker {
+    color: var(--ax-text-subtle);
+    font-family: var(--ax-font-mono);
+    font-size: 0.85em;
+  }
+
+  /* Le libellé d'un élément d'interface, cité dans le texte. */
+  .yg-ui {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.05rem 0.4rem;
+    border: 1px solid var(--ax-border-strong);
+    border-radius: var(--ax-radius-xs);
+    background: var(--ax-surface-subtle);
+    color: var(--ax-text-strong);
+    font-size: 0.86em;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .yg-kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.5rem;
+    padding: 0.05rem 0.35rem;
+    border: 1px solid var(--ax-border-strong);
+    border-bottom-width: 2px;
+    border-radius: var(--ax-radius-xs);
+    background: var(--ax-surface-solid);
+    color: var(--ax-text-muted);
+    font-family: var(--ax-font-mono);
+    font-size: 0.75em;
+    line-height: 1.6;
+  }
+
+  /* Un montant : toujours en vert Yessal, jamais à l'accent. */
+  .yg-amount {
+    font-family: var(--ax-font-mono);
+    font-weight: 600;
+    color: var(--yessal-montant);
+    white-space: nowrap;
+  }
+
+  /* ── Terme du lexique, cité en ligne ── */
+  .yg-term {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    cursor: help;
+    border-bottom: 1px dashed rgba(var(--ax-accent-rgb), 0.6);
+    text-underline-offset: 3px;
+  }
+
+  .yg-term:hover {
+    color: var(--ax-accent);
+  }
+
+  .yg-term-pop {
+    position: absolute;
+    z-index: 50;
+    width: min(20rem, calc(100vw - 2rem));
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--ax-border-strong);
+    border-radius: var(--ax-radius-md);
+    background: var(--ax-surface-overlay);
+    box-shadow: var(--ax-shadow-lg);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    font-size: 0.85rem;
+    font-weight: 400;
+    line-height: 1.55;
+    color: var(--ax-text);
+    text-align: start;
+    animation: yg-fade 0.14s ease-out;
+  }
+
+  /*
+   * Pas d'infobulle là où il n'y a pas de survol. Sur un écran tactile, toucher
+   * le terme NAVIGUE vers sa définition complète — la bulle n'apporterait rien
+   * et, posée sur un mot proche du bord droit, elle déborderait de l'écran.
+   */
+  @media (hover: none) {
+    .yg-term-pop {
+      display: none;
+    }
+  }
+
+  .yg-term-pop__word {
+    display: block;
+    margin-bottom: 0.2rem;
+    color: var(--ax-accent);
+    font-family: var(--ax-font-display);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  @keyframes yg-fade {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     7 · Encarts
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-callout {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.85rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--ax-border);
+    border-inline-start: 3px solid var(--ax-accent);
+    border-radius: var(--ax-radius-md);
+    background: var(--ax-surface-subtle);
+    font-size: 0.93rem;
+    line-height: 1.65;
+  }
+
+  .yg-callout__icon {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: var(--ax-radius-sm);
+    background: rgba(var(--ax-accent-rgb), 0.14);
+    color: var(--ax-accent);
+  }
+
+  .yg-callout__title {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--ax-text-strong);
+    font-weight: 600;
+  }
+
+  .yg-callout__body > * + * {
+    margin-top: 0.6rem;
+  }
+
+  .yg-callout--warn {
+    border-inline-start-color: var(--ax-warning-500);
+    background: var(--ax-warning-50);
+  }
+
+  .yg-callout--warn .yg-callout__icon {
+    background: color-mix(in srgb, var(--ax-warning-500) 18%, transparent);
+    color: var(--ax-warning-600, var(--ax-warning-500));
+  }
+
+  .yg-callout--rule {
+    border-inline-start-color: var(--yessal-or);
+    background: color-mix(in srgb, var(--yessal-or) 8%, var(--ax-surface-subtle));
+  }
+
+  .yg-callout--rule .yg-callout__icon {
+    background: color-mix(in srgb, var(--yessal-or) 18%, transparent);
+    color: var(--yessal-or);
+  }
+
+  .yg-callout--tip {
+    border-inline-start-color: var(--yessal-montant);
+    background: var(--yessal-montant-wash);
+  }
+
+  .yg-callout--tip .yg-callout__icon {
+    background: color-mix(in srgb, var(--yessal-montant) 16%, transparent);
+    color: var(--yessal-montant);
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     8 · Étapes numérotées
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-steps {
+    counter-reset: yg-step;
+    margin-block: 1.75rem;
+  }
+
+  .yg-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.1rem minmax(0, 1fr);
+    gap: 1rem;
+    padding-bottom: 2rem;
+  }
+
+  /* Le filet vertical qui relie les étapes : il s'arrête à la dernière. */
+  .yg-step:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 1.04rem;
+    top: 2.4rem;
+    bottom: 0.25rem;
+    width: 1px;
+    background: linear-gradient(
+      to bottom,
+      var(--ax-border-strong),
+      transparent 92%
+    );
+  }
+
+  .yg-step__num {
+    counter-increment: yg-step;
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 999px;
+    background: rgba(var(--ax-accent-rgb), 0.12);
+    color: var(--ax-accent);
+    font-family: var(--ax-font-mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .yg-step__num::before {
+    content: counter(yg-step);
+  }
+
+  .yg-step__title {
+    margin: 0.2rem 0 0.35rem;
+    font-family: var(--ax-font-display);
+    font-size: 1.02rem;
+    font-weight: 600;
+    color: var(--ax-text-strong);
+  }
+
+  .yg-step__body {
+    min-width: 0;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--ax-text-muted);
+  }
+
+  .yg-step__body > * + * {
+    margin-top: 0.7rem;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     9 · Figures — cadre navigateur et cadre téléphone
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-fig {
+    margin-block: 1.75rem;
+  }
+
+  .yg-fig__cap {
+    margin-top: 0.7rem;
+    color: var(--ax-text-subtle);
+    font-size: 0.8rem;
+    line-height: 1.55;
+  }
+
+  .yg-fig__cap b {
+    color: var(--ax-text-muted);
+    font-weight: 600;
+  }
+
+  .yg-browser {
+    overflow: hidden;
+    border: 1px solid var(--ax-border-strong);
+    border-radius: var(--ax-radius-lg);
+    background: var(--ax-surface-solid);
+    box-shadow: var(--ax-shadow-lg);
+  }
+
+  .yg-browser__bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid var(--ax-border);
+    background: var(--ax-surface-subtle);
+  }
+
+  .yg-browser__dots {
+    display: flex;
+    gap: 0.3rem;
+    flex: none;
+  }
+
+  .yg-browser__dots i {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--ax-border-strong);
+  }
+
+  .yg-browser__url {
+    flex: 1;
+    min-width: 0;
+    padding: 0.2rem 0.65rem;
+    border-radius: var(--ax-radius-pill);
+    background: var(--ax-surface-solid);
+    color: var(--ax-text-subtle);
+    font-family: var(--ax-font-mono);
+    font-size: 0.7rem;
+    line-height: 1.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .yg-browser__shot {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* Cadrage : certaines captures ne valent que par leur haut. */
+  .yg-browser--crop {
+    position: relative;
+  }
+
+  .yg-browser--crop .yg-browser__view {
+    max-height: 30rem;
+    overflow: hidden;
+  }
+
+  .yg-browser--crop .yg-browser__view::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 5rem;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      color-mix(in srgb, var(--ax-canvas) 92%, transparent)
+    );
+    pointer-events: none;
+  }
+
+  /* Un détail d'écran : pas de barre d'adresse, juste un liseré et une ombre. */
+  .yg-detail {
+    overflow: hidden;
+    border: 1px solid var(--ax-border-strong);
+    border-radius: var(--ax-radius-lg);
+    background: var(--ax-surface-solid);
+    box-shadow: var(--ax-shadow-md);
+  }
+
+  .yg-detail__img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .yg-phone {
+    position: relative;
+    width: 15rem;
+    max-width: 100%;
+    padding: 0.55rem;
+    border: 1px solid var(--ax-border-strong);
+    border-radius: 2.2rem;
+    background: var(--ax-surface-subtle);
+    box-shadow: var(--ax-shadow-lg);
+  }
+
+  .yg-phone__screen {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.75rem;
+    background: var(--ax-surface-solid);
+    aspect-ratio: 9 / 19.5;
+  }
+
+  .yg-phone__screen img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 0;
+  }
+
+  .yg-phone__notch {
+    position: absolute;
+    top: 0.35rem;
+    left: 50%;
+    width: 4.5rem;
+    height: 1.1rem;
+    border-radius: 999px;
+    background: var(--ax-text-strong);
+    opacity: 0.85;
+    transform: translateX(-50%);
+    z-index: 2;
+  }
+
+  .yg-phones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    margin-block: 1.75rem;
+  }
+
+  .yg-phones .yg-phone {
+    width: 13rem;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     10 · Grilles de cartes
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-cards {
+    display: grid;
+    gap: 1rem;
+    margin-block: 1.5rem;
+  }
+
+  @media (min-width: 576px) {
+    .yg-cards--2,
+    .yg-cards--3 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .yg-cards--3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  .yg-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.15rem 1.25rem 1.25rem;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-lg);
+    background: var(--ax-surface);
+    box-shadow: var(--ax-shadow-sm);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.18s ease, box-shadow 0.18s ease,
+      border-color 0.18s ease;
+  }
+
+  a.yg-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--ax-accent-rgb), 0.45);
+    box-shadow: var(--ax-shadow-md);
+  }
+
+  .yg-card__icon {
+    display: grid;
+    place-items: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    margin-bottom: 0.35rem;
+    border-radius: var(--ax-radius-sm);
+    background: rgba(var(--ax-accent-rgb), 0.12);
+    color: var(--ax-accent);
+  }
+
+  .yg-card__title {
+    font-family: var(--ax-font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ax-text-strong);
+  }
+
+  .yg-card__text {
+    flex: 1;
+    color: var(--ax-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  .yg-card__more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+    color: var(--ax-accent);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  a.yg-card:hover .yg-card__more svg {
+    transform: translateX(3px);
+  }
+
+  .yg-card__more svg {
+    transition: transform 0.18s ease;
+  }
+
+  .yg-card__num {
+    position: absolute;
+    top: 1rem;
+    inset-inline-end: 1.15rem;
+    font-family: var(--ax-font-mono);
+    font-size: 0.72rem;
+    color: var(--ax-text-disabled);
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     11 · Choix du profil
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-roles {
+    display: grid;
+    gap: 0.85rem;
+    margin-block: 1.5rem;
+  }
+
+  @media (min-width: 576px) {
+    .yg-roles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .yg-roles {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  .yg-role {
+    position: relative;
+    overflow: hidden;
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-lg);
+    background: var(--ax-surface);
+    text-align: start;
+    cursor: pointer;
+    transition: transform 0.18s ease, border-color 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .yg-role:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ax-shadow-md);
+  }
+
+  .yg-role.is-selected {
+    border-color: var(--ax-accent);
+    box-shadow: var(--ax-focus-shadow);
+  }
+
+  /*
+   * La vignette d'un rôle porte un PICTO dessiné, pas une photographie.
+   *
+   * C'est un choix, pas une facilité : mettre un visage sous l'étiquette
+   * « Collecteur » revient à désigner quelqu'un. Les photographies de la
+   * communauté restent employées là où elles ne nomment personne — le bandeau,
+   * les respirations entre les sections.
+   */
+  .yg-role__art {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: radial-gradient(
+      circle at 50% 35%,
+      rgba(var(--ax-accent-rgb), 0.16),
+      rgba(var(--ax-accent-rgb), 0.03) 70%
+    );
+  }
+  .yg-role__art img {
+    width: 46%;
+    height: 46%;
+    object-fit: contain;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .yg-role:hover .yg-role__art img {
+    transform: scale(1.07);
+  }
+
+  .yg-role__name {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: var(--ax-text-strong);
+    font-family: var(--ax-font-display);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .yg-role__body {
+    padding: 0.85rem 1rem 1rem;
+    color: var(--ax-text-muted);
+    font-size: 0.84rem;
+    line-height: 1.55;
+  }
+
+  .yg-role__check {
+    position: absolute;
+    top: 0.65rem;
+    inset-inline-end: 0.65rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 999px;
+    background: var(--ax-accent);
+    color: var(--ax-on-accent);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+
+  .yg-role.is-selected .yg-role__check {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     12 · Lexique
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-lex {
+    display: grid;
+    gap: 1rem;
+    margin-block: 1.75rem;
+  }
+
+  @media (min-width: 768px) {
+    .yg-lex {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .yg-lex__item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.9rem;
+    padding: 1.1rem 1.2rem;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-lg);
+    background: var(--ax-surface);
+    scroll-margin-top: calc(var(--yg-header-h) + 1.5rem);
+  }
+
+  .yg-lex__art {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--ax-radius-md);
+    background: rgba(var(--ax-accent-rgb), 0.08);
+  }
+
+  .yg-lex__art img {
+    width: 76%;
+    height: 76%;
+    object-fit: contain;
+  }
+
+  /* `display: block` parce que ces deux-là sont tantôt des titres et des
+     paragraphes (dans le chapitre), tantôt de simples <span> (sur l'accueil,
+     où la carte entière est un lien et ne peut donc pas contenir de <p>). */
+  .yg-lex__word {
+    display: block;
+    font-family: var(--ax-font-display);
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ax-text-strong);
+  }
+
+  .yg-lex__orig {
+    margin-inline-start: 0.45rem;
+    color: var(--ax-text-subtle);
+    font-family: var(--ax-font-sans);
+    font-size: 0.75rem;
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  .yg-lex__def {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--ax-text-muted);
+  }
+
+  .yg-lex__where {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.6rem;
+    color: var(--ax-text-subtle);
+    font-size: 0.76rem;
+  }
+
+  .yg-lex__where b {
+    color: var(--ax-text);
+    font-weight: 600;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     13 · Tableau de droits
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-matrix-wrap {
+    margin-block: 1.75rem;
+    overflow-x: auto;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-lg);
+    background: var(--ax-surface);
+  }
+
+  .yg-matrix {
+    width: 100%;
+    min-width: 34rem;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .yg-matrix th,
+  .yg-matrix td {
+    padding: 0.65rem 0.85rem;
+    text-align: start;
+    border-bottom: 1px solid var(--ax-border);
+  }
+
+  .yg-matrix thead th {
+    background: var(--ax-surface-subtle);
+    color: var(--ax-text-subtle);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .yg-matrix tbody tr:last-child th,
+  .yg-matrix tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .yg-matrix tbody th {
+    font-weight: 500;
+    color: var(--ax-text-strong);
+  }
+
+  .yg-matrix td {
+    text-align: center;
+    width: 5.5rem;
+  }
+
+  .yg-matrix__yes {
+    color: var(--yessal-montant);
+  }
+
+  .yg-matrix__no {
+    color: var(--ax-text-disabled);
+  }
+
+  .yg-matrix__part {
+    color: var(--yessal-or);
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     14 · Moyens de paiement
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-pays {
+    display: grid;
+    gap: 0.75rem;
+    margin-block: 1.5rem;
+  }
+
+  @media (min-width: 576px) {
+    .yg-pays {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .yg-pay {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.8rem 0.95rem;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-md);
+    background: var(--ax-surface);
+  }
+
+  .yg-pay__logo {
+    display: grid;
+    place-items: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    flex: none;
+    padding: 0.3rem;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-sm);
+    background: #fff;
+  }
+
+  .yg-pay__logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .yg-pay__name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--ax-text-strong);
+  }
+
+  .yg-pay__note {
+    display: block;
+    color: var(--ax-text-subtle);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     15 · Questions fréquentes
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-faq {
+    margin-block: 1.5rem;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-lg);
+    background: var(--ax-surface);
+    overflow: hidden;
+  }
+
+  .yg-faq__item + .yg-faq__item {
+    border-top: 1px solid var(--ax-border);
+  }
+
+  .yg-faq__q {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 1rem 1.15rem;
+    border: 0;
+    background: none;
+    color: var(--ax-text-strong);
+    font-family: var(--ax-font-sans);
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .yg-faq__q:hover {
+    background: var(--ax-fill-hover);
+  }
+
+  .yg-faq__chev {
+    flex: none;
+    margin-inline-start: auto;
+    color: var(--ax-text-subtle);
+    transition: transform 0.2s ease;
+  }
+
+  .yg-faq__q[aria-expanded="true"] .yg-faq__chev {
+    transform: rotate(180deg);
+    color: var(--ax-accent);
+  }
+
+  .yg-faq__a {
+    padding: 0 1.15rem 1.15rem 1.15rem;
+    color: var(--ax-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.7;
+    animation: yg-fade 0.18s ease-out;
+  }
+
+  .yg-faq__a > * + * {
+    margin-top: 0.7rem;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     16 · Pied de chapitre
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-foot {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 3.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--ax-border);
+  }
+
+  @media (min-width: 768px) {
+    .yg-foot {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .yg-foot__link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.9rem 1.1rem;
+    border: 1px solid var(--ax-border);
+    border-radius: var(--ax-radius-md);
+    background: var(--ax-surface);
+    text-decoration: none;
+    transition: border-color 0.16s ease, transform 0.16s ease;
+  }
+
+  .yg-foot__link:hover {
+    border-color: rgba(var(--ax-accent-rgb), 0.45);
+    transform: translateY(-1px);
+  }
+
+  .yg-foot__link--next {
+    text-align: end;
+  }
+
+  .yg-foot__dir {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--ax-text-subtle);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .yg-foot__link--next .yg-foot__dir {
+    justify-content: flex-end;
+  }
+
+  .yg-foot__title {
+    color: var(--ax-text-strong);
+    font-family: var(--ax-font-display);
+    font-size: 0.98rem;
+    font-weight: 600;
+  }
+
+  /* La case « chapitre lu ». */
+  .yg-read-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin-top: 2.5rem;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--ax-border-strong);
+    border-radius: var(--ax-radius-pill);
+    background: var(--ax-surface);
+    color: var(--ax-text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.16s ease, color 0.16s ease,
+      background-color 0.16s ease;
+  }
+
+  .yg-read-mark:hover {
+    border-color: var(--yessal-montant);
+    color: var(--ax-text-strong);
+  }
+
+  .yg-read-mark.is-done {
+    border-color: transparent;
+    background: var(--yessal-montant-wash);
+    color: var(--yessal-montant);
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     17 · Ornements et séparateurs
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-rule {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-block: 3rem;
+    color: var(--ax-text-disabled);
+  }
+
+  .yg-rule::before,
+  .yg-rule::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      var(--ax-border-strong),
+      transparent
+    );
+  }
+
+  .yg-rule img {
+    width: 3.1rem;
+    opacity: 0.7;
+  }
+
+  /*
+   * L'ornement garde ses couleurs en thème sombre. Contrairement aux pictos —
+   * des traits violets qui disparaîtraient sur le canvas #0A0C11 — c'est un
+   * motif vert et or, déjà contrasté des deux côtés. L'éclaircir le
+   * transformerait en tache blanche, et on perdrait précisément ce qu'il
+   * apporte : un peu de chaleur entre deux sections.
+   */
+  [data-ax-theme="dark"] .yg-rule img {
+    opacity: 0.85;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     18 · Palette de recherche
+     ═══════════════════════════════════════════════════════════════════ */
+
+  .yg-pal[cmdk-dialog] {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: start center;
+    padding: clamp(3rem, 12vh, 8rem) 1rem 2rem;
+    background: var(--ax-backdrop, rgba(10, 12, 17, 0.45));
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+
+  .yg-pal__panel {
+    width: min(38rem, 100%);
+    overflow: hidden;
+    border: 1px solid var(--ax-border-strong);
+    border-radius: var(--ax-radius-lg);
+    background: var(--ax-surface-overlay);
+    box-shadow: var(--ax-shadow-lg);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+
+  .yg-pal__search {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid var(--ax-border);
+    color: var(--ax-text-subtle);
+  }
+
+  .yg-pal__input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ax-text-strong);
+    font-family: var(--ax-font-sans);
+    font-size: 0.95rem;
+    outline: none;
+  }
+
+  .yg-pal__list {
+    max-height: min(52vh, 24rem);
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+
+  .yg-pal__list [cmdk-group-heading] {
+    padding: 0.6rem 0.65rem 0.3rem;
+    color: var(--ax-text-subtle);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .yg-pal__item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: var(--ax-radius-sm);
+    color: var(--ax-text);
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .yg-pal__item[aria-selected="true"] {
+    background: rgba(var(--ax-accent-rgb), 0.12);
+    color: var(--ax-text-strong);
+  }
+
+  .yg-pal__item svg {
+    flex: none;
+    color: var(--ax-text-subtle);
+  }
+
+  .yg-pal__item[aria-selected="true"] svg {
+    color: var(--ax-accent);
+  }
+
+  .yg-pal__hint {
+    margin-inline-start: auto;
+    color: var(--ax-text-disabled);
+    font-size: 0.72rem;
+  }
+
+  .yg-pal__empty {
+    padding: 2rem 1rem;
+    color: var(--ax-text-subtle);
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════
+     19 · Retenue de mouvement
+     ═══════════════════════════════════════════════════════════════════ */
+
+  @media (prefers-reduced-motion: reduce) {
+    .yg-hero__ornament,
+    .yg-hero__eyebrow::before {
+      animation: none;
+    }
+
+    .yg-card,
+    .yg-role,
+    .yg-foot__link,
+    .yg-role__art img {
+      transition: none;
+    }
+
+    a.yg-card:hover,
+    .yg-role:hover,
+    .yg-foot__link:hover,
+    .yg-hero__btn:hover {
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .yg-header,
+    .yg-pal__panel,
+    .yg-term-pop {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: var(--ax-surface-solid);
+    }
+  }
+}

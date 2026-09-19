@@ -47,6 +47,15 @@
 @import "../styles/vireo/_yessal-layers.css";
 
 /*
+ * ── Yessal Guide ──
+ * Le module de documentation a sa propre coque (rail de chapitres, colonne de
+ * lecture, cadres de captures). Tout y est bâti sur les jetons Aurora, dans
+ * `@layer components` comme le reste de Vireo : les utilitaires Tailwind
+ * gardent le dernier mot sur une marge ou une largeur au cas par cas.
+ */
+@import "../styles/vireo/_yessal-guide.css";
+
+/*
  * Variante dark de Tailwind — deux sélecteurs volontairement.
  * next-themes appose `class="dark"` (dont dépendent les composants shadcn et
  * les pages existantes) ET `data-ax-theme="dark"` (dont dépend tout Vireo).

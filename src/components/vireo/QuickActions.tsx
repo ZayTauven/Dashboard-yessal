@@ -26,6 +26,7 @@ import { Command } from "cmdk";
 import { useTheme } from "next-themes";
 import {
   Bell,
+  BookOpen,
   Building2,
   CalendarDays,
   Coins,
@@ -179,6 +180,13 @@ export function QuickActions({ role = "member", open, onOpenChange }: QuickActio
           { id: "news", label: "Actualités", icon: Newspaper, href: "/dashboard/news" },
           { id: "notifications", label: "Notifications", icon: Bell, href: "/dashboard/notifications" },
           { id: "profile", label: "Mon profil", icon: UserRound, href: "/dashboard/profile" },
+          {
+            id: "guide",
+            label: "Yessal Guide",
+            keywords: ["aide", "documentation", "manuel", "lexique", "comment faire"],
+            icon: BookOpen,
+            href: "/guide",
+          },
         ],
       },
       {
