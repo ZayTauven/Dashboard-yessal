@@ -104,8 +104,9 @@ export default function LoginPage() {
           <div className="max-w-md">
             <p className="ax-eyebrow mb-3">Yessal Gui</p>
             <p className="text-2xl leading-snug font-medium text-foreground">
-              La plateforme de la confrérie : Jëfs, Ndiguels, fêtes et
-              actualités, réunis en un seul endroit.
+              L'actualité sur le guide des Thiantakones de Yessal Gui le
+              renouveau : Jëfs, Ndiguels, fêtes et actualités, réunis en un seul
+              endroit.
             </p>
             <p className="ax-text-muted mt-4 text-sm">
               Chaque contribution est tracée, chaque Daara y trouve sa place.
@@ -212,7 +213,11 @@ export default function LoginPage() {
                   className="ax-btn ax-btn--primary ax-btn--lg ax-btn--block"
                   disabled={isPending}
                 >
-                  <LogIn className="ax-btn__icon" size={16} aria-hidden="true" />
+                  <LogIn
+                    className="ax-btn__icon"
+                    size={16}
+                    aria-hidden="true"
+                  />
                   <span className="ax-btn__label">
                     {isPending ? "Connexion…" : "Se connecter"}
                   </span>
