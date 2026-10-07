@@ -82,7 +82,7 @@ const URGENCY: Record<string, { label: string; cls: string; icon: LucideIcon }> 
 const TARGET_ROLE_LABEL: Record<string, string> = {
   all: "Tout public",
   member: "Talibés",
-  chef_daara: "Chefs de Daara",
+  chef_daara: "Coordinateurs de Daara",
   collector: "Collecteurs",
   admin: "Administrateurs",
 };

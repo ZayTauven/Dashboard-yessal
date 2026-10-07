@@ -52,7 +52,19 @@ type DonationRow = {
   donor_id?: number;
   donor_name?: string | null;
   donor_daara_name?: string | null;
+  /* LDD du Daara du talibé. Champ récent côté API : absent d'une réponse
+     plus ancienne, d'où l'optionnel et le repli « — ». */
+  donor_ldd_name?: string | null;
 };
+
+/*
+ * Qui a versé le Jëf : le talibé lui-même, ou une tutelle pour son compte.
+ * Même libellé à l'écran et dans l'export — le client lit les deux côte à
+ * côte et ne doit pas avoir à traduire de l'un à l'autre.
+ */
+function contributorLabel(d: DonationRow): string {
+  return d.beneficiary_name ? `Tutelle - ${d.beneficiary_name}` : "Moi-même";
+}
 
 /* Colonnes triables — l'union est explicite pour que le typage attrape une
    `sortKey` mal orthographiée à la compilation plutôt qu'à l'exécution. */
@@ -89,7 +101,9 @@ export function DonationListClient({
         d.campaign_name,
         d.beneficiary_name,
         `REF-${d.id}`,
-        ...(showDirectory ? [d.donor_name, d.donor_daara_name] : []),
+        ...(showDirectory
+          ? [d.donor_name, d.donor_daara_name, d.donor_ldd_name]
+          : []),
       ],
     [showDirectory],
   );
@@ -130,21 +144,29 @@ export function DonationListClient({
 
   const exportData = useMemo(
     () =>
+      /*
+       * L'ordre des clés EST l'ordre des colonnes du fichier (`ExportButton`
+       * lit `Object.keys` de la première ligne). Ordre demandé par le client :
+       * Date, Référence, Talibé, LDD, Daara, Ndiguel, Contributeur, Montant,
+       * Méthode, Statut — les trois colonnes d'annuaire n'existant qu'en
+       * variante `directory`.
+       */
       c.matched.map((d) => {
-        const base: Record<string, string | number> = {
+        const row: Record<string, string | number> = {
           Date: formatDate(d.created_at),
           Référence: `REF-${d.id}`,
-          Ndiguel: String(d.campaign_name ?? ""),
-          Bénéficiaire: d.beneficiary_name || "Moi-même",
-          Montant: Number(d.amount),
-          Méthode: paymentMethodLabel(d.payment_method),
-          Statut: statusLabel("payment", d.payment_status),
         };
         if (showDirectory) {
-          base.Contributeur = String(d.donor_name ?? "—");
-          base.Daara = String(d.donor_daara_name ?? "—");
+          row.Talibé = d.donor_name || "—";
+          row.LDD = d.donor_ldd_name || "—";
+          row.Daara = d.donor_daara_name || "—";
         }
-        return base;
+        row.Ndiguel = String(d.campaign_name ?? "");
+        row.Contributeur = contributorLabel(d);
+        row.Montant = Number(d.amount);
+        row.Méthode = paymentMethodLabel(d.payment_method);
+        row.Statut = statusLabel("payment", d.payment_status);
+        return row;
       }),
     [c.matched, showDirectory],
   );
@@ -168,7 +190,7 @@ export function DonationListClient({
       cols.push(
         {
           key: "donor",
-          header: "Contributeur",
+          header: "Talibé",
           sortKey: "donor",
           cell: (d) =>
             d.donor_id ? (
@@ -181,6 +203,14 @@ export function DonationListClient({
             ) : (
               <span className="font-medium">{d.donor_name || "—"}</span>
             ),
+        },
+        {
+          key: "ldd",
+          header: "LDD",
+          hideBelow: "lg",
+          cell: (d) => (
+            <span className="ax-text-muted">{d.donor_ldd_name || "—"}</span>
+          ),
         },
         {
           key: "daara",
@@ -213,15 +243,15 @@ export function DonationListClient({
       },
       {
         key: "beneficiary",
-        header: "Bénéficiaire",
+        header: "Contributeur",
         hideBelow: "lg",
         cell: (d) =>
           d.beneficiary_name ? (
             <span className="ax-badge ax-badge--info ax-badge--sm">
-              {d.beneficiary_name}
+              {contributorLabel(d)}
             </span>
           ) : (
-            <span className="ax-text-subtle italic">Moi-même</span>
+            <span className="ax-text-subtle italic">{contributorLabel(d)}</span>
           ),
       },
       {

@@ -19,8 +19,8 @@ export default async function EventsPage() {
           « utilisees »). */}
       <PageHead
         role={role}
-        title="Les Fêtes"
-        subtitle="Calendrier des célébrations de la confrérie, auxquelles se rattachent les Ndiguels."
+        title="Les Événements"
+        subtitle="Calendrier des événements de la confrérie, auxquels se rattachent les Ndiguels."
       />
 
       {error ? (

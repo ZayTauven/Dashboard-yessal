@@ -23,7 +23,7 @@ export default function Roles() {
           <Terme mot="daara" />.
         </li>
         <li>
-          <strong>Chef de Daara</strong> — tout ce que fait un talibé, plus la
+          <strong>Coordinateur du Daara</strong> — tout ce que fait un talibé, plus la
           vue d’ensemble de son Daara : ses membres, ses collecteurs, ses
           Jëfs. Il propose des candidats collecteurs et ouvre des salons de
           discussion.
@@ -35,7 +35,7 @@ export default function Roles() {
         </li>
         <li>
           <strong>Administrateur</strong> — il lance les Ndiguels, crée les
-          Fêtes, valide les versements et les pièces, tient les Daaras et les
+          Événements, valide les versements et les pièces, tient les Daaras et les
           zones, et lit le journal d’audit.
         </li>
         <li>
@@ -48,12 +48,12 @@ export default function Roles() {
       <Callout tone="rule" title="La règle qui surprend : rien n'est borné au Daara">
         <p>
           On suppose souvent qu’un collecteur ne collecte que dans son
-          Daara, qu’un chef ne parle qu’aux siens. C’est faux, et
+          Daara, qu’un coordinateur ne parle qu’aux siens. C’est faux, et
           délibérément.
         </p>
         <p className="m-0">
           Un collecteur encaisse auprès de <strong>n’importe quel</strong>{" "}
-          membre. Un chef ajoute <strong>n’importe quel</strong> membre de
+          membre. Un coordinateur ajoute <strong>n’importe quel</strong> membre de
           la confrérie dans un salon. Un membre écrit à qui accepte de le
           recevoir. La seule limite est la <strong>préférence du
           destinataire</strong> — jamais son rattachement.
@@ -67,7 +67,7 @@ export default function Roles() {
       </p>
 
       <Matrix
-        columns={["Talibé", "Chef", "Collecteur", "Admin"]}
+        columns={["Talibé", "Coordinateur", "Collecteur", "Admin"]}
         rows={[
           {
             label: "Faire un Jëf pour soi",
@@ -114,7 +114,7 @@ export default function Roles() {
             ],
           },
           {
-            label: "Créer une Fête",
+            label: "Créer un Événement",
             cells: [{ value: "no" }, { value: "no" }, { value: "no" }, { value: "yes" }],
           },
           {
@@ -161,7 +161,7 @@ export default function Roles() {
       <p>
         La différence ne se voit pas dans le dessin, mais dans la portée des
         chiffres. Ci-dessous, le tableau de bord tel que le voit
-        l’administration, puis tel que le voit un chef de Daara.
+        l’administration, puis tel que le voit un coordinateur de Daara.
       </p>
 
       <Shot
@@ -177,10 +177,10 @@ export default function Roles() {
 
       <Shot
         src="/guide-assets/shots/chef-dashboard.webp"
-        alt="Tableau de bord d'un chef de Daara : les mêmes indicateurs, bornés à son Daara."
+        alt="Tableau de bord d'un coordinateur de Daara : les mêmes indicateurs, bornés à son Daara."
         caption={
           <>
-            <b>Vue chef de Daara.</b> Mêmes indicateurs, même disposition — mais
+            <b>Vue coordinateur du Daara.</b> Mêmes indicateurs, même disposition — mais
             les chiffres ne parlent que de son Daara, et le rail a perdu la
             section Administration.
           </>
@@ -189,7 +189,7 @@ export default function Roles() {
 
       <h2 id="changer-de-role">Qui attribue les rôles</h2>
       <p>
-        L’administration, depuis <em>Utilisateurs et rôles</em>. Un chef de
+        L’administration, depuis <em>Utilisateurs et rôles</em>. Un coordinateur de
         Daara peut proposer un membre comme collecteur, mais c’est
         l’administrateur qui nomme. Un membre ne peut pas changer son
         propre rôle, ni son Daara — ce dernier relève lui aussi de

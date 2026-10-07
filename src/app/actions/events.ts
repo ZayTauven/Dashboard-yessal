@@ -21,7 +21,7 @@ export async function getEvents() {
     });
 
     if (!res.ok) {
-      return { error: "Erreur lors de la récupération des fêtes.", data: [] };
+      return { error: "Erreur lors de la récupération des événements.", data: [] };
     }
 
     const data = await res.json();
@@ -56,7 +56,7 @@ export async function addEvent(formData: FormData) {
       const data = await res.json().catch(() => ({}));
       return {
         error:
-          messageForErrors(data, "Erreur lors de la création de la fête."),
+          messageForErrors(data, "Erreur lors de la création de l’événement."),
       };
     }
 
@@ -93,7 +93,7 @@ export async function updateEvent(id: number, formData: FormData) {
       const data = await res.json().catch(() => ({}));
       return {
         error:
-          messageForErrors(data, "Erreur lors de la mise à jour de la fête."),
+          messageForErrors(data, "Erreur lors de la mise à jour de l’événement."),
       };
     }
 
@@ -154,7 +154,7 @@ export async function getFeteById(id: number) {
       cache: "no-store",
       headers: await getAuthHeader(),
     });
-    if (!res.ok) return { error: "Fête introuvable.", data: null };
+    if (!res.ok) return { error: "Événement introuvable.", data: null };
     return { data: await res.json() };
   } catch (err) {
     console.error(err);

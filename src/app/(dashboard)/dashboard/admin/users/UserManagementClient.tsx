@@ -112,7 +112,7 @@ export interface TitleRequest {
 /** `accounts.User.Role` */
 const ROLES = [
   { value: "admin", label: "Administrateur" },
-  { value: "chef_daara", label: "Chef de Daara" },
+  { value: "chef_daara", label: "Coordinateur du Daara" },
   { value: "collector", label: "Collecteur" },
   { value: "member", label: "Talibé" },
 ];

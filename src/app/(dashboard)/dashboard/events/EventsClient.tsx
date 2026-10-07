@@ -67,18 +67,18 @@ type Fete = {
 
 /** `events.Fete.Recurrence` */
 const RECURRENCE_LABELS: Record<string, string> = {
-  annual: "Annuelle",
-  quarterly: "Trimestrielle",
+  annual: "Annuel",
+  quarterly: "Trimestriel",
   weekly: "Hebdomadaire",
-  none: "Ponctuelle",
+  none: "Ponctuel",
 };
 
 const RECURRENCE_CHIPS = [
-  { value: ALL, label: "Toutes" },
-  { value: "annual", label: "Annuelles" },
-  { value: "quarterly", label: "Trimestrielles" },
+  { value: ALL, label: "Tous" },
+  { value: "annual", label: "Annuels" },
+  { value: "quarterly", label: "Trimestriels" },
   { value: "weekly", label: "Hebdomadaires" },
-  { value: "none", label: "Ponctuelles" },
+  { value: "none", label: "Ponctuels" },
 ];
 
 const longDate = new Intl.DateTimeFormat("fr-SN", {
@@ -190,7 +190,7 @@ export function EventsClient({
       }
       setIsCreateOpen(false);
       router.refresh();
-      toast.success("Fête créée avec succès.");
+      toast.success("Événement créé avec succès.");
     });
   };
 
@@ -205,7 +205,7 @@ export function EventsClient({
       }
       setEditing(null);
       router.refresh();
-      toast.success("Fête mise à jour.");
+      toast.success("Événement mis à jour.");
     });
   };
 
@@ -213,7 +213,7 @@ export function EventsClient({
     ask({
       title: `Supprimer « ${fete.name} » ?`,
         description:
-          "Les Ndiguels rattachés à cette fête la perdront, mais ne seront pas supprimés.",
+          "Les Ndiguels rattachés à cet événement le perdront, mais ne seront pas supprimés.",
       confirmLabel: "Confirmer",
       onConfirm: async () => {
           const { error } = await deleteEvent(fete.id);
@@ -222,7 +222,7 @@ export function EventsClient({
             return;
           }
           router.refresh();
-          toast.success("Fête supprimée.");
+          toast.success("Événement supprimé.");
         },
     });
   };
@@ -261,7 +261,7 @@ export function EventsClient({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="ax-field">
           <label className="ax-field__label" htmlFor={`name-${fete?.id ?? "new"}`}>
-            Nom de la fête
+            Nom de l’événement
             <span className="ax-field__required" aria-hidden="true"> *</span>
           </label>
           <input
@@ -321,7 +321,7 @@ export function EventsClient({
             className="ax-field__label"
             htmlFor={`is_active-${fete?.id ?? "new"}`}
           >
-            Active
+            Actif
           </label>
           <select
             id={`is_active-${fete?.id ?? "new"}`}
@@ -333,7 +333,7 @@ export function EventsClient({
             <option value="false">Non</option>
           </select>
           <p className="ax-field__hint">
-            Une fête inactive reste consultable mais ne peut plus porter de
+            Un événement inactif reste consultable mais ne peut plus porter de
             nouveau Ndiguel.
           </p>
         </div>
@@ -353,7 +353,7 @@ export function EventsClient({
             ? "Enregistrement…"
             : fete
               ? "Sauvegarder les modifications"
-              : "Enregistrer la fête"}
+              : "Enregistrer l’événement"}
         </span>
       </button>
     </form>
@@ -365,7 +365,7 @@ export function EventsClient({
       {featured && (
         <section
           className="ax-card ax-card--accent-edge"
-          aria-label="Prochaine fête"
+          aria-label="Prochain événement"
         >
           <div className="ax-card__body flex flex-wrap items-center gap-6">
             <DateTile date={featured.date} size="lg" />
@@ -373,7 +373,7 @@ export function EventsClient({
             <div className="min-w-0 flex-1">
               <div className="ax-cluster mb-2 gap-2">
                 <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill">
-                  Prochaine fête
+                  Prochain événement
                 </span>
                 <span className="ax-badge ax-badge--outline ax-badge--sm">
                   {RECURRENCE_LABELS[featured.recurrence ?? "annual"]}
@@ -397,7 +397,7 @@ export function EventsClient({
               href={`/dashboard/events/${featured.id}`}
               className="ax-btn ax-btn--tonal"
             >
-              <span className="ax-btn__label">Voir la fête</span>
+              <span className="ax-btn__label">Voir l’événement</span>
               <ExternalLink className="ax-btn__icon" size={14} aria-hidden="true" />
             </Link>
           </div>
@@ -414,18 +414,18 @@ export function EventsClient({
             <input
               type="search"
               className="ax-input ax-input--with-leading-icon"
-              placeholder="Rechercher une fête…"
+              placeholder="Rechercher un événement…"
               value={c.search}
               onChange={(e) => c.setSearch(e.target.value)}
-              aria-label="Rechercher une fête"
+              aria-label="Rechercher un événement"
             />
           </div>
 
           <div className="ax-segment" role="group" aria-label="Période">
             {[
               { value: "upcoming", label: "À venir" },
-              { value: "past", label: "Passées" },
-              { value: ALL, label: "Toutes" },
+              { value: "past", label: "Passés" },
+              { value: ALL, label: "Tous" },
             ].map((o) => (
               <button
                 key={o.value}
@@ -449,7 +449,7 @@ export function EventsClient({
               }}
             >
               <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
-              <span className="ax-btn__label">Nouvelle fête</span>
+              <span className="ax-btn__label">Nouvel événement</span>
             </button>
           )}
         </div>
@@ -484,13 +484,13 @@ export function EventsClient({
               tone={c.isFiltered ? "search" : "neutral"}
               title={
                 c.isFiltered
-                  ? "Aucune fête ne correspond"
-                  : "Aucune fête enregistrée"
+                  ? "Aucun événement ne correspond"
+                  : "Aucun événement enregistré"
               }
               description={
                 c.isFiltered
                   ? "Changez de période ou remettez les filtres à zéro."
-                  : "Le calendrier des fêtes sert à rattacher les Ndiguels."
+                  : "Le calendrier des événements sert à rattacher les Ndiguels."
               }
               action={
                 c.isFiltered ? (
@@ -508,7 +508,7 @@ export function EventsClient({
                     onClick={() => setIsCreateOpen(true)}
                   >
                     <Plus className="ax-btn__icon" size={16} aria-hidden="true" />
-                    <span className="ax-btn__label">Nouvelle fête</span>
+                    <span className="ax-btn__label">Nouvel événement</span>
                   </button>
                 ) : undefined
               }
@@ -562,7 +562,7 @@ export function EventsClient({
                   </span>
                   {fete.is_active === false && (
                     <span className="ax-badge ax-badge--warning ax-badge--sm">
-                      Inactive
+                      Inactif
                     </span>
                   )}
                   <Link
@@ -584,14 +584,14 @@ export function EventsClient({
         onPageChange={c.setPage}
         totalItems={c.total}
         pageSize={c.pageSize}
-        itemLabel="fêtes"
+        itemLabel="événements"
       />
 
       <Modal
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        title="Nouvelle fête"
-        description="Elle pourra ensuite porter un ou plusieurs Ndiguels."
+        title="Nouvel événement"
+        description="Il pourra ensuite porter un ou plusieurs Ndiguels."
         size="lg"
       >
         {renderForm(null, handleAdd)}
@@ -600,7 +600,7 @@ export function EventsClient({
       <Modal
         open={Boolean(editing)}
         onOpenChange={(o) => !o && setEditing(null)}
-        title="Modifier la fête"
+        title="Modifier l’événement"
         description={editing?.name}
         size="lg"
       >

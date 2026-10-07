@@ -91,7 +91,7 @@ const APP_TILES: AppTile[] = [
   },
   {
     href: "/dashboard/events",
-    label: "Fêtes",
+    label: "Événements",
     icon: CalendarDays,
     roles: ["admin"],
   },
@@ -122,7 +122,12 @@ export interface ShellHeaderProps {
   notificationPreview: NotificationDto[];
   onToggleRail: () => void;
   onOpenQuickActions: () => void;
-  onOpenCustomizer: () => void;
+  /**
+   * Ouvre le panneau Apparence. Absent hors admin : l'apparence est figée
+   * (thème clair, violet Yessal) pour tous les autres rôles, et la barre ne
+   * montre alors ni palette, ni lune/soleil, ni entrée « Apparence ».
+   */
+  onOpenCustomizer?: () => void;
   railExpanded: boolean;
 }
 
@@ -168,6 +173,9 @@ export function ShellHeader({
   const tiles = APP_TILES.filter(
     (t) => !t.roles || t.roles.includes(role),
   ).slice(0, 6);
+
+  /* Seul l'admin règle l'apparence — voir `AppShell`. */
+  const canCustomize = role === "admin" && Boolean(onOpenCustomizer);
 
   return (
     <header
@@ -265,7 +273,10 @@ export function ShellHeader({
           Les libellés sont du texte masqué plutôt qu'un `aria-label` : un
           `display: none` retire son contenu de l'arbre d'accessibilité, donc
           seul le libellé visible nomme le bouton. Un `aria-label`, lui, ne
-          peut pas être piloté par le CSS. */}
+          peut pas être piloté par le CSS.
+
+          Ouverte à TOUS les rôles : le client a figé l'apparence des membres
+          mais leur laisse le choix clair / sombre. */}
       <button
         type="button"
         className="ax-icon-btn ax-theme-toggle"
@@ -282,15 +293,17 @@ export function ShellHeader({
       </button>
 
       {/* ── Panneau Apparence ── */}
-      <button
-        type="button"
-        className="ax-icon-btn"
-        onClick={onOpenCustomizer}
-        aria-label="Ouvrir le panneau d'apparence"
-        aria-controls="ax-customizer"
-      >
-        <Palette className="ax-icon" size={19} aria-hidden="true" />
-      </button>
+      {canCustomize && (
+        <button
+          type="button"
+          className="ax-icon-btn"
+          onClick={onOpenCustomizer}
+          aria-label="Ouvrir le panneau d'apparence"
+          aria-controls="ax-customizer"
+        >
+          <Palette className="ax-icon" size={19} aria-hidden="true" />
+        </button>
+      )}
 
       {/* ── Menu profil ── */}
       <DropdownMenu>
@@ -336,12 +349,14 @@ export function ShellHeader({
             </Link>
           </DropdownMenuItem>
 
-          <DropdownMenuItem
-            onSelect={onOpenCustomizer}
-            className="cursor-pointer gap-2"
-          >
-            <Settings size={16} aria-hidden="true" /> Apparence
-          </DropdownMenuItem>
+          {canCustomize && (
+            <DropdownMenuItem
+              onSelect={onOpenCustomizer}
+              className="cursor-pointer gap-2"
+            >
+              <Settings size={16} aria-hidden="true" /> Apparence
+            </DropdownMenuItem>
+          )}
 
           {/*
             Le guide se range ici autant que dans le rail : c'est sous son

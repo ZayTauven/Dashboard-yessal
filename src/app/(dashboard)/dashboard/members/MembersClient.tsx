@@ -43,12 +43,13 @@ import { FilterBar } from "@/components/vireo/FilterBar";
 import { Modal } from "@/components/vireo/Modal";
 import { Pagination } from "@/components/vireo/Pagination";
 import { StatusBadge } from "@/components/vireo/StatusBadge";
+import { TitleBadge } from "@/components/vireo/TitleBadge";
 import { ALL, useCollection } from "@/hooks/useCollection";
 
 type Role = "chef_daara" | "collector" | "member";
 
 const ROLE_LABELS: Record<Role, string> = {
-  chef_daara: "Chef Daara",
+  chef_daara: "Coordinateur du Daara",
   collector: "Talibé · Collecteur",
   member: "Talibé",
 };
@@ -93,7 +94,10 @@ type MemberRow = {
   daara?: { id?: number; name?: string | null; ldd_code?: string | null; ldd_name?: string | null } | null;
   avatar?: string | null;
   avatar_url?: string | null;
-  title?: string | null;
+  /* Titre honorifique — `title_name` dans `DirectoryUserSerializer`. La
+     modale lisait `title`, un champ que l'annuaire n'envoie pas : elle
+     affichait donc « Talibé » pour tout le monde. */
+  title_name?: string | null;
   documents_count?: number;
 };
 
@@ -246,7 +250,13 @@ export function MembersClient({
                   />
 
                   <div className="min-w-0 flex-1">
-                    <div className="ax-truncate font-semibold">{fullName(m)}</div>
+                    {/* Titre avant le nom ; un nom long passe à la ligne. */}
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <TitleBadge title={m.title_name} size="sm" />
+                      <span className="ax-truncate min-w-0 max-w-full font-semibold">
+                        {fullName(m)}
+                      </span>
+                    </div>
                     <div className="ax-truncate ax-text-subtle text-xs">
                       {m.email}
                     </div>
@@ -328,7 +338,10 @@ export function MembersClient({
                 className="ax-btn ax-btn--primary"
                 onClick={() => router.push(`/dashboard/users/${detail.id}`)}
               >
-                <span className="ax-btn__label">Voir la fiche complète</span>
+                <span className="ax-btn__label">
+                  {/* Hors admin, la fiche est la carte en lecture seule. */}
+                  {viewerRole === "admin" ? "Voir la fiche complète" : "Voir la fiche"}
+                </span>
               </button>
             </>
           )
@@ -344,10 +357,14 @@ export function MembersClient({
               />
               <div className="flex flex-col gap-2">
                 <StatusBadge domain="user" value={detail.status} />
-                <span className="ax-text-muted inline-flex items-center gap-2 text-sm">
-                  <Shield size={14} aria-hidden="true" />
-                  {detail.title || "Talibé"}
-                </span>
+                {detail.title_name ? (
+                  <TitleBadge title={detail.title_name} />
+                ) : (
+                  <span className="ax-text-muted inline-flex items-center gap-2 text-sm">
+                    <Shield size={14} aria-hidden="true" />
+                    Sans titre honorifique
+                  </span>
+                )}
               </div>
             </div>
 

@@ -23,8 +23,8 @@ export default async function MembersPage() {
         title={role === "admin" ? "Liste des membres" : "Membres du Daara"}
         subtitle={
           role === "admin"
-            ? "Membres, chefs de Daara et collecteurs (hors comptes administrateurs)."
-            : "Personnes rattachées à votre Daara : membres, chef et collecteurs."
+            ? "Membres, coordinateurs de Daara et collecteurs (hors comptes administrateurs)."
+            : "Personnes rattachées à votre Daara : membres, coordinateur et collecteurs."
         }
       />
 

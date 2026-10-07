@@ -177,10 +177,10 @@ type PresenceBinding = {
 
 const CHEF_MODES: { value: ChatInviteMode; label: string }[] = [
   { value: "manual", label: "Choisir des membres manuellement" },
-  { value: "daara_all", label: "Tout le Daara (membres, chef, collecteurs)" },
+  { value: "daara_all", label: "Tout le Daara (membres, coordinateur, collecteurs)" },
   { value: "daara_members", label: "Membres du Daara uniquement" },
   { value: "daara_collectors", label: "Collecteurs du Daara" },
-  { value: "daara_chefs", label: "Chefs de Daara (votre Daara)" },
+  { value: "daara_chefs", label: "Coordinateurs du Daara (votre Daara)" },
 ];
 
 const ADMIN_MODES: { value: ChatInviteMode; label: string }[] = [
@@ -188,8 +188,8 @@ const ADMIN_MODES: { value: ChatInviteMode; label: string }[] = [
   { value: "daara_all", label: "Un Daara entier (tous rôles communautaires)" },
   { value: "daara_members", label: "Membres d'un Daara" },
   { value: "daara_collectors", label: "Collecteurs d'un Daara" },
-  { value: "daara_chefs", label: "Chefs d'un Daara" },
-  { value: "global_chefs", label: "Tous les chefs de Daara (plateforme)" },
+  { value: "daara_chefs", label: "Coordinateurs d'un Daara" },
+  { value: "global_chefs", label: "Tous les coordinateurs de Daara (plateforme)" },
   { value: "global_collectors", label: "Tous les collecteurs (plateforme)" },
 ];
 

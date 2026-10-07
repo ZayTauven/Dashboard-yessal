@@ -37,7 +37,7 @@ export default function Bienvenue() {
         </Card>
         <Card title="Elle tient la communauté" icon={<Globe size={18} />}>
           Les membres, les <Terme mot="daara">Daaras</Terme>, les zones
-          territoriales, les chefs et les collecteurs : une seule liste, tenue à
+          territoriales, les coordinateurs et les collecteurs : une seule liste, tenue à
           jour, consultable.
         </Card>
         <Card title="Elle relie les familles" icon={<HeartHandshake size={18} />}>
@@ -75,7 +75,7 @@ export default function Bienvenue() {
           <>
             <b>Le tableau de bord.</b> Ce qu’un administrateur voit en
             ouvrant la plateforme : la collecte du réseau, les adhésions, les
-            Ndiguels en cours. Un chef de Daara voit le même écran, borné à son
+            Ndiguels en cours. Un coordinateur de Daara voit le même écran, borné à son
             Daara.
           </>
         }

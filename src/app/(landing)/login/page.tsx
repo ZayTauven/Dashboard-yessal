@@ -104,8 +104,8 @@ export default function LoginPage() {
           <div className="max-w-md">
             <p className="ax-eyebrow mb-3">Yessal Gui</p>
             <p className="text-2xl leading-snug font-medium text-foreground">
-              L'actualité sur le guide des Thiantakones de Yessal Gui le
-              renouveau : Jëfs, Ndiguels, fêtes et actualités, réunis en un seul
+              L’actualité sur le guide des Thiantakones de Yessal Gui le
+              renouveau : Jëfs, Ndiguels, événements et actualités, réunis en un seul
               endroit.
             </p>
             <p className="ax-text-muted mt-4 text-sm">

@@ -59,7 +59,7 @@ const PROMISES: { icon: LucideIcon; title: string; text: string }[] = [
   {
     icon: Users,
     title: "Chaque Daara à sa place",
-    text: "Membres, chefs et collecteurs, réunis par structure.",
+    text: "Membres, coordinateurs et collecteurs, réunis par structure.",
   },
   {
     icon: Heart,
@@ -105,7 +105,10 @@ export default function LandingPage() {
 
         <nav className="flex items-center gap-2">
           <ThemeToggle />
-          <Link href="/contact" className="ax-btn ax-btn--ghost hidden sm:inline-flex">
+          <Link
+            href="/contact"
+            className="ax-btn ax-btn--ghost hidden sm:inline-flex"
+          >
             <HelpCircle className="ax-btn__icon" size={15} aria-hidden="true" />
             <span className="ax-btn__label">Support</span>
           </Link>
@@ -117,8 +120,8 @@ export default function LandingPage() {
       </header>
 
       {/* ── Hero ── */}
-      <main className="grid flex-1 grid-cols-1 lg:grid-cols-2">
-        <section className="flex flex-col justify-center px-6 py-16 sm:px-10 lg:px-20 lg:py-24">
+      <main className="grid flex-1 grid-cols-1 lg:grid-cols-[3fr_2fr]">
+        <section className="@container flex flex-col justify-center px-6 py-16 sm:px-10 lg:px-20 lg:py-24">
           <div className="mb-10">
             <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill">
               <span className="ax-badge__dot" aria-hidden="true" />
@@ -126,15 +129,26 @@ export default function LandingPage() {
             </span>
           </div>
 
-          <h1 className="mb-6 text-4xl leading-tight font-light tracking-tight lg:text-5xl">
-            Gérez les dons
+          {/*
+            Sur écran web, chaque partie du titre tient sur UNE ligne (demande
+            du client) : pas de retour à la ligne, et une taille qui suit la
+            largeur de la colonne (`cqi`), plafonnée à 3rem. La seconde ligne,
+            la plus longue, mesure environ 22em. Sur téléphone, le titre se
+            replie normalement.
+          */}
+          <h1 className="mb-6 text-4xl leading-tight font-light tracking-tight lg:text-[length:min(4.3cqi,3rem)]">
+            <span className="lg:whitespace-nowrap">
+              BARKEP SERIGNE BETHIO SALIOU
+            </span>
             <br />
-            <span className="ax-text-accent font-normal">de votre Daara</span>
+            <span className="ax-text-accent font-normal lg:whitespace-nowrap">
+              JEREJEFETY SERIGNE BETHIO SOKHNA AÏDA SALIOU
+            </span>
           </h1>
 
           <p className="ax-text-muted mb-12 max-w-prose text-base leading-relaxed">
-            Centralisez les Ndiguels, tracez chaque Jëf et renforcez les liens de
-            votre communauté — depuis n&apos;importe où dans le monde.
+            L’ACTUALITÉ SUR LE GUIDE DES THIANTAKONE DE YESSAL GUI LE RENOUVEAU
+            SE PASSE ICI
           </p>
 
           {/* Les trois promesses, chiffres absents assumés. */}
@@ -160,7 +174,10 @@ export default function LandingPage() {
               <LogIn className="ax-btn__icon" size={16} aria-hidden="true" />
               <span className="ax-btn__label">Se connecter</span>
             </Link>
-            <Link href="/register" className="ax-btn ax-btn--outline ax-btn--lg">
+            <Link
+              href="/register"
+              className="ax-btn ax-btn--outline ax-btn--lg"
+            >
               <span className="ax-btn__label">Demander un accès</span>
             </Link>
           </div>

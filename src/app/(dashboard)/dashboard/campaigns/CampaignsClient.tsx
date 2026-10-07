@@ -109,10 +109,13 @@ export function CampaignsClient({
   initialCampaigns,
   isAdmin,
   canUseDonationPage,
+  hideCompleted = false,
 }: {
   initialCampaigns: CampaignCard[];
   isAdmin: boolean;
   canUseDonationPage: boolean;
+  /** Talibé et tutelle : pas d'onglet « Terminés », le serveur ne les envoie plus. */
+  hideCompleted?: boolean;
 }) {
   /* Les suppressions se confirment dans un vrai dialogue : un toast
      expire seul, ne piege pas le focus, et s'affiche dans un coin que
@@ -323,7 +326,9 @@ export function CampaignsClient({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="ax-segment ax-scroll-x max-w-full" role="group" aria-label="Filtrer par statut">
-          {STATUS_TABS.map((t) => (
+          {STATUS_TABS.filter(
+            (t) => !(hideCompleted && t.value === "completed"),
+          ).map((t) => (
             <button
               key={t.value}
               type="button"

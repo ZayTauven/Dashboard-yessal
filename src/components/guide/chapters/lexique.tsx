@@ -72,17 +72,17 @@ export default function Lexique() {
 
       <Ornament />
 
-      <h2 id="les-fetes">Les Fêtes citées par la plateforme</h2>
+      <h2 id="les-fetes">Les Événements cités par la plateforme</h2>
       <p>
-        Une <strong>Fête</strong> est un événement auquel un Ndiguel peut se
-        rattacher. La plateforme n’en impose aucune : l’administration
-        crée celles dont la communauté a besoin, avec leur récurrence. Trois
+        Un <strong>Événement</strong> est un rendez-vous auquel un Ndiguel peut
+        se rattacher. La plateforme n’en impose aucun : l’administration
+        crée ceux dont la communauté a besoin, avec leur récurrence. Trois
         rythmes existent.
       </p>
 
       <ul>
         <li>
-          <strong>Annuel</strong> — le Magal, le Gamou. La Fête revient chaque
+          <strong>Annuel</strong> — le Magal, le Gamou. L’Événement revient chaque
           année, et un nouveau Ndiguel s’y rattache à chaque édition.
         </li>
         <li>
@@ -95,12 +95,12 @@ export default function Lexique() {
         </li>
       </ul>
 
-      <Callout title="Fête et Ndiguel ne sont pas la même chose">
+      <Callout title="Événement et Ndiguel ne sont pas la même chose">
         <p className="m-0">
-          La Fête est l’<em>occasion</em> ; le Ndiguel est la{" "}
-          <em>collecte</em> menée à cette occasion. Une même Fête peut porter
+          L’Événement est l’<em>occasion</em> ; le Ndiguel est la{" "}
+          <em>collecte</em> menée à cette occasion. Un même Événement peut porter
           plusieurs Ndiguels au fil des années, et un Ndiguel peut n’être
-          rattaché à aucune Fête.
+          rattaché à aucun Événement.
         </p>
       </Callout>
 

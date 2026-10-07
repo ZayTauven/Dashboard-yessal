@@ -107,7 +107,7 @@ export function NewCampaignClient({
               {isEditMode ? "Modifier le Ndiguel" : "Lancer un nouveau Ndiguel"}
             </h2>
             <p className="ax-card__subtitle">
-              Un Ndiguel peut être rattaché à une fête et confié à un
+              Un Ndiguel peut être rattaché à un événement et confié à un
               responsable.
             </p>
           </div>
@@ -208,7 +208,7 @@ export function NewCampaignClient({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="ax-field">
                 <label className="ax-field__label" htmlFor="feteId">
-                  Rattacher à une fête
+                  Rattacher à un événement
                 </label>
                 <select
                   id="feteId"
@@ -218,7 +218,7 @@ export function NewCampaignClient({
                     initialCampaign?.fete ? String(initialCampaign.fete) : ""
                   }
                 >
-                  <option value="">Aucune fête</option>
+                  <option value="">Aucun événement</option>
                   {fetes.map((fete) => (
                     <option key={fete.id} value={fete.id}>
                       {fete.name}

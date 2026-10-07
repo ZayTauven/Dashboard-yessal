@@ -81,7 +81,7 @@ const FAQ = [
       <p>
         Oui, et c’est la règle générale de la plateforme : rien n’est
         borné au Daara. Un collecteur collecte auprès de n’importe quel
-        membre, un chef de Daara peut écrire à n’importe qui, un membre
+        membre, un coordinateur de Daara peut écrire à n’importe qui, un membre
         écrit à qui accepte de le recevoir. La limite est la préférence du
         destinataire, jamais son rattachement. Voir{" "}
         <Link href="/guide/roles">Qui fait quoi</Link>.
@@ -92,7 +92,7 @@ const FAQ = [
     q: "Qui peut lancer un Ndiguel ?",
     a: (
       <p>
-        L’administration, et elle seule. Ni un chef de Daara, ni un
+        L’administration, et elle seule. Ni un coordinateur de Daara, ni un
         collecteur, ni un talibé ne créent de campagne. En revanche,
         l’<strong>organisateur</strong> désigné pour mener un Ndiguel peut
         être choisi dans n’importe quel Daara.
@@ -312,7 +312,7 @@ export default function GuideHome() {
           <div className="yg-callout__body">
             <strong className="yg-callout__title">Il reste une question</strong>
             <p className="m-0">
-              Le chef de votre Daara est le premier recours ; il connaît votre
+              Le coordinateur de votre Daara est le premier recours ; il connaît votre
               situation mieux que n’importe quel écran. Pour un problème
               technique — un accès bloqué, un don qui n’apparaît pas —{" "}
               <Link href="/contact">écrivez au support</Link>.

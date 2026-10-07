@@ -18,6 +18,7 @@ import { Avatar } from "@/components/vireo/Avatar";
 import { CoverBand } from "@/components/vireo/CoverBand";
 import { PageHead } from "@/components/vireo/PageHead";
 import { StatusBadge } from "@/components/vireo/StatusBadge";
+import { TitleBadge } from "@/components/vireo/TitleBadge";
 import type { Role } from "@/lib/nav";
 import { roleLabelLong } from "@/lib/roles";
 import { CollectorList } from "./CollectorList";
@@ -81,6 +82,8 @@ type DaaraMember = {
   role?: string | null;
   avatar?: string | null;
   avatar_url?: string | null;
+  /* Titre honorifique — déjà envoyé par l'annuaire (`DirectoryUserSerializer`). */
+  title_name?: string | null;
 };
 
 export default async function DaaraPage() {
@@ -116,7 +119,7 @@ export default async function DaaraPage() {
               }
               description={
                 error ??
-                "Contactez votre Chef Daara ou l'administrateur pour être rattaché à une communauté."
+                "Contactez le coordinateur de votre Daara ou l’administrateur pour être rattaché à une communauté."
               }
               action={
                 <Link href="/dashboard" className="ax-btn ax-btn--primary">
@@ -212,7 +215,7 @@ export default async function DaaraPage() {
               <UserCircle />
             </span>
             <div className="ax-card__titles">
-              <h3 className="ax-card__title">Chef de Daara</h3>
+              <h3 className="ax-card__title">Coordinateur du Daara</h3>
               <p className="ax-card__subtitle">
                 {d.chef_full_name || "Non renseigné"}
               </p>
@@ -299,13 +302,18 @@ export default async function DaaraPage() {
                           name={`${member.first_name} ${member.last_name}`}
                           size="sm"
                         />
-                        <div className="flex flex-col">
-                          <Link
-                            href={`/dashboard/users/${member.id}`}
-                            className="ax-link font-medium"
-                          >
-                            {member.first_name} {member.last_name}
-                          </Link>
+                        <div className="flex min-w-0 flex-col">
+                          {/* Titre avant le nom ; `flex-wrap` renvoie un nom
+                              long à la ligne au lieu d'écraser la pastille. */}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <TitleBadge title={member.title_name} size="sm" />
+                            <Link
+                              href={`/dashboard/users/${member.id}`}
+                              className="ax-link font-medium"
+                            >
+                              {member.first_name} {member.last_name}
+                            </Link>
+                          </div>
                           <span className="ax-text-subtle text-xs">
                             {member.email}
                           </span>

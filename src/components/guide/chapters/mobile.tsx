@@ -150,7 +150,7 @@ export default function Mobile() {
         </li>
       </ul>
 
-      <Callout title="Un chef de Daara sur téléphone">
+      <Callout title="Un coordinateur de Daara sur téléphone">
         <p className="m-0">
           Il y retrouve son Daara et ses membres, mais la gestion fine — les
           listes longues, les fiches complètes, les exports — reste plus

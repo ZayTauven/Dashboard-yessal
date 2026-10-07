@@ -239,7 +239,7 @@ export function NotificationsClient({
               description={
                 filter === "unread"
                   ? "Vous n'avez aucune alerte en attente."
-                  : "Les alertes concernant vos Jëfs, Ndiguels et fêtes arriveront ici."
+                  : "Les alertes concernant vos Jëfs, Ndiguels et événements arriveront ici."
               }
               action={
                 filter === "unread" ? (

@@ -69,10 +69,10 @@ type CampaignRow = {
 
 /** `events.Fete.Recurrence` */
 const RECURRENCE_LABELS: Record<string, string> = {
-  annual: "Annuelle",
-  quarterly: "Trimestrielle",
+  annual: "Annuel",
+  quarterly: "Trimestriel",
   weekly: "Hebdomadaire",
-  none: "Ponctuelle",
+  none: "Ponctuel",
 };
 
 const longDate = new Intl.DateTimeFormat("fr-SN", {
@@ -113,7 +113,7 @@ export default async function FeteDetailPage({
    * d'erreur du segment, qui propose de réessayer.
    */
   if (status === 404) notFound();
-  if (error || !etat) throw new Error(error ?? "Fête indisponible.");
+  if (error || !etat) throw new Error(error ?? "Événement indisponible.");
 
   const contributions: Contribution[] = etat.contributions || [];
   const campaigns: CampaignRow[] = etat.campaigns || [];
@@ -148,12 +148,12 @@ export default async function FeteDetailPage({
         subtitle={etat.description || undefined}
         crumbs={[
           { label: "Gestion" },
-          { label: "Les Fêtes", href: "/dashboard/events" },
+          { label: "Les Événements", href: "/dashboard/events" },
         ]}
         actions={
           <Link href="/dashboard/events" className="ax-btn ax-btn--ghost">
             <ArrowLeft className="ax-btn__icon" size={16} aria-hidden="true" />
-            <span className="ax-btn__label">Retour aux fêtes</span>
+            <span className="ax-btn__label">Retour aux événements</span>
           </Link>
         }
       >
@@ -385,7 +385,7 @@ export default async function FeteDetailPage({
         {contributions.length === 0 ? (
           <div className="ax-card__body">
             <p className="ax-text-subtle text-center text-sm italic">
-              Aucune contribution confirmée pour cette fête.
+              Aucune contribution confirmée pour cet événement.
             </p>
           </div>
         ) : (

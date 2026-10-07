@@ -31,7 +31,7 @@ import { useGuideRole, useReadChapters } from "./reading-state";
 /*
  * Un picto par rôle, choisi pour ce que le rôle FAIT :
  *   · le talibé donne          → la main qui tend un cœur ;
- *   · le chef veille           → les deux mains qui en abritent un ;
+ *   · le coordinateur veille   → les deux mains qui en abritent un ;
  *   · le collecteur encaisse   → la tirelire ;
  *   · l'administration arbitre → le quatre-feuilles, un motif de sceau.
  */

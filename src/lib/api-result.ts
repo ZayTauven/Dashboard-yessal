@@ -139,7 +139,7 @@ const LABELS: Record<string, string> = {
   deadline: "Date limite",
   goal_amount: "Objectif",
   objective: "Objectif",
-  fete: "Fête",
+  fete: "Événement",
   organizer: "Organisateur",
   doc_number: "Numéro du document",
   image_recto: "Recto",

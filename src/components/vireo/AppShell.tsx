@@ -21,9 +21,11 @@
  *     la navigation elle-même.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useCustomizer } from "@/context/CustomizerContext";
+import * as vireoTheme from "@/lib/vireo/theme";
 import { ShellSidebar } from "./ShellSidebar";
 import { ShellHeader } from "./ShellHeader";
 import { Customizer } from "./Customizer";
@@ -36,6 +38,36 @@ import type { NavCounts, Role } from "@/lib/nav";
 /** Seuil de bascule rail ↔ tiroir. Doit suivre --ax-bp-lg de Vireo (992 px). */
 const DESKTOP_QUERY = "(min-width: 992px)";
 
+/* Déclinaison figée pour tout rôle autre qu'admin, validée par le client sur
+   capture : clés du `REGISTRY` de `lib/vireo/theme.ts`. */
+const MEMBER_APPEARANCE: Record<string, string> = {
+  "shell-style": "detached",
+  "sidebar-scheme": "dark",
+};
+
+/* Témoin du ménage unique des réglages d'un membre. Changer la version
+   relance ce ménage chez tous les membres au prochain chargement. */
+const MEMBER_RESET_KEY = "yessal:apparence-membre";
+const MEMBER_RESET_VERSION = "1";
+
+/* localStorage peut lever (navigation privée, stockage bloqué) : sans lui, on
+   refait simplement le ménage à chaque chargement. */
+function readFlag(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeFlag(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* stockage indisponible : rien à retenir */
+  }
+}
+
 export interface AppShellProps {
   user?: {
     first_name?: string | null;
@@ -44,6 +76,7 @@ export interface AppShellProps {
     role?: string | null;
     avatar?: string | null;
     avatar_url?: string | null;
+    title_name?: string | null;
   } | null;
   notificationPreview: NotificationDto[];
   /** Bandeau de complétion de profil, rendu au-dessus du contenu. */
@@ -66,6 +99,45 @@ export function AppShell({
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [counts, setCounts] = useState<NavCounts>({});
+  const { setTheme } = useTheme();
+
+  /*
+   * Apparence figée hors admin — demande du client : le panneau Apparence ne
+   * sert qu'à l'administrateur. Les autres rôles voient la déclinaison retenue
+   * par le client (`MEMBER_APPEARANCE` : coque détachée, barre latérale
+   * sombre, violet Yessal), en thème clair par défaut ; seule la bascule
+   * clair / sombre de l'en-tête leur reste.
+   *
+   * Masquer le panneau ne suffit pas : un talibé qui avait déjà choisi un
+   * autre accent le garderait à vie, puisque le script d'en-tête
+   * `RESTORE_AX_ATTRS` réapplique les clés `ax:*` à chaque chargement. On les
+   * efface donc — mais UNE SEULE FOIS par navigateur (`MEMBER_RESET_KEY`,
+   * hors des clés `ax:*` que `reset()` efface) : refaire le ménage à chaque
+   * chargement annulerait aussi le mode sombre que le membre a choisi. La
+   * déclinaison, elle, est reposée à chaque montage ; persistée, elle est
+   * réappliquée avant React dès la visite suivante, sans flash.
+   *
+   * `reset()` repose `lang="en"` sur <html> (comportement d'origine de
+   * Vireo) : on remet la langue de la page, sans quoi les lecteurs d'écran
+   * liraient le français avec une voix anglaise.
+   */
+  const appearanceLocked = role !== "admin";
+  const appearanceResetDone = useRef(false);
+  useEffect(() => {
+    if (!appearanceLocked || appearanceResetDone.current) return;
+    appearanceResetDone.current = true;
+    if (readFlag(MEMBER_RESET_KEY) !== MEMBER_RESET_VERSION) {
+      const D = document.documentElement;
+      const lang = D.getAttribute("lang") || "fr";
+      vireoTheme.reset();
+      D.setAttribute("lang", lang);
+      setTheme("light");
+      writeFlag(MEMBER_RESET_KEY, MEMBER_RESET_VERSION);
+    }
+    for (const [name, value] of Object.entries(MEMBER_APPEARANCE)) {
+      vireoTheme.setByName(name, value);
+    }
+  }, [appearanceLocked, setTheme]);
 
   /* Largeur : on écoute la media query plutôt que window.innerWidth pour
      éviter de recalculer à chaque pixel de redimensionnement. */
@@ -148,7 +220,9 @@ export function AppShell({
             notificationPreview={notificationPreview}
             onToggleRail={toggleRail}
             onOpenQuickActions={() => setQuickOpen(true)}
-            onOpenCustomizer={() => setCustomizerOpen(true)}
+            onOpenCustomizer={
+              appearanceLocked ? undefined : () => setCustomizerOpen(true)
+            }
             railExpanded={isDesktop ? !c.collapsed : drawerOpen}
           />
 
@@ -181,7 +255,9 @@ export function AppShell({
         />
       )}
 
-      <Customizer open={customizerOpen} onClose={() => setCustomizerOpen(false)} />
+      {!appearanceLocked && (
+        <Customizer open={customizerOpen} onClose={() => setCustomizerOpen(false)} />
+      )}
       <QuickActions role={role} open={quickOpen} onOpenChange={setQuickOpen} />
     </>
   );

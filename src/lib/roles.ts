@@ -30,7 +30,7 @@
 export const ROLE_LABEL: Record<string, string> = {
   member: "Talibé",
   collector: "Collecteur",
-  chef_daara: "Chef de Daara",
+  chef_daara: "Coordinateur du Daara",
   tutelle: "Tutelle",
   admin: "Administrateur",
 };

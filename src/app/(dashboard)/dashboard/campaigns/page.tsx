@@ -13,6 +13,9 @@ export default async function CampaignsPage() {
   const isAdmin = role === "admin";
   const canUseDonationPage =
     role === "member" || role === "collector" || role === "chef_daara";
+  /* Le talibé et la tutelle ne voient que les Ndiguels ouverts : le serveur
+     ne leur envoie plus les Ndiguels terminés, l'onglet resterait vide. */
+  const hideCompleted = role === "member" || role === "tutelle";
 
   return (
     <div className="flex flex-col gap-6">
@@ -34,6 +37,7 @@ export default async function CampaignsPage() {
           initialCampaigns={campaigns || []}
           isAdmin={isAdmin}
           canUseDonationPage={canUseDonationPage}
+          hideCompleted={hideCompleted}
         />
       )}
     </div>

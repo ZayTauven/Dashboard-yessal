@@ -135,11 +135,11 @@ export function navSections(role: Role): NavSection[] {
       items: [
         {
           id: "events",
-          title: "Fêtes",
+          title: "Événements",
           href: "/dashboard/events",
           icon: CalendarDays,
           roles: ["admin"],
-          keywords: ["événements", "magal", "gamou", "agenda"],
+          keywords: ["fêtes", "magal", "gamou", "agenda"],
         },
         {
           id: "campaigns",

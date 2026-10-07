@@ -5,8 +5,8 @@
  * Fiche membre
  * ═══════════════════════════════════════════════════════════════════════════
  * L'en-tête de profil précédent posait un dégradé violet en dur et affichait
- * six lignes d'état civil. Celui-ci répond d'abord aux questions qu'un chef de
- * Daara ou un admin se pose vraiment en ouvrant une fiche :
+ * six lignes d'état civil. Celui-ci répond d'abord aux questions qu'un
+ * coordinateur du Daara ou un admin se pose vraiment en ouvrant une fiche :
  *
  *   1. Qui est-ce, et à quel Daara appartient-il ?      → bandeau d'identité
  *   2. Son compte est-il en règle ?                     → statut + pièces
@@ -23,7 +23,6 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  BadgeCheck,
   Building2,
   CalendarDays,
   CircleAlert,
@@ -38,6 +37,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatFCFA } from "@/components/charts/YessalCharts";
+import { TitleBadge } from "@/components/vireo/TitleBadge";
 import {
   ROLE_LABEL,
   STATUS_LABEL,
@@ -91,22 +91,30 @@ function formatRelative(iso?: string | null): string | null {
  * décoratif (groupe sanguin, code postal) n'entre pas dans le calcul — sinon
  * tout le monde plafonne à 60 % sans rien y pouvoir.
  */
-const COMPLETENESS_FIELDS: Array<{ key: keyof Member; label: string }> = [
-  { key: "first_name", label: "Prénom" },
-  { key: "last_name", label: "Nom" },
-  { key: "phone", label: "Téléphone" },
-  { key: "email", label: "E-mail" },
-  { key: "daara_name", label: "Daara" },
-  { key: "city", label: "Ville" },
-  { key: "birth_date", label: "Date de naissance" },
-  { key: "avatar_url", label: "Photo" },
+const COMPLETENESS_FIELDS: Array<{ keys: Array<keyof Member>; label: string }> = [
+  { keys: ["first_name"], label: "Prénom" },
+  { keys: ["last_name"], label: "Nom" },
+  { keys: ["phone"], label: "Téléphone" },
+  { keys: ["email"], label: "E-mail" },
+  { keys: ["daara_name"], label: "Daara" },
+  { keys: ["city"], label: "Ville" },
+  { keys: ["birth_date"], label: "Date de naissance" },
+  /* Deux champs pour une seule photo, comme dans `lib/profile-completion` :
+     `avatar` est le fichier téléversé, `avatar_url` une adresse extérieure.
+     Ne contrôler que `avatar_url` affichait « Manque : photo » sous une fiche
+     dont la photo était pourtant visible juste au-dessus. */
+  { keys: ["avatar", "avatar_url"], label: "Photo" },
 ];
 
+function isBlank(v: unknown): boolean {
+  return v === null || v === undefined || v === "";
+}
+
 function completeness(member: Member) {
-  const missing = COMPLETENESS_FIELDS.filter((f) => {
-    const v = member[f.key];
-    return v === null || v === undefined || v === "";
-  });
+  /* Un critère est rempli dès qu'UN de ses champs l'est. */
+  const missing = COMPLETENESS_FIELDS.filter((f) =>
+    f.keys.every((k) => isBlank(member[k])),
+  );
   const filled = COMPLETENESS_FIELDS.length - missing.length;
   return {
     pct: Math.round((filled / COMPLETENESS_FIELDS.length) * 100),
@@ -310,16 +318,12 @@ export function MemberProfileCard({
           </Avatar>
 
           <div className="flex min-w-0 flex-1 flex-col gap-2 sm:pb-1">
+            {/* Le titre honorifique précède le nom, comme on le prononce. */}
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+              <TitleBadge title={member.title_name} />
+              <h1 className="min-w-0 break-words text-2xl font-semibold tracking-tight sm:text-3xl">
                 {name}
               </h1>
-              {member.title_name && (
-                <span className="ax-badge ax-badge--pill ax-badge--soft ax-badge--accent">
-                  <BadgeCheck size={13} aria-hidden="true" />
-                  {member.title_name}
-                </span>
-              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-text-muted">

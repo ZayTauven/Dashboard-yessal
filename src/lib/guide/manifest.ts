@@ -50,7 +50,7 @@ export interface GuideSection {
 
 export const ROLE_LABELS: Record<GuideRole, string> = {
   talibe: "Talibé",
-  chef: "Chef de Daara",
+  chef: "Coordinateur du Daara",
   collecteur: "Collecteur",
   admin: "Administrateur",
 };
@@ -148,7 +148,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     minutes: 5,
     roles: [],
     section: "vocabulaire",
-    keywords: ["permissions", "droits", "admin", "chef", "collecteur", "membre"],
+    keywords: ["permissions", "droits", "admin", "chef", "coordinateur", "collecteur", "membre"],
   },
 
   /* ── Les gestes du quotidien ─────────────────────────────────────────── */
@@ -182,12 +182,12 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     minutes: 8,
     roles: ["admin"],
     section: "gestes",
-    keywords: ["campagne", "creer", "objectif", "echeance", "organisateur", "fete"],
+    keywords: ["campagne", "creer", "objectif", "echeance", "organisateur", "fete", "evenement"],
   },
   {
     slug: "suivre-son-daara",
     title: "Suivre son Daara",
-    lead: "L'annuaire, le chef, les collecteurs, et ce que voit un chef de Daara que les autres ne voient pas.",
+    lead: "L'annuaire, le coordinateur, les collecteurs, et ce que voit un coordinateur de Daara que les autres ne voient pas.",
     icon: "users-round",
     minutes: 5,
     roles: ["talibe", "chef"],

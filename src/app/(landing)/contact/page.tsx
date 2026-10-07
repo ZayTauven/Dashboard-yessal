@@ -54,7 +54,7 @@ export default function ContactPage() {
               <div className="ax-alert__content">
                 <p className="ax-alert__message">
                   Ce formulaire n&apos;est pas encore relié au support. En
-                  attendant, passez par votre chef de Daara ou un
+                  attendant, passez par le coordinateur de votre Daara ou un
                   administrateur.
                 </p>
               </div>

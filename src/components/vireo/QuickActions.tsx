@@ -233,6 +233,8 @@ export function QuickActions({ role = "member", open, onOpenChange }: QuickActio
           },
         ],
       },
+      /* Ouvert à tous : l'apparence des membres est figée (voir `AppShell`),
+         mais le choix clair / sombre leur reste. */
       {
         heading: "Apparence",
         items: [

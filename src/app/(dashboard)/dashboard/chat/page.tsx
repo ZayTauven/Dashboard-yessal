@@ -80,7 +80,7 @@ export default async function ChatPage({
       <PageHead
         role={(role ?? "member") as Role}
         title="Messagerie"
-        subtitle="Les salons sont créés par un administrateur ou un chef de Daara ; les autres profils rejoignent ceux auxquels ils sont invités."
+        subtitle="Les salons sont créés par un administrateur ou un coordinateur de Daara ; les autres profils rejoignent ceux auxquels ils sont invités."
       />
 
       <div className="ax-card flex min-h-0 flex-1 overflow-hidden">

@@ -91,7 +91,7 @@ export default function PremiersPas() {
 
       <Callout tone="warn" title="« Je ne peux pas me connecter »">
         <p className="m-0">
-          Neuf fois sur dix, le compte attend encore sa validation. Le chef de
+          Neuf fois sur dix, le compte attend encore sa validation. Le coordinateur de
           votre Daara est le mieux placé pour la faire avancer : il connaît
           votre situation, et l’administrateur lui répondra plus vite
           qu’à un inconnu.

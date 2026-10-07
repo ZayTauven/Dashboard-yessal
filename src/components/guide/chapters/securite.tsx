@@ -108,7 +108,7 @@ export default function Securite() {
         </li>
         <li>
           <strong>Vos Jëfs</strong> — de vous, de l’administration, et du
-          chef de votre Daara pour ceux qui concernent son Daara.
+          coordinateur de votre Daara pour ceux qui concernent son Daara.
         </li>
         <li>
           <strong>Vos messages</strong> — des personnes présentes dans la

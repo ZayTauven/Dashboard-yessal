@@ -21,7 +21,7 @@ export default function SuivreSonDaara() {
 
       <Shot
         src="/guide-assets/shots/chef-daara.webp"
-        alt="La page Mon Daara : nom du Daara et sa zone territoriale, le chef, les collecteurs désignés, et la liste des autres membres."
+        alt="La page Mon Daara : nom du Daara et sa zone territoriale, le coordinateur, les collecteurs désignés, et la liste des autres membres."
         url="yessal.sn/dashboard/daara"
         caption={
           <>
@@ -41,7 +41,7 @@ export default function SuivreSonDaara() {
           désactivé n’accepte plus de nouveaux membres.
         </li>
         <li>
-          <strong>Le chef de Daara</strong> — son nom et l’effectif inscrit
+          <strong>Le coordinateur du Daara</strong> — son nom et l’effectif inscrit
           sur la plateforme.
         </li>
         <li>
@@ -65,9 +65,9 @@ export default function SuivreSonDaara() {
 
       <Ornament />
 
-      <h2 id="chef-de-daara">Ce que voit un chef de Daara</h2>
+      <h2 id="chef-de-daara">Ce que voit un coordinateur de Daara</h2>
       <p>
-        Le chef dispose de trois écrans que les autres membres n’ont pas,
+        Le coordinateur dispose de trois écrans que les autres membres n’ont pas,
         tous bornés à son Daara.
       </p>
 
@@ -89,7 +89,7 @@ export default function SuivreSonDaara() {
 
       <Shot
         src="/guide-assets/shots/chef-membres.webp"
-        alt="La liste des Talibés du Daara, vue par le chef : une ligne par membre avec son avatar, son titre et ses contacts."
+        alt="La liste des Talibés du Daara, vue par le coordinateur : une ligne par membre avec son avatar, son titre et ses contacts."
         url="yessal.sn/dashboard/members"
         caption={
           <>
@@ -102,7 +102,7 @@ export default function SuivreSonDaara() {
 
       <h2 id="collecteurs">Proposer un collecteur</h2>
       <p>
-        Un chef de Daara connaît les siens mieux que l’administration. Il
+        Un coordinateur de Daara connaît les siens mieux que l’administration. Il
         peut donc <strong>proposer</strong> un membre comme{" "}
         <Terme mot="collecteur" /> — mais c’est un administrateur qui
         nomme, depuis <Ui>Utilisateurs et rôles</Ui>.
@@ -137,7 +137,7 @@ export default function SuivreSonDaara() {
         Ce n’est pas une rigidité administrative : des dons déjà
         enregistrés pointent vers un Daara, et déplacer quelqu’un
         après coup déplace aussi ce qu’il a donné. La demande passe donc
-        par le chef de Daara, qui la porte à l’administration.
+        par le coordinateur du Daara, qui la porte à l’administration.
       </p>
     </>
   );

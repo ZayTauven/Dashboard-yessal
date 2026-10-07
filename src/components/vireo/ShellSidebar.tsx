@@ -27,6 +27,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Search, X } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { memberDisplayName, memberInitials } from "@/types/member";
+import { TitleBadge } from "./TitleBadge";
 import {
   isActiveHref,
   matchesFilter,
@@ -42,6 +43,8 @@ export interface SidebarUser {
   email?: string | null;
   avatar?: string | null;
   avatar_url?: string | null;
+  /** Titre honorifique, affiché en pastille avant le nom. */
+  title_name?: string | null;
 }
 
 export interface ShellSidebarProps {
@@ -217,7 +220,14 @@ export function ShellSidebar({
           )}
 
           <span className="ax-sidebar__user-meta">
-            <b className="ax-sidebar__user-name">{displayName}</b>
+            {/* Titre avant le nom ; `flex-wrap` renvoie un nom long à la
+                ligne sous la pastille, où l'ellipse prend le relais. */}
+            <span className="flex min-w-0 flex-wrap items-center gap-1">
+              <TitleBadge title={user?.title_name} size="sm" />
+              <b className="ax-sidebar__user-name min-w-0 max-w-full">
+                {displayName}
+              </b>
+            </span>
             <small className="ax-sidebar__user-mail">{user?.email}</small>
           </span>
 

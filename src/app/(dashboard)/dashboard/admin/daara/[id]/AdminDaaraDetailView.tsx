@@ -282,7 +282,7 @@ export function AdminDaaraDetailView({
                   size="xl"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="ax-eyebrow ax-text-accent">Chef de Daara</p>
+                  <p className="ax-eyebrow ax-text-accent">Coordinateur du Daara</p>
                   <p className="ax-card__title">{fullName(etat.chef)}</p>
                   <p className="ax-text-muted text-sm">{etat.chef.email}</p>
                 </div>
@@ -391,7 +391,7 @@ export function AdminDaaraDetailView({
                 <EmptyState
                   icon={UserCircle}
                   title="Aucun collecteur désigné"
-                  description="Un chef de Daara peut nommer un talibé collecteur depuis l'annuaire."
+                  description="Le coordinateur du Daara peut nommer un talibé collecteur depuis l'annuaire."
                 />
               </div>
             </div>

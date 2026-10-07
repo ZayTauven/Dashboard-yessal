@@ -58,6 +58,7 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { Avatar } from "@/components/vireo/Avatar";
 import { CardHeader } from "@/components/vireo/CardHeader";
 import { PasswordChangeForm } from "@/components/vireo/PasswordChangeForm";
+import { TitleBadge } from "@/components/vireo/TitleBadge";
 import { CoverBand } from "@/components/vireo/CoverBand";
 import { StatusBadge } from "@/components/vireo/StatusBadge";
 import { checkFileSize } from "@/components/vireo/FileDrop";
@@ -116,6 +117,7 @@ export interface ProfilePayload {
   blood_type?: string | null;
   daara_name?: string | null;
   title?: { name?: string } | null;
+  title_name?: string | null;
   /* Vrai quand le mot de passe a été attribué par un tiers. */
   must_change_password?: boolean | null;
 }
@@ -195,12 +197,10 @@ export function ProfileClient({
     avatarUrl ?? profile?.avatar_url ?? profile?.avatar ?? null;
 
   const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
-  const roleLabel = [
-    roleLabelLong(profile?.role ?? ""),
-    profile?.title?.name,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  /* Le titre honorifique n'est plus collé au rôle (« Talibé · Serigne ») :
+     il passe en pastille AVANT le nom, comme partout ailleurs. */
+  const roleLabel = roleLabelLong(profile?.role ?? "");
+  const titleName = profile?.title_name ?? profile?.title?.name ?? null;
 
   /*
     La liste vient du module partagé, plus d'une copie locale. Elle était
@@ -364,8 +364,13 @@ export function ProfileClient({
               </label>
             </div>
 
-            <div>
-              <h2 className="ax-card__title">{fullName || "Sans nom"}</h2>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <TitleBadge title={titleName} />
+                <h2 className="ax-card__title break-words">
+                  {fullName || "Sans nom"}
+                </h2>
+              </div>
               <p className="ax-text-muted text-sm">{roleLabel}</p>
             </div>
 
@@ -589,7 +594,6 @@ export function ProfileClient({
                       <option value="">Non renseigné</option>
                       <option value="male">Homme</option>
                       <option value="female">Femme</option>
-                      <option value="other">Autre</option>
                     </select>
                   </div>
                 </div>

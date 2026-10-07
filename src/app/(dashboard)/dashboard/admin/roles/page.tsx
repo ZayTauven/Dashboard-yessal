@@ -23,7 +23,7 @@ export default function AdminRolesPage() {
       <PageHead
         role="admin"
         title="Permissions et rôles"
-        subtitle="Niveaux d'accès des administrateurs, chefs de Daara, collecteurs et talibés."
+        subtitle="Niveaux d'accès des administrateurs, coordinateurs de Daara, collecteurs et talibés."
       />
 
       <div className="ax-card">

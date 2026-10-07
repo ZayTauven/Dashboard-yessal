@@ -3,7 +3,12 @@
 import { cookies } from "next/headers";
 import { generateProvisionalPassword } from "@/lib/password";
 import { stripEmptyFiles } from "@/lib/form-data";
-import { messageForErrors, type JsonPayload } from "@/lib/api-result";
+import {
+  messageForErrors,
+  messageForStatus,
+  type ApiResult,
+  type JsonPayload,
+} from "@/lib/api-result";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -76,6 +81,53 @@ export async function getDirectoryUsers() {
     console.error("getDirectoryUsers:", err);
     return { error: "Erreur de connexion." };
   }
+}
+
+/**
+ * Fiche d'un membre de l'annuaire — la seule que les rôles non-admin peuvent
+ * lire.
+ *
+ * `getUser` interroge `/api/users/{id}/`, réservé à l'admin : un talibé qui
+ * cliquait sur un nom dans « Mon Daara » recevait un 403, affiché en
+ * « Utilisateur introuvable ». Ce point d'entrée-ci est borné au Daara côté
+ * serveur ; un membre d'un autre Daara répond 404, que la page traduit en
+ * phrase claire grâce à `status`.
+ */
+export async function getDirectoryUser(
+  userId: number | string,
+): Promise<ApiResult<DirectoryUserPayload>> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/directory/users/${userId}/`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      return {
+        status: res.status,
+        unauthorized: res.status === 401,
+        error: messageForStatus(res.status, "Impossible de charger ce membre."),
+      };
+    }
+    return { data: await res.json(), status: res.status };
+  } catch (err) {
+    console.error("getDirectoryUser:", err);
+    return { status: 0, error: messageForStatus(0, "") };
+  }
+}
+
+/** Forme renvoyée par `DirectoryUserSerializer` — les champs qu'on affiche. */
+export interface DirectoryUserPayload {
+  id: number;
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role?: string | null;
+  status?: string | null;
+  daara_name?: string | null;
+  title_name?: string | null;
+  avatar?: string | null;
+  avatar_url?: string | null;
 }
 
 export async function getPilotageSettings() {

@@ -24,8 +24,8 @@ export default function LancerUnNdiguel() {
 
       <Callout tone="rule" title="Seule l'administration lance un Ndiguel">
         <p className="m-0">
-          Ni un chef de <Terme mot="daara" />, ni un{" "}
-          <Terme mot="collecteur" />, ni un talibé. Un chef de Daara peut en
+          Ni un coordinateur de <Terme mot="daara" />, ni un{" "}
+          <Terme mot="collecteur" />, ni un talibé. Un coordinateur de Daara peut en
           revanche <em>suivre</em> l’avancement des tâches d’un
           Ndiguel, même s’il n’en est pas l’organisateur : c’est
           voulu.
@@ -40,7 +40,7 @@ export default function LancerUnNdiguel() {
 
       <Shot
         src="/guide-assets/shots/ndiguel-nouveau.webp"
-        alt="Le formulaire de création d'un Ndiguel : nom, description, image, objectif financier, date limite, fête de rattachement et responsable."
+        alt="Le formulaire de création d'un Ndiguel : nom, description, image, objectif financier, date limite, événement de rattachement et responsable."
         url="yessal.sn/dashboard/campaigns/new"
         caption={
           <>
@@ -93,7 +93,7 @@ export default function LancerUnNdiguel() {
           </p>
         </Step>
 
-        <Step title="Rattacher à une Fête">
+        <Step title="Rattacher à un Événement">
           <p>
             Facultatif. Rattacher le Ndiguel au Magal, au Gamou ou à un
             rassemblement lui donne sa raison d’être, et permet de
@@ -192,8 +192,8 @@ export default function LancerUnNdiguel() {
       />
 
       <p>
-        Les Fêtes auxquelles rattacher un Ndiguel se créent depuis{" "}
-        <Ui>Fêtes</Ui> — voir{" "}
+        Les Événements auxquels rattacher un Ndiguel se créent depuis{" "}
+        <Ui>Événements</Ui> — voir{" "}
         <Link href="/guide/lexique#les-fetes">le lexique</Link> pour les trois
         rythmes possibles.
       </p>
