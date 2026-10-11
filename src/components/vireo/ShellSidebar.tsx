@@ -36,6 +36,9 @@ import {
   type Role,
 } from "@/lib/nav";
 
+/** Où mènent la photo et le nom du pied de rail. */
+const PROFILE_HREF = "/dashboard/profile";
+
 export interface SidebarUser {
   id?: number;
   first_name?: string | null;
@@ -182,6 +185,18 @@ export function ShellSidebar({
         l'icône de déconnexion, centrée — d'où les classes exactes.
       */}
       <div className="ax-sidebar__foot">
+        {/*
+          La photo et le nom mènent au profil — c'est là qu'on clique
+          d'instinct pour se modifier.
+
+          ⚠ Deux liens, et non un seul qui envelopperait les deux : les modes
+          repliés de Vireo masquent `.ax-sidebar__user-avatar` et
+          `.ax-sidebar__user-meta` PAR LEUR CLASSE, puis centrent l'icône de
+          déconnexion. Un conteneur autour d'eux resterait dans le flux, vide,
+          et décentrerait le rail. Les classes passent donc sur les liens
+          eux-mêmes. La photo sort de l'ordre de tabulation : le nom porte déjà
+          le lien, inutile de l'entendre deux fois au lecteur d'écran.
+        */}
         <div className="ax-sidebar__user">
           {/*
             <img> et non next/image : l'avatar arrive du backend en URL absolue
@@ -190,36 +205,52 @@ export function ShellSidebar({
             Vireo utilise lui aussi un <img> nu ici, et l'optimisation n'a
             aucun intérêt sur une vignette de 36 px.
           */}
-          {avatarSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className="ax-avatar ax-sidebar__user-avatar"
-              src={avatarSrc}
-              alt=""
-              width={36}
-              height={36}
-            />
-          ) : (
-            <span
-              className="ax-avatar ax-sidebar__user-avatar"
-              aria-hidden="true"
-              style={{
-                display: "inline-grid",
-                placeItems: "center",
-                inlineSize: 36,
-                blockSize: 36,
-                fontSize: 12,
-                fontWeight: 600,
-                background:
-                  "color-mix(in oklab, var(--ax-accent) 18%, var(--ax-surface-solid))",
-                color: "var(--ax-accent)",
-              }}
-            >
-              {initials}
-            </span>
-          )}
+          <Link
+            href={PROFILE_HREF}
+            className="ax-sidebar__user-avatar ax-sidebar__user-link"
+            onClick={onNavigate}
+            tabIndex={-1}
+            aria-hidden="true"
+            title="Mon profil"
+          >
+            {avatarSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="ax-avatar"
+                src={avatarSrc}
+                alt=""
+                width={36}
+                height={36}
+              />
+            ) : (
+              <span
+                className="ax-avatar"
+                style={{
+                  /* `grid` et non `inline-grid` : dans le lien, une boîte
+                     en ligne ajouterait sous elle la hauteur d'une ligne. */
+                  display: "grid",
+                  placeItems: "center",
+                  inlineSize: 36,
+                  blockSize: 36,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  background:
+                    "color-mix(in oklab, var(--ax-accent) 18%, var(--ax-surface-solid))",
+                  color: "var(--ax-accent)",
+                }}
+              >
+                {initials}
+              </span>
+            )}
+          </Link>
 
-          <span className="ax-sidebar__user-meta">
+          <Link
+            href={PROFILE_HREF}
+            className="ax-sidebar__user-meta ax-sidebar__user-link"
+            onClick={onNavigate}
+            aria-current={pathname === PROFILE_HREF ? "page" : undefined}
+            title="Mon profil"
+          >
             {/* Titre avant le nom ; `flex-wrap` renvoie un nom long à la
                 ligne sous la pastille, où l'ellipse prend le relais. */}
             <span className="flex min-w-0 flex-wrap items-center gap-1">
@@ -229,7 +260,7 @@ export function ShellSidebar({
               </b>
             </span>
             <small className="ax-sidebar__user-mail">{user?.email}</small>
-          </span>
+          </Link>
 
           <button
             type="button"
