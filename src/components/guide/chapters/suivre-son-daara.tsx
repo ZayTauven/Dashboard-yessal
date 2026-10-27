@@ -109,7 +109,7 @@ export default function SuivreSonDaara() {
       </p>
       <p>
         Une fois nommé, ce collecteur n’est pas enfermé dans le Daara : il
-        encaissera auprès de n’importe quel membre de la confrérie. Voir{" "}
+        encaissera auprès de n’importe quel membre du Kourel. Voir{" "}
         <Link href="/guide/roles">Qui fait quoi</Link>.
       </p>
 

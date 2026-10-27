@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Accueil",
   description:
-    "Yessal Gui — Gérez les Jëfs, Ndiguels et Actualités de votre confrérie.",
+    "Yessal Gui — Gérez les Jëfs, Ndiguels et Actualités de votre Kourel.",
 };
 
 export default function LandingLayout({

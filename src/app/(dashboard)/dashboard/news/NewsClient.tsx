@@ -2,7 +2,7 @@
 
 /*
  * ═══════════════════════════════════════════════════════════════════════════
- * Actualités — le journal de la confrérie
+ * Actualités — le journal du Kourel
  * ═══════════════════════════════════════════════════════════════════════════
  * Repris du patron `blog/BlogList` de Vireo : un article à la une en pleine
  * largeur, puis une grille de cartes média. Recherche, filtre publié /
@@ -274,7 +274,7 @@ export function NewsClient({
               description={
                 c.isFiltered
                   ? "Essayez d'autres mots, ou remettez les filtres à zéro."
-                  : "Le journal de la confrérie s'écrit ici : événements, annonces et récits."
+                  : "Le journal du Kourel s'écrit ici : événements, annonces et récits."
               }
               action={
                 c.isFiltered ? (

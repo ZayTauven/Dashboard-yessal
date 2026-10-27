@@ -25,7 +25,7 @@ export default function CollectePhysique() {
       <Callout tone="rule" title="Un collecteur collecte partout">
         <p className="m-0">
           Pas seulement dans son <Terme mot="daara" />. La personne en face peut
-          appartenir à n’importe quel Daara de la confrérie : la recherche
+          appartenir à n’importe quel Daara du Kourel : la recherche
           couvre tout le réseau, et l’enregistrement est valide.
         </p>
       </Callout>

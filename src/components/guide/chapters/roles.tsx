@@ -53,8 +53,8 @@ export default function Roles() {
         </p>
         <p className="m-0">
           Un collecteur encaisse auprès de <strong>n’importe quel</strong>{" "}
-          membre. Un coordinateur ajoute <strong>n’importe quel</strong> membre de
-          la confrérie dans un salon. Un membre écrit à qui accepte de le
+          membre. Un coordinateur ajoute <strong>n’importe quel</strong> membre du
+          Kourel dans un salon. Un membre écrit à qui accepte de le
           recevoir. La seule limite est la <strong>préférence du
           destinataire</strong> — jamais son rattachement.
         </p>

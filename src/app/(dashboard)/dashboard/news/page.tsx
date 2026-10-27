@@ -6,7 +6,7 @@ import { getSessionRole } from "./session-role";
 
 export const metadata = {
   title: "Actualités",
-  description: "Journal et actualités de la confrérie Yessal.",
+  description: "Journal et actualités du Kourel Yessal Gui.",
 };
 
 export default async function NewsPage() {
@@ -21,7 +21,7 @@ export default async function NewsPage() {
       <PageHead
         role={role}
         title="Actualités"
-        subtitle="Le journal de la confrérie : événements, annonces et récits."
+        subtitle="Le journal du Kourel : événements, annonces et récits."
       />
 
       {error && <ErrorAlert message={error} />}

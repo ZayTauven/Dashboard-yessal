@@ -688,7 +688,7 @@ export default function PilotagePage() {
             <div className="ax-card__titles">
               <h2 className="ax-card__title">Titres honorifiques</h2>
               <p className="ax-card__subtitle">
-                Les titres attribuables aux membres de la confrérie.
+                Les titres attribuables aux membres du Kourel.
               </p>
             </div>
           </div>

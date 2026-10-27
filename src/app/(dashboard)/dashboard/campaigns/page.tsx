@@ -27,7 +27,7 @@ export default async function CampaignsPage() {
       <PageHead
         role={role}
         title="Les Ndiguels"
-        subtitle="Suivez les objectifs de collecte et participez aux actions de la confrérie."
+        subtitle="Suivez les objectifs de collecte et participez aux actions du Kourel."
       />
 
       {campaignError ? (

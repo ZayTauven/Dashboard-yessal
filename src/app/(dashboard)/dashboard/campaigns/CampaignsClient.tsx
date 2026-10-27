@@ -366,7 +366,7 @@ export function CampaignsClient({
               description={
                 c.isFiltered
                   ? "Changez d'onglet pour voir les autres campagnes."
-                  : "Les campagnes de collecte de la confrérie apparaîtront ici."
+                  : "Les campagnes de collecte du Kourel apparaîtront ici."
               }
               action={
                 isAdmin && !c.isFiltered ? (

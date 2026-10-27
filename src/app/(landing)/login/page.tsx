@@ -139,7 +139,7 @@ export default function LoginPage() {
               Connexion à votre espace
             </h1>
             <p className="ax-text-muted mt-1.5 text-sm">
-              Réservé aux membres de la confrérie.
+              Réservé aux membres du Kourel.
             </p>
           </div>
 

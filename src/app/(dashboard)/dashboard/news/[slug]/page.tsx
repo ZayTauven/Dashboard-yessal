@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Calendar, Image as ImageIcon, Pencil, Youtube } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  Image as ImageIcon,
+  Pencil,
+  Youtube,
+} from "lucide-react";
 import { getNewsPost } from "@/app/actions/news";
 import { Avatar } from "@/components/vireo/Avatar";
 import { Gallery } from "@/components/vireo/Gallery";
@@ -99,7 +105,11 @@ export default async function NewsDetailPage({
         actions={
           <>
             <Link href="/dashboard/news" className="ax-btn ax-btn--ghost">
-              <ArrowLeft className="ax-btn__icon" size={16} aria-hidden="true" />
+              <ArrowLeft
+                className="ax-btn__icon"
+                size={16}
+                aria-hidden="true"
+              />
               <span className="ax-btn__label">Retour aux actualités</span>
             </Link>
             {/* La modification ne s'atteignait que par le menu « ⋯ » d'une
@@ -121,7 +131,7 @@ export default async function NewsDetailPage({
         <div className="ax-cluster ax-text-muted mt-3 gap-4 text-sm">
           <span className="ax-cluster gap-2">
             <Avatar name={post.created_by_name} size="xs" />
-            {post.created_by_name || "Confrérie Yessal"}
+            {post.created_by_name || "Kourel Yessal Gui Le Renouveau"}
           </span>
           {publishedOn && (
             <span className="ax-cluster gap-1">
@@ -174,7 +184,10 @@ export default async function NewsDetailPage({
           {embedUrl && (
             <section className="ax-card">
               <div className="ax-card__header">
-                <span className="ax-card__kpi-icon ax-card__kpi-icon--c4" aria-hidden="true">
+                <span
+                  className="ax-card__kpi-icon ax-card__kpi-icon--c4"
+                  aria-hidden="true"
+                >
                   <Youtube />
                 </span>
                 <div className="ax-card__titles">
@@ -200,7 +213,10 @@ export default async function NewsDetailPage({
           <aside className="flex flex-col gap-4">
             <section className="ax-card">
               <div className="ax-card__header">
-                <span className="ax-card__kpi-icon ax-card__kpi-icon--c3" aria-hidden="true">
+                <span
+                  className="ax-card__kpi-icon ax-card__kpi-icon--c3"
+                  aria-hidden="true"
+                >
                   <ImageIcon />
                 </span>
                 <div className="ax-card__titles">

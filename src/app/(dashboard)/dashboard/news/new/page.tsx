@@ -5,7 +5,7 @@ import { getSessionRole } from "../session-role";
 
 export const metadata = {
   title: "Nouvel article",
-  description: "Rédiger une actualité de la confrérie Yessal.",
+  description: "Rédiger une actualité du Kourel Yessal Gui.",
 };
 
 export default async function NewNewsPage() {
@@ -21,7 +21,7 @@ export default async function NewNewsPage() {
       <PageHead
         role="admin"
         title="Nouvel article"
-        subtitle="Le journal de la confrérie : événements, annonces et récits."
+        subtitle="Le journal du Kourel : événements, annonces et récits."
         crumbs={[
           { label: "Application" },
           { label: "Actualités", href: "/dashboard/news" },

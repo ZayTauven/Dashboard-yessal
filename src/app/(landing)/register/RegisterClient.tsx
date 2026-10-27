@@ -108,7 +108,7 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
           <BrandMark href="/" size="md" />
 
           <div className="max-w-md">
-            <p className="ax-eyebrow mb-3">Rejoindre la confrérie</p>
+            <p className="ax-eyebrow mb-3">Rejoindre le Kourel</p>
             <p className="text-2xl leading-snug font-medium text-foreground">
               Rattachez-vous à votre Daara pour suivre les Ndiguels et
               contribuer aux Jëfs.
@@ -119,7 +119,7 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
           </div>
 
           <p className="ax-text-subtle text-xs">
-            Vos données restent réservées à la confrérie.
+            Vos données restent réservées au Kourel.
           </p>
         </div>
       </aside>

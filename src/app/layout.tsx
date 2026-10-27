@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     template: "%s | Yessal Gui",
   },
   description:
-    "Gérez les Jëfs, les Ndiguels et actualités de votre communauté. Plateforme dédiée à la confrérie.",
+    "Gérez les Jëfs, les Ndiguels et actualités de votre communauté. Plateforme dédiée au Kourel - Yessal Gui Le Renouveau.",
 };
 
 export const viewport: Viewport = {
