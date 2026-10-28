@@ -49,14 +49,20 @@ const ICON_MAP: Record<string, LucideIcon> = {
 };
 
 /* Le statut pilote la classe de badge Aurora — plus de couleurs Tailwind
-   brutes qui ne suivaient pas le mode sombre. */
+   brutes qui ne suivaient pas le mode sombre.
+
+   🔴 La table ne connaissait que `pending/validated/rejected`, des valeurs
+   qu'aucun Jëf ne porte : tout retombait sur « En attente », y compris les
+   Jëfs confirmés. Elle suit désormais `Donation.PaymentStatus`. */
 const STATUS: Record<
   string,
   { label: string; cls: string; icon: LucideIcon }
 > = {
   pending: { label: "En attente", cls: "ax-badge--warning", icon: Clock },
-  validated: { label: "Validé", cls: "ax-badge--success", icon: CheckCircle2 },
-  rejected: { label: "Rejeté", cls: "ax-badge--danger", icon: AlertCircle },
+  collected: { label: "À remettre", cls: "ax-badge--info", icon: HandCoins },
+  confirmed: { label: "Confirmé", cls: "ax-badge--success", icon: CheckCircle2 },
+  failed: { label: "Échoué", cls: "ax-badge--danger", icon: AlertCircle },
+  cancelled: { label: "Annulé", cls: "ax-badge--neutral", icon: AlertCircle },
 };
 
 interface Kpi {
@@ -115,7 +121,6 @@ export default function CollectorDashboard({ stats }: { stats: CollectorStats | 
   /* Total des saisies affichées — le chiffre qu'on lui demande le soir.
      `amount` arrive en chaîne depuis DRF : Number() avant de sommer. */
   const totalRecent = recents.reduce((s, c) => s + Number(c.amount ?? 0), 0);
-  const rejetes = recents.filter((c) => c.status === "rejected").length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -136,25 +141,11 @@ export default function CollectorDashboard({ stats }: { stats: CollectorStats | 
       />
 
       {/*
-        Alerte de rejet — remonte en haut de page parce que c'est la seule
-        chose qui demande une action corrective immédiate de la part du
-        collecteur. Elle disparaît dès qu'il n'y a plus de rejet.
+        L'« alerte de rejet » guettait un statut `rejected` qu'aucun Jëf ne
+        porte : elle ne s'affichait jamais. L'équivalent réel — une annulation
+        par l'administration — arrive au collecteur en notification, motif
+        compris.
       */}
-      {rejetes > 0 && (
-        <div className="ax-alert ax-alert--danger ax-alert--accent-edge" role="alert">
-          <span className="ax-alert__icon" aria-hidden="true">
-            <AlertCircle size={18} />
-          </span>
-          <div className="ax-alert__content">
-            <p className="ax-alert__title">
-              {rejetes} {rejetes > 1 ? "saisies rejetées" : "saisie rejetée"}
-            </p>
-            <p className="ax-alert__message">
-              Vérifiez le montant et le bénéficiaire, puis saisissez à nouveau.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ── KPI ── */}
       {kpis.length > 0 && (

@@ -67,6 +67,8 @@ export default async function DonationsPage() {
         <DonationListClient
           initialDonations={donations || []}
           variant={listVariant}
+          viewerId={profile?.id}
+          segmented={role === "collector"}
         />
       )}
     </div>

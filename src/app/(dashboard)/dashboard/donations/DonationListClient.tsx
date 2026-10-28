@@ -23,7 +23,7 @@
  * tombent pas les unes sous les autres.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { History, Plus, Search } from "lucide-react";
 import { ExportButton } from "@/components/ExportButton";
@@ -43,14 +43,19 @@ import { ALL, useCollection } from "@/hooks/useCollection";
 type DonationRow = {
   id: number;
   created_at: string;
-  campaign_id?: number;
+  /* Identifiants tels que `DonationSerializer` les rend. La liste lisait
+     `campaign_id` et `donor_id`, que l'API n'envoie pas : les liens vers le
+     Ndiguel et vers la fiche du talibé ne s'affichaient jamais. */
+  campaign?: number;
   campaign_name?: string;
   beneficiary_name?: string | null;
   amount: string | number;
   payment_method: string;
   payment_status: string;
-  donor_id?: number;
+  donor?: number;
   donor_name?: string | null;
+  collector?: number | null;
+  collector_name?: string | null;
   donor_daara_name?: string | null;
   /* LDD du Daara du talibé. Champ récent côté API : absent d'une réponse
      plus ancienne, d'où l'optionnel et le repli « — ». */
@@ -61,9 +66,96 @@ type DonationRow = {
  * Qui a versé le Jëf : le talibé lui-même, ou une tutelle pour son compte.
  * Même libellé à l'écran et dans l'export — le client lit les deux côte à
  * côte et ne doit pas avoir à traduire de l'un à l'autre.
+ *
+ * ⚠ « Moi-même » n'est vrai que sur la liste PERSONNELLE de celui qui a donné.
+ * Il s'affichait aussi sur le registre de l'administrateur et sur les Jëfs
+ * qu'un collecteur encaisse pour d'autres : chaque ligne y semblait être un
+ * don du lecteur. Ailleurs, c'est « En son nom » — le talibé est nommé dans sa
+ * propre colonne.
  */
-function contributorLabel(d: DonationRow): string {
-  return d.beneficiary_name ? `Tutelle - ${d.beneficiary_name}` : "Moi-même";
+function contributorLabel(d: DonationRow, personal: boolean): string {
+  if (d.beneficiary_name) return `Tutelle - ${d.beneficiary_name}`;
+  return personal ? "Moi-même" : "En son nom";
+}
+
+/** Le collecteur ne voit pas « ses » Jëfs et ceux qu'il encaisse mélangés. */
+type Scope = "mine" | "collected";
+
+export function DonationListClient({
+  initialDonations,
+  variant = "personal",
+  viewerId,
+  segmented = false,
+}: {
+  initialDonations: DonationRow[];
+  variant?: "personal" | "directory";
+  viewerId?: number;
+  /** Deux onglets « Mes Jëfs | Jëfs collectés » — pour le rôle collecteur. */
+  segmented?: boolean;
+}) {
+  const [scope, setScope] = useState<Scope>("mine");
+
+  /*
+   * Le collecteur est un talibé AVANT d'être collecteur. Mêlés, ses propres
+   * Jëfs et ceux qu'il encaisse pour d'autres donnaient un « Total — 14 Jëfs »
+   * qui additionnait l'argent des autres au sien. Sa portée serveur contient
+   * aussi les demandes de collecte ouvertes : elles vivent sur « Collecte
+   * physique », pas ici.
+   */
+  const { mine, collected } = useMemo(() => {
+    if (!segmented) return { mine: initialDonations, collected: [] };
+    return {
+      mine: initialDonations.filter((d) => d.donor === viewerId),
+      collected: initialDonations.filter(
+        (d) => d.collector === viewerId && d.donor !== viewerId,
+      ),
+    };
+  }, [initialDonations, segmented, viewerId]);
+
+  if (!segmented) {
+    return <DonationTable rows={initialDonations} variant={variant} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="ax-tabs">
+        <div className="ax-tabs__list" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            className="ax-tabs__tab"
+            aria-selected={scope === "mine"}
+            onClick={() => setScope("mine")}
+          >
+            Mes Jëfs
+            <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+              {mine.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className="ax-tabs__tab"
+            aria-selected={scope === "collected"}
+            onClick={() => setScope("collected")}
+          >
+            Jëfs collectés
+            <span className="ax-tabs__badge ax-badge ax-badge--count ax-badge--sm">
+              {collected.length}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* La clé remonte le tableau : recherche, filtres et page repartent de
+          zéro à chaque changement d'onglet. */}
+      {scope === "mine" ? (
+        <DonationTable key="mine" rows={mine} variant="personal" />
+      ) : (
+        <DonationTable key="collected" rows={collected} variant="collected" />
+      )}
+    </div>
+  );
 }
 
 /* Colonnes triables — l'union est explicite pour que le typage attrape une
@@ -81,14 +173,20 @@ function formatDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? "—" : dateFmt.format(d);
 }
 
-export function DonationListClient({
-  initialDonations,
-  variant = "personal",
+function DonationTable({
+  rows: initialDonations,
+  variant,
 }: {
-  initialDonations: DonationRow[];
-  variant?: "personal" | "directory";
+  rows: DonationRow[];
+  /** `collected` : les Jëfs qu'un collecteur a encaissés pour d'autres. */
+  variant: "personal" | "directory" | "collected";
 }) {
   const showDirectory = variant === "directory";
+  const personal = variant === "personal";
+  /* Le talibé est nommé partout où la ligne n'est pas celle du lecteur. */
+  const showDonor = variant !== "personal";
+  /* Le collecteur n'apprend rien d'une colonne qui le nomme lui-même. */
+  const showCollector = variant !== "collected";
 
   /*
    * `searchable`, `filters` et `sorters` sont mémoïsés : useCollection les
@@ -101,11 +199,12 @@ export function DonationListClient({
         d.campaign_name,
         d.beneficiary_name,
         `REF-${d.id}`,
-        ...(showDirectory
+        d.collector_name,
+        ...(showDonor
           ? [d.donor_name, d.donor_daara_name, d.donor_ldd_name]
           : []),
       ],
-    [showDirectory],
+    [showDonor],
   );
 
   const filters = useMemo(
@@ -135,12 +234,24 @@ export function DonationListClient({
     pageSize: 10,
   });
 
-  /* Total de l'ensemble filtré — pas de la page affichée. C'est la somme que
-     l'utilisateur cherche quand il filtre sur « confirmé ». */
-  const totalMontant = useMemo(
-    () => c.matched.reduce((sum, d) => sum + Number(d.amount ?? 0), 0),
-    [c.matched],
-  );
+  /*
+   * Total de l'ensemble filtré — pas de la page affichée.
+   *
+   * 🔴 Il additionnait TOUS les statuts : un Jëf annulé ou encore en attente
+   * gonflait le « Total » d'un membre (22 010 FCFA affichés, dont 7 005 jamais
+   * versés). Sans filtre de statut, il ne compte que le CONFIRMÉ, et le dit.
+   * Avec un filtre de statut, il totalise ce que l'utilisateur a demandé.
+   */
+  const statusFiltered = c.filter("status") !== ALL;
+  const footer = useMemo(() => {
+    const counted = statusFiltered
+      ? c.matched
+      : c.matched.filter((d) => d.payment_status === "confirmed");
+    return {
+      count: counted.length,
+      amount: counted.reduce((sum, d) => sum + Number(d.amount ?? 0), 0),
+    };
+  }, [c.matched, statusFiltered]);
 
   const exportData = useMemo(
     () =>
@@ -156,19 +267,21 @@ export function DonationListClient({
           Date: formatDate(d.created_at),
           Référence: `REF-${d.id}`,
         };
-        if (showDirectory) {
+        if (showDonor) {
           row.Talibé = d.donor_name || "—";
           row.LDD = d.donor_ldd_name || "—";
           row.Daara = d.donor_daara_name || "—";
         }
         row.Ndiguel = String(d.campaign_name ?? "");
-        row.Contributeur = contributorLabel(d);
+        row.Contributeur = contributorLabel(d, personal);
         row.Montant = Number(d.amount);
         row.Méthode = paymentMethodLabel(d.payment_method);
         row.Statut = statusLabel("payment", d.payment_status);
+        /* En dernier : l'ordre des colonnes précédentes est celui du client. */
+        row.Collecteur = d.collector_name || "—";
         return row;
       }),
-    [c.matched, showDirectory],
+    [c.matched, showDonor, personal],
   );
 
   const columns = useMemo<Column<DonationRow, SortKey>[]>(() => {
@@ -186,24 +299,29 @@ export function DonationListClient({
       },
     ];
 
+    if (showDonor) {
+      cols.push({
+        key: "donor",
+        header: "Talibé",
+        sortKey: "donor",
+        /* La fiche membre est un écran d'annuaire : un collecteur n'y a pas
+           accès, le nom reste du texte pour lui. */
+        cell: (d) =>
+          showDirectory && d.donor ? (
+            <Link
+              href={`/dashboard/users/${d.donor}`}
+              className="ax-link font-medium"
+            >
+              {d.donor_name || "—"}
+            </Link>
+          ) : (
+            <span className="font-medium">{d.donor_name || "—"}</span>
+          ),
+      });
+    }
+
     if (showDirectory) {
       cols.push(
-        {
-          key: "donor",
-          header: "Talibé",
-          sortKey: "donor",
-          cell: (d) =>
-            d.donor_id ? (
-              <Link
-                href={`/dashboard/users/${d.donor_id}`}
-                className="ax-link font-medium"
-              >
-                {d.donor_name || "—"}
-              </Link>
-            ) : (
-              <span className="font-medium">{d.donor_name || "—"}</span>
-            ),
-        },
         {
           key: "ldd",
           header: "LDD",
@@ -230,9 +348,9 @@ export function DonationListClient({
         sortKey: "campaign",
         hideBelow: "md",
         cell: (d) =>
-          d.campaign_id ? (
+          d.campaign ? (
             <Link
-              href={`/dashboard/campaigns/${d.campaign_id}`}
+              href={`/dashboard/campaigns/${d.campaign}`}
               className="ax-link"
             >
               {d.campaign_name}
@@ -248,12 +366,27 @@ export function DonationListClient({
         cell: (d) =>
           d.beneficiary_name ? (
             <span className="ax-badge ax-badge--info ax-badge--sm">
-              {contributorLabel(d)}
+              {contributorLabel(d, personal)}
             </span>
           ) : (
-            <span className="ax-text-subtle italic">{contributorLabel(d)}</span>
+            <span className="ax-text-subtle italic">{contributorLabel(d, personal)}</span>
           ),
       },
+      /* Avant le montant : le pied de tableau aligne son total sur la 3e
+         colonne en partant de la fin. Pour un membre, c'est la transparence
+         promise — il voit qui a reçu son argent. */
+      ...(showCollector
+        ? [
+            {
+              key: "collector",
+              header: "Collecteur",
+              hideBelow: "lg" as const,
+              cell: (d: DonationRow) => (
+                <span className="ax-text-muted">{d.collector_name || "—"}</span>
+              ),
+            },
+          ]
+        : []),
       {
         key: "amount",
         header: "Montant",
@@ -280,7 +413,7 @@ export function DonationListClient({
     );
 
     return cols;
-  }, [showDirectory]);
+  }, [showDirectory, showDonor, showCollector, personal]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -384,10 +517,12 @@ export function DonationListClient({
             c.total > 1 ? (
               <tr>
                 <td colSpan={columns.length - 3}>
-                  Total{c.isFiltered ? " (filtré)" : ""} — {c.total} Jëfs
+                  {statusFiltered
+                    ? `Total (filtré) — ${footer.count} Jëfs`
+                    : `Total confirmé — ${footer.count} Jëf${footer.count > 1 ? "s" : ""} sur ${c.total}`}
                 </td>
                 <td className="ax-table__td--num text-montant">
-                  {formatFCFA(totalMontant)}
+                  {formatFCFA(footer.amount)}
                 </td>
                 <td colSpan={2} />
               </tr>
