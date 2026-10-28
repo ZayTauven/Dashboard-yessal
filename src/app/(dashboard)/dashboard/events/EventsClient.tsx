@@ -65,11 +65,35 @@ type Fete = {
   is_active?: boolean;
   /** Jours d'ici l'événement, comptés par le serveur sur le jour de Dakar. */
   days_until?: number | null;
+  /** Prochaine occurrence calculée par la règle de la série ; `date` n'est
+      que la référence (le Toggou du 2 octobre resterait le 2 octobre). */
+  prochaine_date?: string | null;
+  editions_count?: number;
+  hijri_mois?: number | null;
+  hijri_jour?: number | null;
+  auto_editions?: boolean;
+  ouvre_jours_avant?: number;
+  ferme_jours_apres?: number;
+  objectif_par_defaut?: string | null;
 };
+
+/** La date à montrer : la prochaine occurrence, à défaut la référence. */
+const dateDe = (f: Fete) => f.prochaine_date ?? f.date ?? null;
+
+/* « 2026-10-30 » → date à MIDI, pour qu'aucun fuseau ne la fasse glisser
+   sur la veille à l'affichage. */
+const jourLocal = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`);
+
+const MOIS_HEGIRIENS = [
+  "Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Joumada al-Oula",
+  "Joumada al-Thania", "Rajab", "Chaabane", "Ramadan", "Chawwal",
+  "Dhou al-Qida", "Dhou al-Hijja",
+];
 
 /** `events.Fete.Recurrence` */
 const RECURRENCE_LABELS: Record<string, string> = {
   annual: "Annuel",
+  annual_hijri: "Annuel (hégirien)",
   quarterly: "Trimestriel",
   weekly: "Hebdomadaire",
   none: "Ponctuel",
@@ -78,6 +102,7 @@ const RECURRENCE_LABELS: Record<string, string> = {
 const RECURRENCE_CHIPS = [
   { value: ALL, label: "Tous" },
   { value: "annual", label: "Annuels" },
+  { value: "annual_hijri", label: "Hégiriens" },
   { value: "quarterly", label: "Trimestriels" },
   { value: "weekly", label: "Hebdomadaires" },
   { value: "none", label: "Ponctuels" },
@@ -159,7 +184,7 @@ export function EventsClient({
     () => ({
       /* Trié par proximité : la fête la plus imminente d'abord. Le backend
          ordonne par nom, ce qui n'a aucun sens pour un calendrier. */
-      date: (f: Fete) => f.date ?? "9999-12-31",
+      date: (f: Fete) => dateDe(f) ?? "9999-12-31",
       name: (f: Fete) => f.name,
     }),
     [],
@@ -283,8 +308,12 @@ export function EventsClient({
           />
         </div>
         <div className="ax-field">
-          <label className="ax-field__label">Date</label>
+          <label className="ax-field__label">Date de référence</label>
           <DatePicker name="event_date" defaultValue={fete?.date || ""} />
+          <p className="ax-field__hint">
+            Une date où l&apos;événement a eu ou aura lieu (un vendredi pour le
+            Toggou). Les suivantes se calculent selon la récurrence.
+          </p>
         </div>
       </div>
 
@@ -304,27 +333,9 @@ export function EventsClient({
         />
       </div>
 
+      <SerieFields key={fete?.id ?? "new"} fete={fete} />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="ax-field">
-          <label
-            className="ax-field__label"
-            htmlFor={`recurrence-${fete?.id ?? "new"}`}
-          >
-            Récurrence
-          </label>
-          <select
-            id={`recurrence-${fete?.id ?? "new"}`}
-            name="recurrence"
-            className="ax-select"
-            defaultValue={fete?.recurrence ?? "annual"}
-          >
-            {Object.entries(RECURRENCE_LABELS).map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </div>
         <div className="ax-field">
           <label
             className="ax-field__label"
@@ -377,7 +388,7 @@ export function EventsClient({
           aria-label="Prochain événement"
         >
           <div className="ax-card__body flex flex-wrap items-center gap-6">
-            <DateTile date={featured.date} size="lg" />
+            <DateTile date={dateDe(featured)} size="lg" />
 
             <div className="min-w-0 flex-1">
               <div className="ax-cluster mb-2 gap-2">
@@ -394,7 +405,7 @@ export function EventsClient({
               <div className="ax-cluster ax-text-muted mt-2 flex-wrap gap-4 text-sm">
                 <span className="ax-cluster gap-1">
                   <CalendarDays size={16} aria-hidden="true" />
-                  {featured.date ? longDate.format(new Date(featured.date)) : "—"}
+                  {dateDe(featured) ? longDate.format(jourLocal(dateDe(featured) as string)) : "—"}
                 </span>
                 <span className="ax-text-accent font-medium">
                   {countdownLabel(daysUntil(featured))}
@@ -533,7 +544,7 @@ export function EventsClient({
             return (
               <article key={fete.id} className="ax-card flex flex-col">
                 <div className="ax-card__body flex flex-1 gap-4">
-                  <DateTile date={fete.date} muted={past} />
+                  <DateTile date={dateDe(fete)} muted={past} />
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
@@ -617,5 +628,154 @@ export function EventsClient({
       </Modal>
       {dialog}
     </div>
+  );
+}
+
+/*
+ * ── Les réglages de la série ──
+ *
+ * Un composant à part : les champs hégiriens n'apparaissent que pour la
+ * récurrence « Annuel (hégirien) », ce qui demande un état — impossible dans
+ * `renderForm`, qui n'est qu'une fonction appelée au rendu.
+ */
+function SerieFields({ fete }: { fete: Fete | null }) {
+  const id = fete?.id ?? "new";
+  const [recurrence, setRecurrence] = useState(fete?.recurrence ?? "annual");
+  const hijri = recurrence === "annual_hijri";
+  const ponctuel = recurrence === "none";
+
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="ax-field">
+          <label className="ax-field__label" htmlFor={`recurrence-${id}`}>
+            Récurrence
+          </label>
+          <select
+            id={`recurrence-${id}`}
+            name="recurrence"
+            className="ax-select"
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value)}
+          >
+            {Object.entries(RECURRENCE_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+          {hijri && (
+            <p className="ax-field__hint">
+              Calendrier lunaire : la date de chaque édition est estimée, puis
+              confirmée par l&apos;administration selon l&apos;annonce.
+            </p>
+          )}
+        </div>
+
+        {hijri && (
+          <div className="ax-field">
+            <span className="ax-field__label">Jour hégirien</span>
+            <div className="grid grid-cols-[5rem_1fr] gap-2">
+              <input
+                name="hijri_jour"
+                type="number"
+                min={1}
+                max={30}
+                className="ax-input"
+                aria-label="Jour du mois hégirien"
+                defaultValue={fete?.hijri_jour ?? ""}
+                placeholder="18"
+              />
+              <select
+                name="hijri_mois"
+                className="ax-select"
+                aria-label="Mois hégirien"
+                defaultValue={fete?.hijri_mois ? String(fete.hijri_mois) : ""}
+              >
+                <option value="">Mois…</option>
+                {MOIS_HEGIRIENS.map((m, i) => (
+                  <option key={m} value={i + 1}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="ax-field__hint">Ex. 18 Safar pour le Magal.</p>
+          </div>
+        )}
+      </div>
+
+      {!ponctuel && (
+        <fieldset className="flex flex-col gap-4 rounded-lg border border-[var(--ax-border)] p-4">
+          <legend className="ax-field__label px-1">Éditions du Ndiguel</legend>
+          <label className="ax-check">
+            <input
+              type="checkbox"
+              name="auto_editions"
+              className="ax-checkbox"
+              defaultChecked={fete?.auto_editions ?? false}
+            />
+            <span className="text-sm">
+              Créer chaque édition automatiquement, quelques jours avant son
+              ouverture (heure de Dakar).
+            </span>
+          </label>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="ax-field">
+              <label className="ax-field__label" htmlFor={`ouvre-${id}`}>
+                Ouvre (jours avant)
+              </label>
+              <input
+                id={`ouvre-${id}`}
+                name="ouvre_jours_avant"
+                type="number"
+                min={0}
+                max={60}
+                className="ax-input"
+                defaultValue={fete?.ouvre_jours_avant ?? 0}
+              />
+            </div>
+            <div className="ax-field">
+              <label className="ax-field__label" htmlFor={`ferme-${id}`}>
+                Ferme (jours après)
+              </label>
+              <input
+                id={`ferme-${id}`}
+                name="ferme_jours_apres"
+                type="number"
+                min={0}
+                max={60}
+                className="ax-input"
+                defaultValue={fete?.ferme_jours_apres ?? 0}
+              />
+            </div>
+            <div className="ax-field">
+              <label className="ax-field__label" htmlFor={`objectif-${id}`}>
+                Objectif par édition
+              </label>
+              <input
+                id={`objectif-${id}`}
+                name="objectif_par_defaut"
+                type="number"
+                min={0}
+                step={1}
+                className="ax-input"
+                defaultValue={
+                  fete?.objectif_par_defaut ? Math.round(Number(fete.objectif_par_defaut)) : ""
+                }
+                placeholder="Facultatif"
+              />
+            </div>
+          </div>
+          <p className="ax-field__hint">
+            Pour le Toggou du vendredi : 1 et 1, la collecte court du jeudi au
+            samedi. La diaspora des Amériques peut ainsi donner son vendredi
+            soir. Chaque édition reprend la description et l&apos;objectif ; on
+            les retouche ensuite, avec sa photo, pour cette édition seule.
+          </p>
+        </fieldset>
+      )}
+    </>
   );
 }

@@ -32,15 +32,36 @@ export async function getEvents() {
   }
 }
 
-export async function addEvent(formData: FormData) {
+/*
+ * Le formulaire d'un Événement — une SÉRIE de Ndiguels. Un seul constructeur
+ * pour la création et la mise à jour : les deux envoyaient déjà la même
+ * chose, et les réglages des éditions doivent l'être aussi.
+ */
+function seriePayload(formData: FormData) {
   const isActiveRaw = String(formData.get("is_active") || "true");
-  const payload = {
+  const entier = (k: string) => {
+    const v = String(formData.get(k) ?? "").trim();
+    return v === "" ? null : Math.max(0, Math.trunc(Number(v)));
+  };
+  const recurrence = String(formData.get("recurrence") || "none");
+  const hijri = recurrence === "annual_hijri";
+  return {
     name: String(formData.get("name") || "").trim(),
     description: String(formData.get("description") || "").trim(),
     date: formData.get("event_date") || null,
-    recurrence: formData.get("recurrence") || "none",
+    recurrence,
     is_active: isActiveRaw === "true" || isActiveRaw === "on",
+    auto_editions: recurrence !== "none" && formData.get("auto_editions") === "on",
+    ouvre_jours_avant: entier("ouvre_jours_avant") ?? 0,
+    ferme_jours_apres: entier("ferme_jours_apres") ?? 0,
+    objectif_par_defaut: entier("objectif_par_defaut"),
+    hijri_mois: hijri ? entier("hijri_mois") : null,
+    hijri_jour: hijri ? entier("hijri_jour") : null,
   };
+}
+
+export async function addEvent(formData: FormData) {
+  const payload = seriePayload(formData);
 
   try {
     const res = await fetch(`${BACKEND_URL}/api/events/fetes/`, {
@@ -70,14 +91,7 @@ export async function addEvent(formData: FormData) {
 }
 
 export async function updateEvent(id: number, formData: FormData) {
-  const isActiveRaw = String(formData.get("is_active") || "true");
-  const payload = {
-    name: String(formData.get("name") || "").trim(),
-    description: String(formData.get("description") || "").trim(),
-    date: formData.get("event_date") || null,
-    recurrence: formData.get("recurrence") || "none",
-    is_active: isActiveRaw === "true" || isActiveRaw === "on",
-  };
+  const payload = seriePayload(formData);
 
   try {
     const res = await fetch(`${BACKEND_URL}/api/events/fetes/${id}/`, {
@@ -179,5 +193,48 @@ export async function getFeteEtat(id: number) {
   } catch (err) {
     console.error(err);
     return { data: null, status: 0, error: messageForStatus(0, "") };
+  }
+}
+
+/* ── Éditions d'une série ──────────────────────────────────────────────── */
+
+/** « Préparer la prochaine édition », sans attendre le planificateur. */
+export async function prepareNextEdition(feteId: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/events/fetes/${feteId}/prochaine-edition/`, {
+      method: "POST",
+      headers: await getAuthHeader(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { error: messageForErrors(data, "L’édition n’a pas pu être préparée.") };
+    }
+    revalidatePath(`/dashboard/events/${feteId}`);
+    revalidatePath("/dashboard/campaigns");
+    return { data: data as { id: number; name: string; creee: boolean } };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur." };
+  }
+}
+
+/** Confirme ou corrige la date d'une édition hégirienne estimée. */
+export async function confirmEditionDate(campaignId: number, feteId: number, date: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/events/campaigns/${campaignId}/confirmer-date/`, {
+      method: "POST",
+      headers: { ...(await getAuthHeader()), "Content-Type": "application/json" },
+      body: JSON.stringify({ date }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { error: messageForErrors(data, "La date n’a pas pu être confirmée.") };
+    }
+    revalidatePath(`/dashboard/events/${feteId}`);
+    revalidatePath("/dashboard/campaigns");
+    return { data: data as { name: string } };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur." };
   }
 }

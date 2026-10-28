@@ -10,6 +10,8 @@ import {
   Users,
 } from "lucide-react";
 import { getFeteEtat } from "@/app/actions/events";
+import { getProfile } from "@/app/actions/users";
+import { ConfirmDateButton, PrepareEditionButton } from "./EditionActions";
 import { formatFCFA } from "@/lib/format";
 import { Avatar } from "@/components/vireo/Avatar";
 import { DateTile } from "@/components/vireo/DateTile";
@@ -63,6 +65,11 @@ type CampaignRow = {
   progress_pct: number;
   status: string;
   deadline: string;
+  opens_on?: string | null;
+  /** Le jour de l'événement que cette édition prépare (série). */
+  occurrence_date?: string | null;
+  /** Date hégirienne estimée, pas encore confirmée : invisible aux membres. */
+  a_confirmer?: boolean;
   daara_name: string | null;
   organizer_name: string | null;
 };
@@ -70,6 +77,7 @@ type CampaignRow = {
 /** `events.Fete.Recurrence` */
 const RECURRENCE_LABELS: Record<string, string> = {
   annual: "Annuel",
+  annual_hijri: "Annuel (hégirien)",
   quarterly: "Trimestriel",
   weekly: "Hebdomadaire",
   none: "Ponctuel",
@@ -89,7 +97,9 @@ const shortDate = new Intl.DateTimeFormat("fr-SN", {
 
 function fmt(iso?: string | null, long = false): string {
   if (!iso) return "—";
-  const d = new Date(iso);
+  /* Une date seule (« 2026-10-30 ») se lit à MIDI : à minuit UTC, un fuseau
+     négatif la faisait glisser sur la veille. */
+  const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
   if (Number.isNaN(d.getTime())) return "—";
   return long ? longDate.format(d) : shortDate.format(d);
 }
@@ -103,7 +113,11 @@ export default async function FeteDetailPage({
   const { id } = await params;
   const feteId = Number(id);
 
-  const { data: etat, error, status } = await getFeteEtat(feteId);
+  const [{ data: etat, error, status }, { data: profile }] = await Promise.all([
+    getFeteEtat(feteId),
+    getProfile(),
+  ]);
+  const isAdmin = profile?.role === "admin";
 
   /*
    * `notFound()` est réservé au vrai 404. Une session expirée (401), un droit
@@ -163,10 +177,16 @@ export default async function FeteDetailPage({
             value={etat.is_active === false ? "inactive" : "active"}
             size="sm"
           />
-          {etat.date && (
+          {(etat.prochaine_date || etat.date) && (
             <span className="ax-cluster gap-1">
               <CalendarDays size={14} aria-hidden="true" />
-              {fmt(etat.date, true)}
+              {etat.prochaine_date ? "Prochaine : " : ""}
+              {fmt(etat.prochaine_date || etat.date, true)}
+            </span>
+          )}
+          {etat.auto_editions && (
+            <span className="ax-badge ax-badge--soft ax-badge--sm">
+              Éditions automatiques
             </span>
           )}
           <span className="ax-cluster gap-1">
@@ -296,15 +316,22 @@ export default async function FeteDetailPage({
         </section>
       )}
 
-      {campaigns.length > 0 && (
+      {(campaigns.length > 0 || (isAdmin && etat.recurrence_code !== "none")) && (
         <section className="ax-card">
           <div className="ax-card__header">
             <div className="ax-card__titles">
-              <h2 className="ax-card__title">Ndiguels rattachés</h2>
+              <h2 className="ax-card__title">Éditions</h2>
+              <p className="ax-card__subtitle">
+                Chaque édition est un Ndiguel daté, avec son propre propos, sa
+                photo et son total.
+              </p>
             </div>
             <span className="ax-badge ax-badge--neutral ax-badge--sm">
               {campaigns.length}
             </span>
+            {isAdmin && etat.recurrence_code !== "none" && (
+              <PrepareEditionButton feteId={feteId} />
+            )}
           </div>
 
           <ul className="ax-list ax-list--comfortable">
@@ -322,7 +349,13 @@ export default async function FeteDetailPage({
                       >
                         {c.name}
                       </Link>
-                      <StatusBadge domain="campaign" value={c.status} size="sm" />
+                      {c.a_confirmer ? (
+                        <span className="ax-badge ax-badge--warning ax-badge--sm">
+                          Date à confirmer
+                        </span>
+                      ) : (
+                        <StatusBadge domain="campaign" value={c.status} size="sm" />
+                      )}
                     </span>
 
                     <span className="ax-list__meta ax-cluster flex-wrap gap-3 text-xs">
@@ -330,8 +363,22 @@ export default async function FeteDetailPage({
                       {c.organizer_name && (
                         <span>Responsable : {c.organizer_name}</span>
                       )}
-                      <span>Échéance : {fmt(c.deadline)}</span>
+                      {c.opens_on ? (
+                        <span>
+                          Collecte du {fmt(c.opens_on)} au {fmt(c.deadline)}
+                        </span>
+                      ) : (
+                        <span>Échéance : {fmt(c.deadline)}</span>
+                      )}
                     </span>
+
+                    {c.a_confirmer && isAdmin && c.occurrence_date && (
+                      <ConfirmDateButton
+                        campaignId={c.id}
+                        feteId={feteId}
+                        estimee={c.occurrence_date}
+                      />
+                    )}
 
                     {goal > 0 && (
                       <span
