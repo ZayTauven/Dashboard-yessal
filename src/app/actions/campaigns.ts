@@ -252,6 +252,39 @@ export async function deleteCampaign(campaignId: number) {
   }
 }
 
+/*
+ * Clôturer : le seul geste possible sur un Ndiguel qui porte des Jëfs, que le
+ * serveur refuse de supprimer. Aucun écran ne le proposait, alors que le refus
+ * de suppression disait « Clôturez-le ».
+ */
+export async function closeCampaign(campaignId: number) {
+  try {
+    const res = await fetch(
+      `${BACKEND_URL}/api/events/campaigns/${campaignId}/`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...((await getAuthHeader()) as Record<string, string>),
+        },
+        body: JSON.stringify({ status: "completed" }),
+      },
+    );
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { error: messageForErrors(data, "Le Ndiguel n'a pas pu être clôturé.") };
+    }
+
+    revalidatePath("/dashboard/campaigns");
+    revalidatePath("/dashboard/admin/campaign-metrics");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur backend." };
+  }
+}
+
 export async function addCampaignTodo(campaignId: number, title: string) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/events/campaign-todos/`, {

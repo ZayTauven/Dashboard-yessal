@@ -79,7 +79,8 @@ export async function releaseDonation(id: number) {
 /* ── Gestion des collecteurs (administration) ───────────────────────────── */
 
 export type Zone = { id: number; code: string; nom: string };
-export type ZoneCouverture = Zone & { collecteurs: number };
+/* `geographique: false` : INDIVIDUELS et DEFAULT, qui ne sont pas des territoires à couvrir. */
+export type ZoneCouverture = Zone & { collecteurs: number; geographique?: boolean };
 export type Collecteur = {
   id: number;
   nom: string;
@@ -110,7 +111,8 @@ export async function setCollecteurZones(id: number, zones: number[]) {
 /* ── Interrupteur de la collecte en espèces ─────────────────────────────── */
 
 export async function requestCollecteCode(active: boolean) {
-  return post<{ detail: string }>(
+  /* `envoye: false` en DEBUG seulement : le code est dans le journal du serveur. */
+  return post<{ detail: string; envoye?: boolean }>(
     "settings/pilotage/collecte/code/",
     { active },
     "Le code n'a pas pu être envoyé.",

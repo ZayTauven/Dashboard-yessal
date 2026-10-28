@@ -387,10 +387,35 @@ export default function UserDetailClient({
   };
 
   const handleDelete = () => {
+    /*
+     * Le serveur refuse de supprimer un compte qui a des Jëfs (409) : la
+     * fenêtre annonçait l'inverse — « tous ses dons seront supprimés ». On le
+     * dit avant le clic, et on propose le geste qui marche : bloquer.
+     */
+    if (donations.length > 0) {
+      ask({
+        title: `Le compte de ${fullName} ne peut pas être supprimé`,
+        description: `Il porte ${donations.length} Jëf${donations.length > 1 ? "s" : ""} : le supprimer effacerait des contributions du registre. Bloquez-le plutôt : il ne pourra plus se connecter, et son historique reste intact.`,
+        tone: "warning",
+        cancelLabel: "Fermer",
+        confirmLabel: "Bloquer l'accès",
+        onConfirm: () =>
+          startTransition(async () => {
+            const res = await updateUserStatus(user.id, "block");
+            if (res.error) {
+              toast.error(res.error);
+              return;
+            }
+            toast.success("Accès bloqué.");
+            router.refresh();
+          }),
+      });
+      return;
+    }
     ask({
       title: `Supprimer définitivement le compte de ${fullName} ?`,
       description:
-          "Tous ses dons seront supprimés du registre avec son compte, ainsi que les tutelles dont il a la charge. Pour retirer l'accès en conservant l'historique, bloquez le compte plutôt que de le supprimer.",
+          "Le compte sera supprimé, ainsi que les tutelles dont il a la charge. Si ce membre a encaissé ou remis des Jëfs comme collecteur, la suppression sera refusée : bloquez-le alors.",
       confirmLabel: "Supprimer",
       onConfirm: () =>
           startTransition(async () => {

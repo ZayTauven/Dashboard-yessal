@@ -113,12 +113,12 @@ export function CollectClient({
    * Le statut EFFECTIF, pas le statut saisi : un Ndiguel « actif » dont
    * l'échéance est passée est terminé, et figurait pourtant sous « en cours ».
    *
-   * Les Ndiguels terminés restent proposés, à part : un collecteur peut saisir
-   * après la clôture des espèces reçues AVANT elle (décision du 2026-10-28).
+   * Les Ndiguels terminés ne sont plus proposés du tout (Z4, décision du
+   * porteur du 2026-10-28) : un collecteur pouvait encaisser sur un Ndiguel
+   * clos. Le serveur refuse de même.
    */
   const statusOf = (c: CollectCampaign) => c.effective_status ?? c.status;
   const activeCampaigns = campaigns.filter((c) => statusOf(c) === "active");
-  const closedCampaigns = campaigns.filter((c) => statusOf(c) === "completed");
 
   /*
    * Recherche différée de 400 ms, ANNULÉE si la saisie change avant la réponse.
@@ -470,28 +470,17 @@ export function CollectClient({
                     defaultValue=""
                   >
                     <option value="" disabled>
-                      Choisir un Ndiguel…
+                      Choisir un Ndiguel en cours…
                     </option>
-                    <optgroup label="En cours">
-                      {activeCampaigns.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                    {closedCampaigns.length > 0 && (
-                      <optgroup label="Clôturés — espèces reçues avant la clôture">
-                        {closedCampaigns.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
+                    {activeCampaigns.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                   </select>
-                  {activeCampaigns.length + closedCampaigns.length === 0 && (
+                  {activeCampaigns.length === 0 && (
                     <p className="ax-field__message ax-field__message--error">
-                      Aucun Ndiguel : la collecte ne peut être rattachée.
+                      Aucun Ndiguel en cours : la collecte ne peut être rattachée.
                     </p>
                   )}
                 </div>
@@ -533,7 +522,7 @@ export function CollectClient({
                 <button
                   type="submit"
                   className="ax-btn ax-btn--primary ax-btn--lg ax-btn--block"
-                  disabled={isPending || activeCampaigns.length + closedCampaigns.length === 0}
+                  disabled={isPending || activeCampaigns.length === 0}
                 >
                   {isPending ? (
                     <Loader2 className="ax-btn__icon animate-spin" size={18} aria-hidden="true" />

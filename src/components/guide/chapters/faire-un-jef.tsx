@@ -81,7 +81,7 @@ export default function FaireUnJef() {
         <Step title="Saisir le montant">
           <p>
             En francs CFA, sans séparateur. Le minimum accepté est de{" "}
-            <Amount>1 000 FCFA</Amount>.
+            <Amount>100 FCFA</Amount> : aucune offrande n’est trop modeste.
           </p>
         </Step>
 

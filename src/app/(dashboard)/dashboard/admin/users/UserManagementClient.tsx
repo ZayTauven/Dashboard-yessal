@@ -308,7 +308,7 @@ export function UserManagementClient({
     ask({
       title: `Supprimer définitivement le compte de ${fullName(user)} ?`,
       description:
-          "Tous ses dons seront supprimés du registre avec son compte, ainsi que les tutelles dont il a la charge. Pour retirer l'accès en conservant l'historique, bloquez le compte plutôt que de le supprimer.",
+          "Un compte qui a fait, encaissé ou remis des Jëfs ne peut pas être supprimé : l'historique des contributions est protégé, et le serveur refusera. Bloquez-le alors. Sans Jëf, le compte est supprimé avec les tutelles dont il a la charge.",
       confirmLabel: "Supprimer",
       onConfirm: async () => {
           const { error } = await deleteUserAction(user.id);

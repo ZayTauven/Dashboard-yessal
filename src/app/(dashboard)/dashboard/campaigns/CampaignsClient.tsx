@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { makeDonation, payDonation } from "@/app/actions/donations";
 import {
   addCampaignTodo,
+  closeCampaign,
   deleteCampaign,
   getCampaignOrganizerDirectory,
   toggleCampaignTodo,
@@ -89,6 +90,8 @@ type CampaignCard = {
   effective_status?: string;
   goal_amount: number;
   collected_amount?: number | null;
+  /** Jëfs de tous statuts : au-delà de 0, le serveur refuse la suppression. */
+  jefs_count?: number | null;
   organizer?: number | null;
   organizer_name?: string | null;
   organizer_role?: string | null;
@@ -297,11 +300,35 @@ export function CampaignsClient({
     });
   };
 
-  const handleDeleteCampaign = (campaignId: number, campaignName: string) => {
+  const handleDeleteCampaign = (campaignId: number, campaignName: string, jefs: number) => {
+    /*
+     * Le serveur refuse la suppression d'un Ndiguel qui porte des Jëfs (409).
+     * La fenêtre annonçait l'inverse — « les dons seront supprimés avec lui ».
+     */
+    if (jefs > 0) {
+      ask({
+        title: `« ${campaignName} » ne peut pas être supprimé`,
+        description: `Ce Ndiguel porte ${jefs} Jëf${jefs > 1 ? "s" : ""} : le supprimer effacerait l'historique des contributions. Clôturez-le plutôt : il reste consultable, et ses Jëfs au registre.`,
+        tone: "warning",
+        cancelLabel: "Ne rien faire",
+        confirmLabel: "Clôturer le Ndiguel",
+        onConfirm: () =>
+          startTransition(async () => {
+            const res = await closeCampaign(campaignId);
+            if (res.error) {
+              toast.error(res.error);
+              return;
+            }
+            toast.success(`« ${campaignName} » est clôturé.`);
+            router.refresh();
+          }),
+      });
+      return;
+    }
     ask({
       title: `Supprimer « ${campaignName} » ?`,
         description:
-          "Les dons enregistrés sur ce Ndiguel seront supprimés avec lui, ainsi que ses tâches de suivi.",
+          "Aucun Jëf n'est enregistré sur ce Ndiguel. Il sera supprimé avec ses tâches de suivi.",
       confirmLabel: "Supprimer",
       onConfirm: () => {
           startTransition(async () => {
@@ -482,9 +509,13 @@ export function CampaignsClient({
                   </Link>
                 </div>
 
-                <div className="ax-card__footer">
-                  <div className="ax-btn-group w-full">
-                    {canUseDonationPage ? (
+                {/* `flex-wrap` et pas de `w-full` sur le premier groupe : à
+                    1 280 px (trois colonnes), le groupe pleine largeur poussait
+                    la corbeille hors de la carte. */}
+                <div className="ax-card__footer flex-wrap">
+                  <div className="ax-btn-group min-w-0">
+                    {/* Clos : le serveur refuse tout Jëf (Z4). */}
+                    {status === "completed" ? null : canUseDonationPage ? (
                       <Link
                         href={`/dashboard/donations/new?campaign=${camp.id}`}
                         className="ax-btn ax-btn--tonal"
@@ -536,10 +567,17 @@ export function CampaignsClient({
                         type="button"
                         className="ax-btn ax-btn--ghost-danger ax-btn--icon"
                         aria-label={`Supprimer ${camp.name}`}
-                        title="Supprimer"
-                        disabled={isPending}
+                        title={
+                          status === "completed" && Number(camp.jefs_count ?? 0) > 0
+                            ? "Clôturé et porteur de Jëfs : il reste au registre"
+                            : "Supprimer"
+                        }
+                        disabled={
+                          isPending ||
+                          (status === "completed" && Number(camp.jefs_count ?? 0) > 0)
+                        }
                         onClick={() =>
-                          handleDeleteCampaign(Number(camp.id), camp.name)
+                          handleDeleteCampaign(Number(camp.id), camp.name, Number(camp.jefs_count ?? 0))
                         }
                       >
                         <Trash2 size={15} aria-hidden="true" />

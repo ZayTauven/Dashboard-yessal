@@ -142,7 +142,7 @@ export default function CollectePhysique() {
 
       <h3>Somme récoltée</h3>
       <p>
-        En francs CFA, minimum <Amount>1 000 FCFA</Amount>. Relisez le montant à
+        En francs CFA, minimum <Amount>100 FCFA</Amount>. Relisez le montant à
         voix haute devant la personne avant de valider : c’est le seul
         contrôle qui existe, et le seul qui compte.
       </p>

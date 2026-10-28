@@ -61,7 +61,8 @@ export function CollecteursPanel({
   const [switchOpen, setSwitchOpen] = useState(false);
   const [editing, setEditing] = useState<Collecteur | null>(null);
 
-  const sansCollecteur = zones.filter((z) => z.collecteurs === 0);
+  const territoires = zones.filter((z) => z.geographique !== false);
+  const sansCollecteur = territoires.filter((z) => z.collecteurs === 0);
 
   return (
     <div className="flex flex-col gap-4" role="tabpanel">
@@ -114,7 +115,7 @@ export function CollecteursPanel({
           <div className="ax-card__titles">
             <h2 className="ax-card__title">Couverture des zones</h2>
             <p className="ax-card__subtitle">
-              {zones.length - sansCollecteur.length} zone(s) couverte(s) sur {zones.length}.
+              {territoires.length - sansCollecteur.length} zone(s) couverte(s) sur {territoires.length}.
               Sans collecteur, l&apos;option « Collecteur » n&apos;est pas proposée aux membres.
             </p>
           </div>
@@ -254,7 +255,8 @@ function SwitchFlow({
         toast.error(res.error);
         return;
       }
-      toast.success(res.data?.detail ?? "Code envoyé.");
+      if (res.data?.envoye === false) toast.warning(res.data.detail);
+      else toast.success(res.data?.detail ?? "Code envoyé.");
       setStep("code");
     });
 
@@ -420,9 +422,8 @@ function ZonesEditor({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [selected, setSelected] = useState<Set<number>>(
-    () => new Set(collecteur.zones.map((z) => z.id)),
-  );
+  const initiales = useMemo(() => new Set(collecteur.zones.map((z) => z.id)), [collecteur]);
+  const [selected, setSelected] = useState<Set<number>>(() => new Set(initiales));
   const [query, setQuery] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -441,6 +442,11 @@ function ZonesEditor({
       return next;
     });
 
+  /* `z.collecteurs` compte l'état ENREGISTRÉ : sans cet ajustement, décocher
+   * une zone laissait « 1 collecteur(s) » affiché alors qu'il n'en resterait aucun. */
+  const compte = (z: ZoneCouverture) =>
+    z.collecteurs - (initiales.has(z.id) ? 1 : 0) + (selected.has(z.id) ? 1 : 0);
+
   const save = () =>
     startTransition(async () => {
       const res = await setCollecteurZones(collecteur.id, [...selected]);
@@ -457,15 +463,26 @@ function ZonesEditor({
       open
       onOpenChange={(o) => !o && onClose()}
       title={`Zones de ${collecteur.nom}`}
-      description={`${selected.size} zone(s) sélectionnée(s). Il ne verra que les demandes de ces zones.`}
+      description={
+        selected.size === 0
+          ? "Aucune zone sélectionnée : il ne verra aucune demande de collecte."
+          : `${selected.size} zone(s) sélectionnée(s). Il ne verra que les demandes de ces zones.`
+      }
       size="md"
       footer={
         <>
           <button type="button" className="ax-btn ax-btn--ghost" onClick={onClose}>
             <span className="ax-btn__label">Annuler</span>
           </button>
-          <button type="button" className="ax-btn ax-btn--primary" onClick={save} disabled={isPending}>
-            <span className="ax-btn__label">Enregistrer</span>
+          <button
+            type="button"
+            className={`ax-btn ${selected.size === 0 ? "ax-btn--danger" : "ax-btn--primary"}`}
+            onClick={save}
+            disabled={isPending}
+          >
+            <span className="ax-btn__label">
+              {selected.size === 0 ? "Enregistrer sans zone" : "Enregistrer"}
+            </span>
           </button>
         </>
       }
@@ -497,9 +514,12 @@ function ZonesEditor({
                 <span className="flex flex-1 items-center justify-between gap-2 text-sm">
                   <span>
                     <span className="font-mono">{z.code}</span> · {z.nom}
+                    {z.geographique === false && (
+                      <span className="ax-text-muted"> (hors territoire)</span>
+                    )}
                   </span>
-                  <span className={`ax-badge ax-badge--sm ${z.collecteurs ? "ax-badge--soft" : "ax-badge--warning"}`}>
-                    {z.collecteurs} collecteur(s)
+                  <span className={`ax-badge ax-badge--sm ${compte(z) ? "ax-badge--soft" : "ax-badge--warning"}`}>
+                    {compte(z)} collecteur(s)
                   </span>
                 </span>
               </label>
