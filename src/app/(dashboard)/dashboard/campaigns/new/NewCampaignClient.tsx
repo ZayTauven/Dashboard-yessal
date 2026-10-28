@@ -50,6 +50,7 @@ type CampaignFormInitialData = {
   objective?: string | null;
   goal_amount?: number | string | null;
   deadline: string;
+  opens_on?: string | null;
   fete?: number | null;
   organizer?: number | null;
   illustrative_photo?: string | null;
@@ -192,6 +193,21 @@ export function NewCampaignClient({
                 </p>
               </div>
 
+              {/* Avec une date d'ouverture, le Ndiguel passe seul d'« À venir »
+                  à « En cours » ce jour-là : c'est le serveur qui compte les
+                  jours, à l'heure de Dakar, pas l'appareil de qui que ce soit. */}
+              <div className="ax-field">
+                <label className="ax-field__label">Ouverture de la collecte</label>
+                <DatePicker
+                  name="opensOn"
+                  defaultValue={initialCampaign?.opens_on ?? ""}
+                />
+                <p className="ax-field__hint">
+                  Facultatif. Le Ndiguel reste « À venir » jusqu&apos;à ce jour,
+                  puis s&apos;ouvre seul à minuit, heure de Dakar.
+                </p>
+              </div>
+
               <div className="ax-field">
                 <label className="ax-field__label">
                   Date limite
@@ -202,6 +218,9 @@ export function NewCampaignClient({
                   defaultValue={initialCampaign?.deadline ?? ""}
                   required
                 />
+                <p className="ax-field__hint">
+                  Dernier jour de collecte, jusqu&apos;à minuit heure de Dakar.
+                </p>
               </div>
             </div>
 

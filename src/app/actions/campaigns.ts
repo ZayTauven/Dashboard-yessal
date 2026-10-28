@@ -95,6 +95,8 @@ export async function addCampaign(formData: FormData) {
   backendData.append("name", name as string);
   backendData.append("deadline", deadline as string);
   backendData.append("status", "active");
+  if (formData.get("opensOn"))
+    backendData.append("opens_on", formData.get("opensOn") as string);
 
   if (formData.get("description"))
     backendData.append("description", formData.get("description") as string);
@@ -184,6 +186,9 @@ export async function updateCampaign(campaignId: number, formData: FormData) {
     backendData.append("objective", formData.get("objective") as string);
   if (formData.get("feteId") !== null)
     backendData.append("fete", (formData.get("feteId") as string) || "");
+  /* Vide = pas de date d'ouverture : le statut redevient celui posé à la main. */
+  if (formData.get("opensOn") !== null)
+    backendData.append("opens_on", (formData.get("opensOn") as string) || "");
   if (formData.get("organizerId") !== null)
     backendData.append(
       "organizer",

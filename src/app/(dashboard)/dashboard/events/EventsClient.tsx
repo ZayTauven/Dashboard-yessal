@@ -63,6 +63,8 @@ type Fete = {
   description?: string | null;
   recurrence?: string;
   is_active?: boolean;
+  /** Jours d'ici l'événement, comptés par le serveur sur le jour de Dakar. */
+  days_until?: number | null;
 };
 
 /** `events.Fete.Recurrence` */
@@ -92,14 +94,21 @@ const longDate = new Intl.DateTimeFormat("fr-SN", {
  * Jours restants avant la fête, en jours PLEINS depuis minuit — sinon une fête
  * du soir même aurait déjà basculé en « passée » l'après-midi.
  */
-function daysUntil(dateStr?: string | null): number | null {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  d.setHours(0, 0, 0, 0);
-  return Math.round((d.getTime() - today.getTime()) / 86_400_000);
+/*
+ * Le SERVEUR compte les jours (`days_until`, jour de Dakar). Le calcul local
+ * lisait « 2026-10-09 » comme minuit UTC puis le ramenait à minuit LOCAL : un
+ * jour d'écart dans les Amériques, et un poste mal réglé disait « Hier » pour
+ * demain. Il ne reste qu'en secours, sur la date seule, sans fuseau.
+ */
+function daysUntil(f: Fete): number | null {
+  if (typeof f.days_until === "number") return f.days_until;
+  if (!f.date) return null;
+  const [y, m, d] = f.date.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const now = new Date();
+  return Math.round(
+    (Date.UTC(y, m - 1, d) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86_400_000,
+  );
 }
 
 function countdownLabel(days: number | null): string {
@@ -138,7 +147,7 @@ export function EventsClient({
     () => ({
       recurrence: (f: Fete, v: string) => (f.recurrence ?? "annual") === v,
       when: (f: Fete, v: string) => {
-        const d = daysUntil(f.date);
+        const d = daysUntil(f);
         if (d === null) return v === "undated";
         return v === "upcoming" ? d >= 0 : d < 0;
       },
@@ -172,7 +181,7 @@ export function EventsClient({
    */
   const featured = useMemo(() => {
     const upcoming = initialEvents
-      .map((f) => ({ f, d: daysUntil(f.date) }))
+      .map((f) => ({ f, d: daysUntil(f) }))
       .filter((x) => x.d !== null && x.d >= 0)
       .sort((a, b) => (a.d as number) - (b.d as number));
     return upcoming[0]?.f ?? null;
@@ -388,7 +397,7 @@ export function EventsClient({
                   {featured.date ? longDate.format(new Date(featured.date)) : "—"}
                 </span>
                 <span className="ax-text-accent font-medium">
-                  {countdownLabel(daysUntil(featured.date))}
+                  {countdownLabel(daysUntil(featured))}
                 </span>
               </div>
             </div>
@@ -518,7 +527,7 @@ export function EventsClient({
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {c.rows.map((fete) => {
-            const days = daysUntil(fete.date);
+            const days = daysUntil(fete);
             const past = days !== null && days < 0;
 
             return (
