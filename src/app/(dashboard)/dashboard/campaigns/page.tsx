@@ -1,4 +1,5 @@
 import { getCampaigns } from "@/app/actions/campaigns";
+import { getCollecteStatus } from "@/app/actions/collecte";
 import { getProfile } from "@/app/actions/users";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PageHead } from "@/components/vireo/PageHead";
@@ -6,8 +7,8 @@ import type { Role } from "@/lib/nav";
 import { CampaignsClient } from "./CampaignsClient";
 
 export default async function CampaignsPage() {
-  const [{ data: campaigns, error: campaignError }, { data: profile }] =
-    await Promise.all([getCampaigns(), getProfile()]);
+  const [{ data: campaigns, error: campaignError }, { data: profile }, { data: collecte }] =
+    await Promise.all([getCampaigns(), getProfile(), getCollecteStatus()]);
 
   const role = (profile?.role ?? "member") as Role;
   const isAdmin = role === "admin";
@@ -38,6 +39,7 @@ export default async function CampaignsPage() {
           isAdmin={isAdmin}
           canUseDonationPage={canUseDonationPage}
           hideCompleted={hideCompleted}
+          collecte={collecte ?? null}
         />
       )}
     </div>

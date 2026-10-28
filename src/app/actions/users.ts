@@ -281,7 +281,12 @@ export async function deleteUserAction(userId: number) {
       method: "DELETE",
       headers: await getAuthHeader(),
     });
-    if (!res.ok) return { error: "Suppression échouée." };
+    /* Le serveur refuse (409) un compte qui a des Jëfs, et dit quoi faire à
+       la place — bloquer. « Suppression échouée » taisait la raison. */
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { error: messageForErrors(data, "Suppression échouée.") };
+    }
     return { success: true };
   } catch (err) {
     console.error("deleteUserAction:", err);

@@ -125,7 +125,7 @@ export default function LandingPage() {
           <div className="mb-10">
             <span className="ax-badge ax-badge--soft ax-badge--accent ax-badge--pill">
               <span className="ax-badge__dot" aria-hidden="true" />
-              Réseau Yessal Gui · Confrérie Mouride
+              Kourel Yessal Gui · Le Renouveau
             </span>
           </div>
 

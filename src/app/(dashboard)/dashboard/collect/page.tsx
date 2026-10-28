@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCampaigns } from "@/app/actions/campaigns";
+import { getCollecteStatus } from "@/app/actions/collecte";
 import { getCollectQueues } from "@/app/actions/donations";
 import { getProfile } from "@/app/actions/users";
 import { PageHead } from "@/components/vireo/PageHead";
@@ -10,11 +11,15 @@ import { CollectQueues, type QueueDonation } from "./CollectQueues";
 const ALLOWED_COLLECT_ROLES = ["collector", "admin", "chef_daara"];
 
 export default async function CollectPage() {
-  const [{ data: campaigns }, { data: profile }, queues] = await Promise.all([
-    getCampaigns(),
-    getProfile(),
-    getCollectQueues(),
-  ]);
+  const [{ data: campaigns }, { data: profile }, queues, { data: collecte }] =
+    await Promise.all([
+      getCampaigns(),
+      getProfile(),
+      getCollectQueues(),
+      getCollecteStatus(),
+    ]);
+  /* Sans réponse, on ne coupe rien : le serveur refusera de toute façon. */
+  const collecteActive = collecte?.active !== false;
 
   // Vérification stricte du rôle depuis le profil Django.
   const role = (profile?.role ?? "member") as Role;
@@ -38,9 +43,14 @@ export default async function CollectPage() {
       <CollectQueues
         requests={queues.requests as QueueDonation[]}
         cash={queues.cash as QueueDonation[]}
+        viewerId={profile?.id}
+        collecteActive={collecteActive}
       />
 
-      <CollectClient campaigns={(campaigns || []) as CollectCampaign[]} />
+      <CollectClient
+        campaigns={(campaigns || []) as CollectCampaign[]}
+        collecteActive={collecteActive}
+      />
     </div>
   );
 }

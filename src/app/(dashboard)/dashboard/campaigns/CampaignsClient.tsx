@@ -63,6 +63,8 @@ import { StatusBadge } from "@/components/vireo/StatusBadge";
 import { CoverImage } from "@/components/vireo/CoverImage";
 import { ALL, useCollection } from "@/hooks/useCollection";
 import { MAX_JEF, MIN_JEF } from "@/lib/jef";
+import { collecteUnavailableHint, memberMethods } from "@/lib/payment-methods";
+import type { CollecteStatus } from "@/app/actions/collecte";
 
 type Todo = {
   id: number;
@@ -111,7 +113,10 @@ export function CampaignsClient({
   isAdmin,
   canUseDonationPage,
   hideCompleted = false,
+  collecte = null,
 }: {
+  /** Disponibilité de la collecte en espèces pour ce membre. */
+  collecte?: CollecteStatus | null;
   initialCampaigns: CampaignCard[];
   isAdmin: boolean;
   canUseDonationPage: boolean;
@@ -762,7 +767,11 @@ export function CampaignsClient({
             <PaymentMethodPicker
               value={selectedMethod}
               onChange={setSelectedMethod}
+              methods={memberMethods(collecte)}
             />
+            {collecteUnavailableHint(collecte) && (
+              <p className="ax-field__hint">{collecteUnavailableHint(collecte)}</p>
+            )}
 
             {errorMsg && (
               <p className="ax-field__message ax-field__message--error">

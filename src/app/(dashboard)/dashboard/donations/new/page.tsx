@@ -3,6 +3,7 @@ import { getProfile } from "@/app/actions/users";
 import { getCampaigns } from "@/app/actions/campaigns";
 import { getTutelles } from "@/app/actions/tutelles";
 import { getBankAccountConfig } from "@/app/actions/donations";
+import { getCollecteStatus } from "@/app/actions/collecte";
 import { NewDonationClient } from "./NewDonationClient";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PageHead } from "@/components/vireo/PageHead";
@@ -26,8 +27,12 @@ export default async function NewDonationPage({
   const params = (await searchParams) ?? {};
   const requestedCampaign = params.campaign?.trim();
 
-  const [{ data: campaigns, error: campError }, { data: tutelles, error: tutError }, bankConfig] =
-    await Promise.all([getCampaigns(), getTutelles(), getBankAccountConfig()]);
+  const [
+    { data: campaigns, error: campError },
+    { data: tutelles, error: tutError },
+    bankConfig,
+    { data: collecte },
+  ] = await Promise.all([getCampaigns(), getTutelles(), getBankAccountConfig(), getCollecteStatus()]);
 
   const list = campaigns || [];
   const defaultCampaignId =
@@ -57,6 +62,7 @@ export default async function NewDonationPage({
           tutelles={tutError ? [] : tutelles || []}
           defaultCampaignId={defaultCampaignId}
           bankConfig={bankConfig}
+          collecte={collecte ?? null}
         />
       )}
     </div>

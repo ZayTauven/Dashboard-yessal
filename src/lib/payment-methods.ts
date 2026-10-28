@@ -165,6 +165,33 @@ export const ALL_METHODS = [
   "manual",
 ];
 
+/**
+ * Les moyens qu'un MEMBRE peut choisir pour son propre Jëf.
+ *
+ * « Espèces (collecteur) » disparaît quand personne ne pourrait passer : la
+ * collecte est suspendue, ou aucun collecteur ne couvre sa zone. Le proposer
+ * créerait une demande que personne ne verrait — le serveur la refuse
+ * d'ailleurs. Sans réponse du serveur (`null`), on ne retire rien : c'est lui
+ * qui tranchera, avec un message lisible.
+ */
+export function memberMethods(
+  collecte?: { disponible: boolean } | null,
+): string[] {
+  return collecte && !collecte.disponible
+    ? ALL_METHODS.filter((m) => m !== "manual")
+    : ALL_METHODS;
+}
+
+/** Pourquoi l'option « Collecteur » manque — à afficher sous le sélecteur. */
+export function collecteUnavailableHint(
+  collecte?: { disponible: boolean; raison: string | null } | null,
+): string | null {
+  if (!collecte || collecte.disponible) return null;
+  return collecte.raison === "suspendue"
+    ? "La collecte en espèces est suspendue : réglez votre Jëf en ligne. Ne confiez votre argent à personne qui se présenterait comme collecteur."
+    : "Aucun collecteur ne couvre encore votre zone. Réglez en ligne, ou contactez le coordinateur de votre Daara.";
+}
+
 /** Libellé seul — pour les exports CSV/XLSX, qui n'ont ni logo ni couleur. */
 export function paymentMethodLabel(value?: string | null): string {
   return PAYMENT_METHODS[(value ?? "").toLowerCase()]?.label ?? value ?? "";

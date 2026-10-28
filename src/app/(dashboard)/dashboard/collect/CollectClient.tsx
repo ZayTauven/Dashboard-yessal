@@ -82,7 +82,14 @@ export interface CollectCampaign {
 
 const fullName = memberFullName;
 
-export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
+export function CollectClient({
+  campaigns,
+  collecteActive = true,
+}: {
+  campaigns: CollectCampaign[];
+  /** Collecte en espèces suspendue : on peut encore payer POUR un membre. */
+  collecteActive?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [members, setMembers] = useState<CollectMember[]>([]);
   const [searching, setSearching] = useState(false);
@@ -98,7 +105,7 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
   const [issued, setIssued] = useState<{ name: string; password: string } | null>(
     null,
   );
-  const [paymentMethod, setPaymentMethod] = useState("manual");
+  const [paymentMethod, setPaymentMethod] = useState(collecteActive ? "manual" : "wave");
 
   const activeCampaigns = campaigns.filter((c) => c.status === "active");
 
@@ -399,7 +406,9 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                   >
-                    <option value="manual">Espèces en main (à remettre)</option>
+                    {collecteActive && (
+                      <option value="manual">Espèces en main (à remettre)</option>
+                    )}
                     <option value="wave">Wave, depuis mon téléphone</option>
                     <option value="orange_money">Orange Money, depuis mon téléphone</option>
                     {/* `visa` est une valeur héritée que le serveur refuse

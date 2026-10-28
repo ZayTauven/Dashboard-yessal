@@ -55,12 +55,20 @@ import {
   type CashDepositRow,
   type CashGroup,
 } from "./CashDeposits";
+import { CollecteursPanel, type CollecteSettings } from "./Collecteurs";
+import {
+  getCouverture,
+  listCollecteurs,
+  type Collecteur,
+  type ZoneCouverture,
+} from "@/app/actions/collecte";
 import {
   Archive as ArchiveIcon,
   BadgeCheck,
   Check,
   FileText,
   FileWarning,
+  HandCoins,
   Inbox,
   Landmark,
   Loader2,
@@ -83,7 +91,7 @@ import {
   statusLabel,
 } from "@/components/vireo/StatusBadge";
 
-type PilotageSettings = { enable_salons: boolean };
+type PilotageSettings = { enable_salons: boolean } & CollecteSettings;
 
 type Title = {
   id: number;
@@ -152,7 +160,7 @@ const shortDate = new Intl.DateTimeFormat("fr-SN", {
   month: "short",
 });
 
-type Tab = "queue" | "titles" | "archives" | "settings";
+type Tab = "queue" | "collecteurs" | "titles" | "archives" | "settings";
 
 /** Refus en cours — la modale de note remplace `window.prompt()`. */
 type RefusalTarget =
@@ -178,6 +186,8 @@ export default function PilotagePage() {
   const [pendingWires, setPendingWires] = useState<Donation[]>([]);
   const [pendingCash, setPendingCash] = useState<CashGroup[]>([]);
   const [cashDeposits, setCashDeposits] = useState<CashDepositRow[]>([]);
+  const [collecteurs, setCollecteurs] = useState<Collecteur[]>([]);
+  const [zones, setZones] = useState<ZoneCouverture[]>([]);
 
   const [archives, setArchives] = useState<Archive[]>([]);
   const [archiveName, setArchiveName] = useState("");
@@ -191,7 +201,7 @@ export default function PilotagePage() {
 
   const loadAll = async () => {
     setIsLoading(true);
-    const [s, t, tr, pd, pw, ar, pc, cd] = await Promise.all([
+    const [s, t, tr, pd, pw, ar, pc, cd, co, zo] = await Promise.all([
       getPilotageSettings(),
       getTitles(),
       getTitleRequests(),
@@ -200,7 +210,11 @@ export default function PilotagePage() {
       listDonationArchives(),
       getPendingCash(),
       listCashDeposits(),
+      listCollecteurs(),
+      getCouverture(),
     ]);
+    setCollecteurs(co.data || []);
+    setZones(zo.data || []);
     setPendingCash(pc.data || []);
     setCashDeposits(cd.data || []);
     if (s.data) setSettings(s.data);
@@ -374,21 +388,26 @@ export default function PilotagePage() {
       <PageHead
         role="admin"
         title="Pilotage du système"
-        subtitle="Réglages généraux, files d'attente et archives."
+        subtitle="Réglages généraux, files d'attente, collecteurs et archives."
+        /* Sur l'onglet Réglages seulement : visible partout, il laissait
+           croire qu'il enregistrait aussi une remise ou les zones d'un
+           collecteur, qui s'enregistrent chacune à leur geste. */
         actions={
-          <button
-            type="button"
-            className="ax-btn ax-btn--primary"
-            onClick={handleSaveSettings}
-            disabled={isPending}
-          >
-            {isPending ? (
-              <Loader2 className="ax-btn__icon animate-spin" size={16} aria-hidden="true" />
-            ) : (
-              <Save className="ax-btn__icon" size={16} aria-hidden="true" />
-            )}
-            <span className="ax-btn__label">Enregistrer les réglages</span>
-          </button>
+          tab === "settings" ? (
+            <button
+              type="button"
+              className="ax-btn ax-btn--primary"
+              onClick={handleSaveSettings}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <Loader2 className="ax-btn__icon animate-spin" size={16} aria-hidden="true" />
+              ) : (
+                <Save className="ax-btn__icon" size={16} aria-hidden="true" />
+              )}
+              <span className="ax-btn__label">Enregistrer les réglages</span>
+            </button>
+          ) : undefined
         }
       />
 
@@ -405,6 +424,21 @@ export default function PilotagePage() {
             {queueCount > 0 && (
               <span className="ax-tabs__badge ax-badge ax-badge--warning ax-badge--sm">
                 {queueCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className="ax-tabs__tab"
+            aria-selected={tab === "collecteurs"}
+            onClick={() => setTab("collecteurs")}
+          >
+            <HandCoins className="ax-tabs__icon" size={15} aria-hidden="true" />
+            Collecteurs
+            {settings?.collecte_physique_active === false && (
+              <span className="ax-tabs__badge ax-badge ax-badge--danger ax-badge--sm">
+                Suspendue
               </span>
             )}
           </button>
@@ -765,6 +799,16 @@ export default function PilotagePage() {
             )}
           </div>
         </section>
+      )}
+
+      {/* ══ Collecteurs ══ */}
+      {tab === "collecteurs" && (
+        <CollecteursPanel
+          settings={settings}
+          collecteurs={collecteurs}
+          zones={zones}
+          onChanged={() => void loadAll()}
+        />
       )}
 
       {/* ══ Archives ══ */}

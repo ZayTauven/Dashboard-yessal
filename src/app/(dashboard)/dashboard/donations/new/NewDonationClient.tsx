@@ -37,6 +37,8 @@ import { toast } from "sonner";
 import { makeDonation } from "@/app/actions/donations";
 import { PaymentMethodPicker } from "@/components/vireo/PaymentMethodPicker";
 import { MAX_JEF, MIN_JEF } from "@/lib/jef";
+import { collecteUnavailableHint, memberMethods } from "@/lib/payment-methods";
+import type { CollecteStatus } from "@/app/actions/collecte";
 
 type CampaignOption = { id: number | string; name: string };
 type TutelleOption = {
@@ -50,7 +52,10 @@ export function NewDonationClient({
   tutelles,
   defaultCampaignId,
   bankConfig,
+  collecte,
 }: {
+  /** Disponibilité de la collecte en espèces pour ce membre. */
+  collecte?: CollecteStatus | null;
   campaigns: CampaignOption[];
   tutelles: TutelleOption[];
   defaultCampaignId?: string;
@@ -225,7 +230,11 @@ export function NewDonationClient({
               <PaymentMethodPicker
                 value={selectedMethod}
                 onChange={setSelectedMethod}
+                methods={memberMethods(collecte)}
               />
+              {collecteUnavailableHint(collecte) && (
+                <p className="ax-field__hint">{collecteUnavailableHint(collecte)}</p>
+              )}
 
               {selectedMethod === "virement" && (
                 <div className="ax-card ax-card--compact">
