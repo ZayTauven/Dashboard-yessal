@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   Clock,
   CreditCard,
+  HandCoins,
   Hourglass,
   X,
   XCircle,
@@ -58,8 +59,12 @@ interface Entry {
 const PAYMENT: Record<string, Entry> = {
   pending: { label: "En attente", tone: "warning", icon: Clock },
   pending_wire: { label: "Virement en attente", tone: "info", icon: Hourglass },
+  /* L'argent est dans la main du collecteur, pas encore à l'administration :
+     ni « en attente » (le membre a payé), ni « confirmé » (personne n'a compté). */
+  collected: { label: "Encaissé, à remettre", tone: "info", icon: HandCoins },
   confirmed: { label: "Confirmé", tone: "success", icon: CheckCircle2 },
   failed: { label: "Échoué", tone: "danger", icon: XCircle },
+  cancelled: { label: "Annulé", tone: "neutral", icon: Ban },
 };
 
 /** `events.Campaign.Status` */

@@ -144,7 +144,13 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
       setSelected(null);
       setQuery("");
       setMembers([]);
-      toast.success("Jëf enregistré avec succès.");
+      /* Des espèces ne sont pas « confirmées » par celui qui les tient : le
+         membre reçoit son reçu, la confirmation vient à la remise. */
+      toast.success(
+        paymentMethod === "manual"
+          ? "Encaissement enregistré. Le membre a reçu son reçu ; il sera confirmé à votre remise."
+          : "Jëf enregistré avec succès.",
+      );
     });
   };
 

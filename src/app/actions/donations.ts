@@ -204,7 +204,9 @@ export async function makeDonation(formData: FormData) {
         donor: donorId || null,
         beneficiary: beneficiaryId || null,
         payment_method: paymentMethod,
-        payment_status: paymentMethod === "manual" ? "confirmed" : "pending",
+        /* Plus de `payment_status` : il CONFIRMAIT d'office tout Jëf en
+           espèces, demande de collecte d'un membre comprise. Le serveur
+           décide seul (demandé, encaissé, puis confirmé à la remise). */
         is_anonymous: isAnonymous,
       }),
     });

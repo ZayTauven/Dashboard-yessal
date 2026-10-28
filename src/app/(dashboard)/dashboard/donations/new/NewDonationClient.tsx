@@ -80,9 +80,11 @@ export function NewDonationClient({
       const donation = res.data;
 
       // Collecte physique : rien à payer en ligne, on notifie les responsables.
-      if (paymentMethod === "collector") {
+      // Le test portait sur `collector`, valeur héritée que le sélecteur ne
+      // propose plus : le message ne s'affichait jamais.
+      if (paymentMethod === "manual") {
         toast.success(
-          "Demande de collecte enregistrée. Les responsables ont été notifiés.",
+          "Demande de collecte envoyée. Un collecteur vous contactera.",
         );
         router.push("/dashboard/donations");
         return;

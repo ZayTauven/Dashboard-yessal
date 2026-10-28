@@ -304,7 +304,9 @@ export function DonationListClient({
               { value: "confirmed", label: "Confirmé" },
               { value: "pending", label: "En attente" },
               { value: "pending_wire", label: "Virement en attente" },
+              { value: "collected", label: "Encaissé, à remettre" },
               { value: "failed", label: "Échoué" },
+              { value: "cancelled", label: "Annulé" },
             ],
           },
           {
