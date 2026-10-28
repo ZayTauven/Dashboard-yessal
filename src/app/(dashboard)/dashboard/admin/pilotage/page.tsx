@@ -44,9 +44,17 @@ import {
   confirmWireDonation,
   createDonationArchive,
   getArchiveDonations,
+  getPendingCash,
   getPendingWireDonations,
+  listCashDeposits,
   listDonationArchives,
 } from "@/app/actions/donations";
+import {
+  CashDepositHistory,
+  PendingCashSection,
+  type CashDepositRow,
+  type CashGroup,
+} from "./CashDeposits";
 import {
   Archive as ArchiveIcon,
   BadgeCheck,
@@ -168,6 +176,8 @@ export default function PilotagePage() {
 
   const [pendingDocs, setPendingDocs] = useState<UserDocument[]>([]);
   const [pendingWires, setPendingWires] = useState<Donation[]>([]);
+  const [pendingCash, setPendingCash] = useState<CashGroup[]>([]);
+  const [cashDeposits, setCashDeposits] = useState<CashDepositRow[]>([]);
 
   const [archives, setArchives] = useState<Archive[]>([]);
   const [archiveName, setArchiveName] = useState("");
@@ -181,14 +191,18 @@ export default function PilotagePage() {
 
   const loadAll = async () => {
     setIsLoading(true);
-    const [s, t, tr, pd, pw, ar] = await Promise.all([
+    const [s, t, tr, pd, pw, ar, pc, cd] = await Promise.all([
       getPilotageSettings(),
       getTitles(),
       getTitleRequests(),
       getPendingDocuments(),
       getPendingWireDonations(),
       listDonationArchives(),
+      getPendingCash(),
+      listCashDeposits(),
     ]);
+    setPendingCash(pc.data || []);
+    setCashDeposits(cd.data || []);
     if (s.data) setSettings(s.data);
     setTitles(t.data || []);
     setTitleRequests(
@@ -205,7 +219,7 @@ export default function PilotagePage() {
   }, []);
 
   const queueCount =
-    pendingWires.length + titleRequests.length + pendingDocs.length;
+    pendingCash.length + pendingWires.length + titleRequests.length + pendingDocs.length;
 
   const handleSaveSettings = () => {
     startTransition(async () => {
@@ -443,11 +457,14 @@ export default function PilotagePage() {
                   icon={Inbox}
                   tone="success"
                   title="Rien à traiter"
-                  description="Aucun virement, aucune demande de titre et aucune pièce d'identité en attente."
+                  description="Aucune remise d'espèces, aucun virement, aucune demande de titre et aucune pièce d'identité en attente."
                 />
               </div>
             </div>
           )}
+
+          {/* Espèces à remettre — une carte par collecteur */}
+          <PendingCashSection groups={pendingCash} onChanged={() => void loadAll()} />
 
           {/* Virements */}
           {pendingWires.length > 0 && (
@@ -950,6 +967,8 @@ export default function PilotagePage() {
               </div>
             )}
           </section>
+
+          <CashDepositHistory deposits={cashDeposits} />
         </div>
       )}
 

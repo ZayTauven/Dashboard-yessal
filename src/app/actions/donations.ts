@@ -101,6 +101,86 @@ export async function confirmWireDonation(donationId: number) {
   }
 }
 
+/* ── Circuit des espèces : encaissé → remise validée par l'admin ─────────── */
+
+async function postContribution(path: string, body: unknown, fallback: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/contributions/${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...((await getAuthHeader()) as Record<string, string>),
+      },
+      body: JSON.stringify(body ?? {}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: messageForErrors(data, fallback) };
+    revalidatePath("/dashboard/donations");
+    revalidatePath("/dashboard/collect");
+    return { data };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur." };
+  }
+}
+
+async function getContribution(path: string, fallback: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/contributions/${path}`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) return { error: fallback, data: [] };
+    return { data: await res.json() };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur.", data: [] };
+  }
+}
+
+/** La caisse de chaque collecteur : espèces encaissées, pas encore remises. */
+export async function getPendingCash() {
+  return getContribution("admin/pending-cash/", "Impossible de charger les espèces à remettre.");
+}
+
+/** Les bordereaux de remise déjà validés. */
+export async function listCashDeposits() {
+  return getContribution("admin/cash-deposits/", "Impossible de charger les remises.");
+}
+
+/** L'administrateur a compté l'argent : le total doit égaler celui des Jëfs. */
+export async function confirmCashDeposit(input: {
+  collector: number;
+  donations: number[];
+  counted_amount: number;
+  note?: string;
+}) {
+  return postContribution("admin/confirm-cash/", input, "La remise n'a pas pu être validée.");
+}
+
+/** Les deux files du collecteur : demandes ouvertes, et sa caisse non remise. */
+export async function getCollectQueues() {
+  const [requests, cash] = await Promise.all([
+    getContribution("?a_collecter=1", "Impossible de charger les demandes de collecte."),
+    getContribution("?ma_caisse=1", "Impossible de charger votre caisse."),
+  ]);
+  return {
+    requests: (requests.data ?? []) as unknown[],
+    cash: (cash.data ?? []) as unknown[],
+    error: requests.error || cash.error,
+  };
+}
+
+/** Le collecteur déclare avoir reçu l'argent d'une demande de collecte. */
+export async function collectDonation(donationId: number) {
+  return postContribution(`${donationId}/collect/`, {}, "L'encaissement a échoué.");
+}
+
+/** Annulation par l'administration, motif obligatoire. */
+export async function cancelDonation(donationId: number, reason: string) {
+  return postContribution(`${donationId}/admin/cancel/`, { reason }, "L'annulation a échoué.");
+}
+
 export async function createDonationArchive(name: string, description = "") {
   try {
     const res = await fetch(
@@ -239,17 +319,19 @@ export async function makeDonation(formData: FormData) {
       if (payRes.error) {
         return { error: payRes.error };
       }
-      if (payRes.data?.checkoutUrl || payRes.data?.url) {
-        return {
-          success: true,
-          redirectUrl: payRes.data.checkoutUrl || payRes.data.url,
-        };
+      /* Le service rend `checkout_url` (`contributions/services/bictorys.py`) :
+         seule la forme camelCase était lue, la page de carte ne s'ouvrait pas. */
+      const redirectUrl =
+        payRes.data?.checkout_url || payRes.data?.checkoutUrl || payRes.data?.url;
+      if (redirectUrl) {
+        return { success: true, redirectUrl };
       }
     }
 
     revalidatePath("/dashboard/donations");
     revalidatePath("/dashboard/donations/new");
     revalidatePath("/dashboard/campaigns");
+    revalidatePath("/dashboard/collect");
 
     return { success: true, data: donation };
   } catch (err) {

@@ -397,14 +397,18 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                   >
-                    <option value="manual">Conserver en espèces</option>
-                    <option value="wave">Dépôt Wave</option>
-                    <option value="orange_money">Dépôt Orange Money</option>
-                    <option value="visa">Dépôt carte bancaire</option>
+                    <option value="manual">Espèces en main (à remettre)</option>
+                    <option value="wave">Wave, depuis mon téléphone</option>
+                    <option value="orange_money">Orange Money, depuis mon téléphone</option>
+                    {/* `visa` est une valeur héritée que le serveur refuse
+                        désormais : la carte passe par Bictorys. */}
+                    <option value="bictorys">Carte bancaire</option>
                     <option value="virement">Virement bancaire</option>
                   </select>
                   <p className="ax-field__hint">
-                    Comment les espèces collectées rejoignent le compte Yessal.
+                    {paymentMethod === "manual"
+                      ? "L'argent entre dans votre caisse ; il sera confirmé à votre remise à l'administration."
+                      : "Vous payez au nom du membre : la demande de validation arrive sur VOTRE téléphone."}
                   </p>
                 </div>
 

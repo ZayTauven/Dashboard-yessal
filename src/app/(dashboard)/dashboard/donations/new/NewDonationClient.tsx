@@ -34,7 +34,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CreditCard, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { makeDonation, payDonation } from "@/app/actions/donations";
+import { makeDonation } from "@/app/actions/donations";
 import { PaymentMethodPicker } from "@/components/vireo/PaymentMethodPicker";
 
 type CampaignOption = { id: number | string; name: string };
@@ -77,37 +77,29 @@ export function NewDonationClient({
         return;
       }
 
-      const donation = res.data;
-
-      // Collecte physique : rien à payer en ligne, on notifie les responsables.
-      // Le test portait sur `collector`, valeur héritée que le sélecteur ne
-      // propose plus : le message ne s'affichait jamais.
-      if (paymentMethod === "manual") {
-        toast.success(
-          "Demande de collecte envoyée. Un collecteur vous contactera.",
-        );
-        router.push("/dashboard/donations");
+      /*
+        🔴 `makeDonation` INITIE DÉJÀ le paiement. Cet écran le relançait une
+        seconde fois : deux demandes Wave ou Orange Money sur le téléphone du
+        membre, et pour un virement un second appel sans référence qui
+        affichait une erreur alors que la déclaration avait abouti. La page de
+        carte, elle, ne s'ouvrait jamais : le test portait sur `visa` et
+        `mastercard`, que le sélecteur ne propose plus.
+      */
+      if (res.redirectUrl) {
+        window.location.href = res.redirectUrl;
         return;
       }
 
-      // Paiement digital : on enchaîne sur Bictorys.
-      if (paymentMethod !== "paypal") {
-        const payRes = await payDonation(donation.id, paymentMethod);
-        if (payRes.error) {
-          setErrorMsg(payRes.error);
-          return;
-        }
-
-        if (paymentMethod === "visa" || paymentMethod === "mastercard") {
-          if (payRes.data?.checkout_url) {
-            window.location.href = payRes.data.checkout_url;
-            return;
-          }
-        } else {
-          toast.success(
-            "Demande de paiement envoyée. Validez sur votre téléphone.",
-          );
-        }
+      // Le test portait sur `collector`, valeur héritée que le sélecteur ne
+      // propose plus : le message de collecte ne s'affichait jamais.
+      if (paymentMethod === "manual") {
+        toast.success("Demande de collecte envoyée. Un collecteur vous contactera.");
+      } else if (paymentMethod === "virement") {
+        toast.success("Virement déclaré. Il sera confirmé dès réception des fonds.");
+      } else if (paymentMethod === "bictorys") {
+        toast.error("La page de paiement n'a pas pu s'ouvrir. Votre Jëf reste à régler.");
+      } else {
+        toast.success("Demande de paiement envoyée. Validez sur votre téléphone.");
       }
 
       router.push("/dashboard/donations");
@@ -189,8 +181,11 @@ export function NewDonationClient({
                     id="amount"
                     name="amount"
                     type="number"
-                    min={5}
-                    step={500}
+                    /* Mêmes bornes que le mobile (MIN_JEF / MAX_JEF), au franc
+                       près : un `step` de 500 partant de 5 rejetait 5 000. */
+                    min={500}
+                    max={2_000_000}
+                    step={1}
                     inputMode="numeric"
                     className="ax-input ax-input--lg ax-input--with-trailing font-mono tabular"
                     placeholder="5000"
