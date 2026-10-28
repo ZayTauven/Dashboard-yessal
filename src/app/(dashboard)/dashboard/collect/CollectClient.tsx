@@ -40,6 +40,8 @@ import {
 import { toast } from "sonner";
 import { createUserByAdmin, searchMembers } from "@/app/actions/users";
 import { makeDonation } from "@/app/actions/donations";
+import { formatFCFA } from "@/lib/format";
+import { MAX_JEF, MIN_JEF } from "@/lib/jef";
 import { generateProvisionalPassword } from "@/lib/password";
 import { roleLabelLong } from "@/lib/roles";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -479,8 +481,9 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
                       id="amount"
                       name="amount"
                       type="number"
-                      min="1000"
-                      step="500"
+                      min={MIN_JEF}
+                      max={MAX_JEF}
+                      step={1}
                       inputMode="numeric"
                       className="ax-input ax-input--with-leading-icon ax-input--lg font-mono tabular"
                       placeholder="0"
@@ -490,7 +493,9 @@ export function CollectClient({ campaigns }: { campaigns: CollectCampaign[] }) {
                       FCFA
                     </span>
                   </div>
-                  <p className="ax-field__hint">Minimum 1 000 FCFA.</p>
+                  <p className="ax-field__hint">
+                    À partir de {formatFCFA(MIN_JEF)} : aucune offrande n&apos;est trop modeste.
+                  </p>
                 </div>
 
                 {errorMsg && <ErrorAlert message={errorMsg} />}

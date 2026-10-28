@@ -62,6 +62,7 @@ import { PaymentMethodPicker } from "@/components/vireo/PaymentMethodPicker";
 import { StatusBadge } from "@/components/vireo/StatusBadge";
 import { CoverImage } from "@/components/vireo/CoverImage";
 import { ALL, useCollection } from "@/hooks/useCollection";
+import { MAX_JEF, MIN_JEF } from "@/lib/jef";
 
 type Todo = {
   id: number;
@@ -739,7 +740,9 @@ export function CampaignsClient({
                   id="amount"
                   name="amount"
                   type="number"
-                  min="5"
+                  min={MIN_JEF}
+                  max={MAX_JEF}
+                  step={1}
                   inputMode="numeric"
                   className="ax-input ax-input--with-leading-icon ax-input--lg font-mono tabular"
                   placeholder="5000"

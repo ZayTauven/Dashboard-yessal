@@ -36,6 +36,7 @@ import { ArrowLeft, CreditCard, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { makeDonation } from "@/app/actions/donations";
 import { PaymentMethodPicker } from "@/components/vireo/PaymentMethodPicker";
+import { MAX_JEF, MIN_JEF } from "@/lib/jef";
 
 type CampaignOption = { id: number | string; name: string };
 type TutelleOption = {
@@ -181,10 +182,10 @@ export function NewDonationClient({
                     id="amount"
                     name="amount"
                     type="number"
-                    /* Mêmes bornes que le mobile (MIN_JEF / MAX_JEF), au franc
-                       près : un `step` de 500 partant de 5 rejetait 5 000. */
-                    min={500}
-                    max={2_000_000}
+                    /* Mêmes bornes que le mobile et le serveur (`lib/jef.ts`),
+                       au franc près : un `step` de 500 partant de 5 rejetait 5 000. */
+                    min={MIN_JEF}
+                    max={MAX_JEF}
                     step={1}
                     inputMode="numeric"
                     className="ax-input ax-input--lg ax-input--with-trailing font-mono tabular"
