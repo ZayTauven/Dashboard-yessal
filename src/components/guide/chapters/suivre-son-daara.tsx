@@ -57,7 +57,7 @@ export default function SuivreSonDaara() {
       <Callout title="« Effectif sur la plateforme »">
         <p className="m-0">
           Ce chiffre compte les membres <strong>inscrits</strong>, pas les
-          membres du Daara. Un Daara nombreux dont peu de talibés ont ouvert un
+          membres du Daara. Un Daara nombreux dont peu de talubés ont ouvert un
           compte affichera un petit nombre. L’écart n’est pas une
           anomalie : il mesure ce qui reste à faire.
         </p>
@@ -73,7 +73,7 @@ export default function SuivreSonDaara() {
 
       <ul>
         <li>
-          <strong>Talibés du Daara</strong> — la liste complète, avec les
+          <strong>Talubés du Daara</strong> — la liste complète, avec les
           fiches : identité, contacts, documents, historique des{" "}
           <Terme mot="jef">Jëfs</Terme>.
         </li>
@@ -89,12 +89,12 @@ export default function SuivreSonDaara() {
 
       <Shot
         src="/guide-assets/shots/chef-membres.webp"
-        alt="La liste des Talibés du Daara, vue par le coordinateur : une ligne par membre avec son avatar, son titre et ses contacts."
+        alt="La liste des Talubés du Daara, vue par le coordinateur : une ligne par membre avec son avatar, son titre et ses contacts."
         url="yessal.sn/dashboard/members"
         caption={
           <>
-            <b>Talibés du Daara.</b> Un administrateur voit le même écran sous
-            le nom <b>Liste des Talibés</b>, sans la borne du Daara. Le libellé
+            <b>Talubés du Daara.</b> Un administrateur voit le même écran sous
+            le nom <b>Liste des Talubés</b>, sans la borne du Daara. Le libellé
             change parce que la portée change.
           </>
         }

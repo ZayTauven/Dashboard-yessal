@@ -16,14 +16,14 @@ export default function Roles() {
 
       <ul>
         <li>
-          <strong>Talibé</strong> — le rôle par défaut. Il fait ses{" "}
+          <strong>Talubé</strong> — le rôle par défaut. Il fait ses{" "}
           <Terme mot="jef">Jëfs</Terme>, suit les{" "}
           <Terme mot="ndiguel">Ndiguels</Terme>, enregistre ses{" "}
           <Terme mot="tutelle">tutelles</Terme>, consulte son{" "}
           <Terme mot="daara" />.
         </li>
         <li>
-          <strong>Coordinateur du Daara</strong> — tout ce que fait un talibé, plus la
+          <strong>Coordinateur du Daara</strong> — tout ce que fait un talubé, plus la
           vue d’ensemble de son Daara : ses membres, ses collecteurs, ses
           Jëfs. Il propose des candidats collecteurs et ouvre des salons de
           discussion.
@@ -31,7 +31,7 @@ export default function Roles() {
         <li>
           <strong>Collecteur</strong> — il encaisse en personne et enregistre le
           versement pour le compte du donateur. Il garde par ailleurs son
-          activité de talibé : ses propres Jëfs restent les siens.
+          activité de talubé : ses propres Jëfs restent les siens.
         </li>
         <li>
           <strong>Administrateur</strong> — il lance les Ndiguels, crée les
@@ -67,7 +67,7 @@ export default function Roles() {
       </p>
 
       <Matrix
-        columns={["Talibé", "Coordinateur", "Collecteur", "Admin"]}
+        columns={["Talubé", "Coordinateur", "Collecteur", "Admin"]}
         rows={[
           {
             label: "Faire un Jëf pour soi",
@@ -118,7 +118,7 @@ export default function Roles() {
             cells: [{ value: "no" }, { value: "no" }, { value: "no" }, { value: "yes" }],
           },
           {
-            label: "Consulter la liste des Talibés",
+            label: "Consulter la liste des Talubés",
             cells: [
               { value: "no" },
               { value: "part", note: "ceux de son Daara" },
@@ -147,7 +147,7 @@ export default function Roles() {
 
       <Callout title="Un rôle n'en efface pas un autre">
         <p className="m-0">
-          Un collecteur reste un talibé : il fait ses propres Jëfs, qui ne se
+          Un collecteur reste un talubé : il fait ses propres Jëfs, qui ne se
           confondent pas avec ce qu’il encaisse pour les autres. Son écran{" "}
           <em>Mes Jëfs et mes collectes</em> montre bien les deux, séparément —
           il n’en montrait qu’un seul jusqu’à ce que la

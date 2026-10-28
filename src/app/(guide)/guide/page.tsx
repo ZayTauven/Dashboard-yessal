@@ -93,7 +93,7 @@ const FAQ = [
     a: (
       <p>
         L’administration, et elle seule. Ni un coordinateur de Daara, ni un
-        collecteur, ni un talibé ne créent de campagne. En revanche,
+        collecteur, ni un talubé ne créent de campagne. En revanche,
         l’<strong>organisateur</strong> désigné pour mener un Ndiguel peut
         être choisi dans n’importe quel Daara.
       </p>

@@ -6,7 +6,7 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * Treize chapitres, c'est trop pour qui vient avec une question précise. On
  * demande donc son rôle au lecteur, une fois, et on lui rend la liste courte :
- * six chapitres pour un talibé, huit pour un administrateur.
+ * six chapitres pour un talubé, huit pour un administrateur.
  *
  * Le choix reste dans le navigateur (aucun compte n'est requis pour lire le
  * guide) et se défait d'un clic sur la même carte.
@@ -30,7 +30,7 @@ import { useGuideRole, useReadChapters } from "./reading-state";
 
 /*
  * Un picto par rôle, choisi pour ce que le rôle FAIT :
- *   · le talibé donne          → la main qui tend un cœur ;
+ *   · le talubé donne          → la main qui tend un cœur ;
  *   · le coordinateur veille   → les deux mains qui en abritent un ;
  *   · le collecteur encaisse   → la tirelire ;
  *   · l'administration arbitre → le quatre-feuilles, un motif de sceau.

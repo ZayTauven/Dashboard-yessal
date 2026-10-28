@@ -4,7 +4,7 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * Le client tient à ce que le titre (Serigne, Sokhna…) précède le nom, comme
  * on le prononce. Il n'était jusqu'ici visible que sur la fiche membre, en
- * pastille APRÈS le nom, et réduit ailleurs à un texte « Talibé · X ».
+ * pastille APRÈS le nom, et réduit ailleurs à un texte « Talubé · X ».
  *
  * Volontairement SANS `"use client"` : le composant n'a ni hook ni
  * gestionnaire, et il est rendu aussi bien par des pages serveur (Mon Daara,

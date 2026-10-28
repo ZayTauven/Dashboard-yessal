@@ -66,11 +66,11 @@ export const LEXIQUE: LexTerm[] = [
   },
   {
     id: "talibe",
-    word: "Talibé",
+    word: "Talubé",
     origin: "De l'arabe ṭālib, celui qui cherche, le disciple.",
-    def: "Le membre de la communauté, tel que la plateforme le nomme. Un talibé possède une fiche — identité, Daara, titre éventuel, pièces justificatives — et l'historique de ses Jëfs. C'est le rôle par défaut de tout compte créé.",
+    def: "Le membre de la communauté, tel que la plateforme le nomme. Un talubé possède une fiche — identité, Daara, titre éventuel, pièces justificatives — et l'historique de ses Jëfs. C'est le rôle par défaut de tout compte créé.",
     short: "Le membre. Le rôle par défaut de tout compte.",
-    where: "Rail de gauche → Liste des Talibés",
+    where: "Rail de gauche → Liste des Talubés",
   },
   {
     id: "tutelle",

@@ -2,7 +2,7 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * Fiche membre en lecture seule — pour tous les rôles sauf l'admin
  * ═══════════════════════════════════════════════════════════════════════════
- * Un talibé qui cliquait sur un nom dans « Mon Daara » tombait sur
+ * Un talubé qui cliquait sur un nom dans « Mon Daara » tombait sur
  * « Utilisateur introuvable » : la fiche complète lit `/api/users/{id}/`,
  * réservé à l'admin. Cette carte-ci se contente de ce que l'annuaire expose
  * à un membre du même Daara : visage, titre, nom, rôle, et le téléphone pour

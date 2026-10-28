@@ -81,7 +81,7 @@ const URGENCY: Record<string, { label: string; cls: string; icon: LucideIcon }> 
 /** `comms.Announcement.TargetRole` */
 const TARGET_ROLE_LABEL: Record<string, string> = {
   all: "Tout public",
-  member: "Talibés",
+  member: "Talubés",
   chef_daara: "Coordinateurs de Daara",
   collector: "Collecteurs",
   admin: "Administrateurs",

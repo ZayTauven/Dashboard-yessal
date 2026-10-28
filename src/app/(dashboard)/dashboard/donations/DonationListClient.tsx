@@ -45,7 +45,7 @@ type DonationRow = {
   created_at: string;
   /* Identifiants tels que `DonationSerializer` les rend. La liste lisait
      `campaign_id` et `donor_id`, que l'API n'envoie pas : les liens vers le
-     Ndiguel et vers la fiche du talibé ne s'affichaient jamais. */
+     Ndiguel et vers la fiche du talubé ne s'affichaient jamais. */
   campaign?: number;
   campaign_name?: string;
   beneficiary_name?: string | null;
@@ -57,20 +57,20 @@ type DonationRow = {
   collector?: number | null;
   collector_name?: string | null;
   donor_daara_name?: string | null;
-  /* LDD du Daara du talibé. Champ récent côté API : absent d'une réponse
+  /* LDD du Daara du talubé. Champ récent côté API : absent d'une réponse
      plus ancienne, d'où l'optionnel et le repli « — ». */
   donor_ldd_name?: string | null;
 };
 
 /*
- * Qui a versé le Jëf : le talibé lui-même, ou une tutelle pour son compte.
+ * Qui a versé le Jëf : le talubé lui-même, ou une tutelle pour son compte.
  * Même libellé à l'écran et dans l'export — le client lit les deux côte à
  * côte et ne doit pas avoir à traduire de l'un à l'autre.
  *
  * ⚠ « Moi-même » n'est vrai que sur la liste PERSONNELLE de celui qui a donné.
  * Il s'affichait aussi sur le registre de l'administrateur et sur les Jëfs
  * qu'un collecteur encaisse pour d'autres : chaque ligne y semblait être un
- * don du lecteur. Ailleurs, c'est « En son nom » — le talibé est nommé dans sa
+ * don du lecteur. Ailleurs, c'est « En son nom » — le talubé est nommé dans sa
  * propre colonne.
  */
 function contributorLabel(d: DonationRow, personal: boolean): string {
@@ -96,7 +96,7 @@ export function DonationListClient({
   const [scope, setScope] = useState<Scope>("mine");
 
   /*
-   * Le collecteur est un talibé AVANT d'être collecteur. Mêlés, ses propres
+   * Le collecteur est un talubé AVANT d'être collecteur. Mêlés, ses propres
    * Jëfs et ceux qu'il encaisse pour d'autres donnaient un « Total — 14 Jëfs »
    * qui additionnait l'argent des autres au sien. Sa portée serveur contient
    * aussi les demandes de collecte ouvertes : elles vivent sur « Collecte
@@ -183,7 +183,7 @@ function DonationTable({
 }) {
   const showDirectory = variant === "directory";
   const personal = variant === "personal";
-  /* Le talibé est nommé partout où la ligne n'est pas celle du lecteur. */
+  /* Le talubé est nommé partout où la ligne n'est pas celle du lecteur. */
   const showDonor = variant !== "personal";
   /* Le collecteur n'apprend rien d'une colonne qui le nomme lui-même. */
   const showCollector = variant !== "collected";
@@ -258,7 +258,7 @@ function DonationTable({
       /*
        * L'ordre des clés EST l'ordre des colonnes du fichier (`ExportButton`
        * lit `Object.keys` de la première ligne). Ordre demandé par le client :
-       * Date, Référence, Talibé, LDD, Daara, Ndiguel, Contributeur, Montant,
+       * Date, Référence, Talubé, LDD, Daara, Ndiguel, Contributeur, Montant,
        * Méthode, Statut — les trois colonnes d'annuaire n'existant qu'en
        * variante `directory`.
        */
@@ -268,7 +268,7 @@ function DonationTable({
           Référence: `REF-${d.id}`,
         };
         if (showDonor) {
-          row.Talibé = d.donor_name || "—";
+          row.Talubé = d.donor_name || "—";
           row.LDD = d.donor_ldd_name || "—";
           row.Daara = d.donor_daara_name || "—";
         }
@@ -302,7 +302,7 @@ function DonationTable({
     if (showDonor) {
       cols.push({
         key: "donor",
-        header: "Talibé",
+        header: "Talubé",
         sortKey: "donor",
         /* La fiche membre est un écran d'annuaire : un collecteur n'y a pas
            accès, le nom reste du texte pour lui. */

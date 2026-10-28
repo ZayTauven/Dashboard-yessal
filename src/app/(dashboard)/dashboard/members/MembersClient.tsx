@@ -50,8 +50,8 @@ type Role = "chef_daara" | "collector" | "member";
 
 const ROLE_LABELS: Record<Role, string> = {
   chef_daara: "Coordinateur du Daara",
-  collector: "Talibé · Collecteur",
-  member: "Talibé",
+  collector: "Talubé · Collecteur",
+  member: "Talubé",
 };
 
 /* Le rôle est une qualité, pas un état : il reste en badge doux, sans la
@@ -96,7 +96,7 @@ type MemberRow = {
   avatar_url?: string | null;
   /* Titre honorifique — `title_name` dans `DirectoryUserSerializer`. La
      modale lisait `title`, un champ que l'annuaire n'envoie pas : elle
-     affichait donc « Talibé » pour tout le monde. */
+     affichait donc « Talubé » pour tout le monde. */
   title_name?: string | null;
   documents_count?: number;
 };

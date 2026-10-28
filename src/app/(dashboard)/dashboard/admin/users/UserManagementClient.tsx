@@ -114,7 +114,7 @@ const ROLES = [
   { value: "admin", label: "Administrateur" },
   { value: "chef_daara", label: "Coordinateur du Daara" },
   { value: "collector", label: "Collecteur" },
-  { value: "member", label: "Talibé" },
+  { value: "member", label: "Talubé" },
 ];
 
 const ROLE_LABEL: Record<string, string> = Object.fromEntries(

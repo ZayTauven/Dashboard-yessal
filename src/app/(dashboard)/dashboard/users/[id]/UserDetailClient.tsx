@@ -235,7 +235,7 @@ export default function UserDetailClient({
    * ── Les quatre chiffres de CE membre ──
    *
    * `stats.kpis` vient de `getUserDashboardStats`, qui renvoie les compteurs du
-   * DAARA : « Total Daara », « Talibés », « Jëfs Actifs »… Affichés en tête
+   * DAARA : « Total Daara », « Talubés », « Jëfs Actifs »… Affichés en tête
    * d'une fiche individuelle, ils se lisaient comme les chiffres de la personne
    * — un membre paraissait avoir collecté les 20 000 FCFA de son Daara entier.
    *

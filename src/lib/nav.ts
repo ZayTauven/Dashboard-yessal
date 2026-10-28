@@ -83,7 +83,7 @@ function donationsTitle(role: Role): string {
 }
 
 function membersTitle(role: Role): string {
-  return role === "admin" ? "Liste des Talibés" : "Talibés du Daara";
+  return role === "admin" ? "Liste des Talubés" : "Talubés du Daara";
 }
 
 export function navSections(role: Role): NavSection[] {
@@ -189,7 +189,7 @@ export function navSections(role: Role): NavSection[] {
           href: "/dashboard/members",
           icon: Users,
           roles: ["admin", "chef_daara", "collector"],
-          keywords: ["membres", "annuaire", "talibés"],
+          keywords: ["membres", "annuaire", "talubés"],
         },
         {
           id: "tutelles",

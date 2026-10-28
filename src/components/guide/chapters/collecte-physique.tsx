@@ -167,7 +167,7 @@ export default function CollectePhysique() {
 
       <h2 id="ses-propres-jefs">Ses collectes et ses propres Jëfs</h2>
       <p>
-        Un collecteur reste un talibé. Son écran <Ui>Mes Jëfs et mes
+        Un collecteur reste un talubé. Son écran <Ui>Mes Jëfs et mes
         collectes</Ui> montre les deux, distinctement : ce qu’il a donné
         lui-même, et ce qu’il a encaissé pour les autres. Ne confondez pas
         les deux colonnes au moment de rendre des comptes.

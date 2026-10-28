@@ -87,7 +87,7 @@ export async function getDirectoryUsers() {
  * Fiche d'un membre de l'annuaire — la seule que les rôles non-admin peuvent
  * lire.
  *
- * `getUser` interroge `/api/users/{id}/`, réservé à l'admin : un talibé qui
+ * `getUser` interroge `/api/users/{id}/`, réservé à l'admin : un talubé qui
  * cliquait sur un nom dans « Mon Daara » recevait un 403, affiché en
  * « Utilisateur introuvable ». Ce point d'entrée-ci est borné au Daara côté
  * serveur ; un membre d'un autre Daara répond 404, que la page traduit en

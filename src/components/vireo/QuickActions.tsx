@@ -173,7 +173,7 @@ export function QuickActions({ role = "member", open, onOpenChange }: QuickActio
             href: "/dashboard/donations",
           },
           { id: "events", label: "Événements", keywords: ["fêtes", "agenda"], icon: CalendarDays, href: "/dashboard/events" },
-          { id: "members", label: "Membres", keywords: ["talibés", "annuaire"], icon: Users, href: "/dashboard/members" },
+          { id: "members", label: "Membres", keywords: ["talubés", "annuaire"], icon: Users, href: "/dashboard/members" },
           { id: "daara", label: "Daara", keywords: ["groupe", "communauté"], icon: Building2, href: "/dashboard/daara" },
           { id: "tutelles", label: "Tutelles", keywords: ["proches", "famille"], icon: UserRound, href: "/dashboard/tutelles" },
           { id: "chat", label: "Messagerie", keywords: ["discussion", "conversation"], icon: MessagesSquare, href: "/dashboard/chat" },

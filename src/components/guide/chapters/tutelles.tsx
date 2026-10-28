@@ -105,7 +105,7 @@ export default function Tutelles() {
 
       <h2 id="qui-peut">Qui peut enregistrer des tutelles</h2>
       <p>
-        Les talibés et les collecteurs. Le geste appartient à celui qui donne :
+        Les talubés et les collecteurs. Le geste appartient à celui qui donne :
         c’est lui qui sait pour qui il donne, et nul ne peut le décider à
         sa place.
       </p>

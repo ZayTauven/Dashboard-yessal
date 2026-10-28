@@ -25,7 +25,7 @@ export default function LancerUnNdiguel() {
       <Callout tone="rule" title="Seule l'administration lance un Ndiguel">
         <p className="m-0">
           Ni un coordinateur de <Terme mot="daara" />, ni un{" "}
-          <Terme mot="collecteur" />, ni un talibé. Un coordinateur de Daara peut en
+          <Terme mot="collecteur" />, ni un talubé. Un coordinateur de Daara peut en
           revanche <em>suivre</em> l’avancement des tâches d’un
           Ndiguel, même s’il n’en est pas l’organisateur : c’est
           voulu.

@@ -307,7 +307,7 @@ export function AdminDaaraDetailView({
                 <EmptyState
                   icon={Users}
                   title="Aucun membre enregistré"
-                  description="Les talibés rattachés à ce Daara apparaîtront ici."
+                  description="Les talubés rattachés à ce Daara apparaîtront ici."
                 />
               </div>
             ) : (
@@ -391,7 +391,7 @@ export function AdminDaaraDetailView({
                 <EmptyState
                   icon={UserCircle}
                   title="Aucun collecteur désigné"
-                  description="Le coordinateur du Daara peut nommer un talibé collecteur depuis l'annuaire."
+                  description="Le coordinateur du Daara peut nommer un talubé collecteur depuis l'annuaire."
                 />
               </div>
             </div>

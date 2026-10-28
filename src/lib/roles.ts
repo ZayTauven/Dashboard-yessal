@@ -5,7 +5,7 @@
  * La même table était recopiée dans HUIT fichiers, et elle avait divergé :
  *
  *   · `collector` valait « Collecteur » dans quatre écrans et
- *     « Talibé · Collecteur » dans deux autres ;
+ *     « Talubé · Collecteur » dans deux autres ;
  *   · `tutelle` manquait dans trois tables sur six — le rôle s'y affichait
  *     donc en clé brute, `tutelle` ;
  *   · `admin` manquait dans celle de « Lancer un Ndiguel ».
@@ -18,17 +18,17 @@
  *
  *   `roleLabel`     forme courte, pour les tableaux et les filtres, où la
  *                   colonne est étroite et le contexte déjà donné ;
- *   `roleLabelLong` forme qui rappelle le rattachement — « Talibé ·
+ *   `roleLabelLong` forme qui rappelle le rattachement — « Talubé ·
  *                   Collecteur » — là où l'on désigne une PERSONNE dans sa
  *                   communauté : collecte physique, Mon Daara, fiche membre.
- *                   Un collecteur reste un talibé ; sur ces écrans-là, le
+ *                   Un collecteur reste un talubé ; sur ces écrans-là, le
  *                   taire donnerait à croire qu'il s'agit d'un autre statut.
  *
  * Les clés suivent `User.Role` côté Django (accounts/models.py).
  */
 
 export const ROLE_LABEL: Record<string, string> = {
-  member: "Talibé",
+  member: "Talubé",
   collector: "Collecteur",
   chef_daara: "Coordinateur du Daara",
   tutelle: "Tutelle",
@@ -37,7 +37,7 @@ export const ROLE_LABEL: Record<string, string> = {
 
 const ROLE_LABEL_LONG: Record<string, string> = {
   ...ROLE_LABEL,
-  collector: "Talibé · Collecteur",
+  collector: "Talubé · Collecteur",
 };
 
 /**

@@ -197,7 +197,7 @@ export function ProfileClient({
     avatarUrl ?? profile?.avatar_url ?? profile?.avatar ?? null;
 
   const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
-  /* Le titre honorifique n'est plus collé au rôle (« Talibé · Serigne ») :
+  /* Le titre honorifique n'est plus collé au rôle (« Talubé · Serigne ») :
      il passe en pastille AVANT le nom, comme partout ailleurs. */
   const roleLabel = roleLabelLong(profile?.role ?? "");
   const titleName = profile?.title_name ?? profile?.title?.name ?? null;

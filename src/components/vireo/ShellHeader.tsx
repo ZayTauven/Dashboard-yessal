@@ -97,7 +97,7 @@ const APP_TILES: AppTile[] = [
   },
   {
     href: "/dashboard/members",
-    label: "Talibés",
+    label: "Talubés",
     icon: Users,
     roles: ["admin", "chef_daara", "collector"],
   },
@@ -216,7 +216,7 @@ export function ShellHeader({
       <span className="me-1 hidden text-sm text-text-muted lg:inline">
         Bonjour,{" "}
         <span className="font-semibold text-text-strong">
-          {user?.first_name || "Talibé"}
+          {user?.first_name || "Talubé"}
         </span>
       </span>
 

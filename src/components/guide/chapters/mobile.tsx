@@ -6,7 +6,7 @@ export default function Mobile() {
   return (
     <>
       <p>
-        L’essentiel des talibés ne s’assoira jamais devant un
+        L’essentiel des talubés ne s’assoira jamais devant un
         ordinateur pour faire un <Terme mot="jef" />. L’application mobile
         existe pour eux : les mêmes données, les mêmes règles, mais un écran de
         quatre pouces et un pouce pour tout faire.

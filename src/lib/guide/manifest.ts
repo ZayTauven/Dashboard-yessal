@@ -49,7 +49,7 @@ export interface GuideSection {
 }
 
 export const ROLE_LABELS: Record<GuideRole, string> = {
-  talibe: "Talibé",
+  talibe: "Talubé",
   chef: "Coordinateur du Daara",
   collecteur: "Collecteur",
   admin: "Administrateur",
@@ -132,7 +132,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
   {
     slug: "lexique",
     title: "Les mots de la maison",
-    lead: "Jëf, Ndiguel, Daara, Talibé, tutelle, zone territoriale. Huit mots, et tout le reste s'éclaire.",
+    lead: "Jëf, Ndiguel, Daara, Talubé, tutelle, zone territoriale. Huit mots, et tout le reste s'éclaire.",
     icon: "book",
     minutes: 6,
     roles: [],
@@ -192,7 +192,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
     minutes: 5,
     roles: ["talibe", "chef"],
     section: "gestes",
-    keywords: ["daara", "annuaire", "membres", "talibes", "zone"],
+    keywords: ["daara", "annuaire", "membres", "talubes", "talibes", "zone"],
   },
   {
     slug: "tutelles",
@@ -220,7 +220,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
   {
     slug: "mobile",
     title: "L'application mobile",
-    lead: "Ce que le talibé a dans la poche : les mêmes Jëfs, la même communauté, un écran de quatre pouces.",
+    lead: "Ce que le talubé a dans la poche : les mêmes Jëfs, la même communauté, un écran de quatre pouces.",
     icon: "smartphone",
     minutes: 4,
     roles: [],

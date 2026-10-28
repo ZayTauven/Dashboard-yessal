@@ -123,7 +123,7 @@ export function CampaignsClient({
   initialCampaigns: CampaignCard[];
   isAdmin: boolean;
   canUseDonationPage: boolean;
-  /** Talibé et tutelle : pas d'onglet « Terminés », le serveur ne les envoie plus. */
+  /** Talubé et tutelle : pas d'onglet « Terminés », le serveur ne les envoie plus. */
   hideCompleted?: boolean;
 }) {
   /* Les suppressions se confirment dans un vrai dialogue : un toast
@@ -514,8 +514,9 @@ export function CampaignsClient({
                     la corbeille hors de la carte. */}
                 <div className="ax-card__footer flex-wrap">
                   <div className="ax-btn-group min-w-0">
-                    {/* Clos : le serveur refuse tout Jëf (Z4). */}
-                    {status === "completed" ? null : canUseDonationPage ? (
+                    {/* Seul un Ndiguel en cours reçoit un Jëf : le serveur
+                        refuse les clos, les « à venir » et les suspendus. */}
+                    {status !== "active" ? null : canUseDonationPage ? (
                       <Link
                         href={`/dashboard/donations/new?campaign=${camp.id}`}
                         className="ax-btn ax-btn--tonal"

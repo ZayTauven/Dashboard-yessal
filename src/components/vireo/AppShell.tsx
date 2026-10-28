@@ -108,7 +108,7 @@ export function AppShell({
    * sombre, violet Yessal), en thème clair par défaut ; seule la bascule
    * clair / sombre de l'en-tête leur reste.
    *
-   * Masquer le panneau ne suffit pas : un talibé qui avait déjà choisi un
+   * Masquer le panneau ne suffit pas : un talubé qui avait déjà choisi un
    * autre accent le garderait à vie, puisque le script d'en-tête
    * `RESTORE_AX_ATTRS` réapplique les clés `ax:*` à chaque chargement. On les
    * efface donc — mais UNE SEULE FOIS par navigateur (`MEMBER_RESET_KEY`,

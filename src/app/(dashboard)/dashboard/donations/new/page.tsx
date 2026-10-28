@@ -34,11 +34,11 @@ export default async function NewDonationPage({
     { data: collecte },
   ] = await Promise.all([getCampaigns(), getTutelles(), getBankAccountConfig(), getCollecteStatus()]);
 
-  /* Un Ndiguel clos refuse tout Jëf (Z4) : le serveur le masque déjà aux
-     membres, pas à l'équipe, qui le voyait dans la liste et prenait un 400. */
+  /* Seul un Ndiguel EN COURS reçoit un Jëf : clos, à venir ou suspendu, le
+     serveur le refuse. La liste les proposait, et le membre prenait un 400. */
   const list = (campaigns || []).filter(
     (c: { status?: string | null; effective_status?: string | null }) =>
-      (c.effective_status ?? c.status) !== "completed",
+      (c.effective_status ?? c.status) === "active",
   );
   const defaultCampaignId =
     requestedCampaign &&

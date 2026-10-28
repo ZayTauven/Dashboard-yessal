@@ -42,7 +42,7 @@ export default function Reperes() {
         </li>
         <li>
           <strong>Communauté</strong> — votre <Terme mot="daara" />, la
-          messagerie, les <Terme mot="talibe">Talibés</Terme>, les{" "}
+          messagerie, les <Terme mot="talibe">Talubés</Terme>, les{" "}
           <Terme mot="tutelle">tutelles</Terme>.
         </li>
         <li>
@@ -65,7 +65,7 @@ export default function Reperes() {
         Le libellé de certaines entrées change selon votre rôle, et ce
         n’est pas un caprice : il dit <em>à qui appartiennent les
         données</em>. Un administrateur lit <Ui>Les Jëfs</Ui> — tous. Un
-        coordinateur de Daara lit <Ui>Jëfs du Daara</Ui>. Un talibé lit <Ui>Mes Jëfs</Ui>.
+        coordinateur de Daara lit <Ui>Jëfs du Daara</Ui>. Un talubé lit <Ui>Mes Jëfs</Ui>.
       </p>
 
       <Ornament />

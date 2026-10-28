@@ -94,9 +94,9 @@ export interface Member {
 /*
  * Réexport, et non une table de plus. Celle qui vivait ici disait
  * `member: "Membre"` quand les huit autres copies du projet disaient
- * « Talibé » — et elle alimentait la fiche membre et l'en-tête de coque, deux
- * écrans très vus. Le vocabulaire du produit est « Talibé » (la navigation dit
- * « Liste des Talibés »), donc c'est celui-là qui gagne.
+ * « Talubé » — et elle alimentait la fiche membre et l'en-tête de coque, deux
+ * écrans très vus. Le vocabulaire du produit est « Talubé » (la navigation dit
+ * « Liste des Talubés »), donc c'est celui-là qui gagne.
  *
  * L'export est conservé pour ne casser aucun import existant.
  */
