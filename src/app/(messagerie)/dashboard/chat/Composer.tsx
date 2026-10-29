@@ -13,7 +13,7 @@
  * — Un fichier se colle ou se dépose, en plus du trombone.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileText, ImageIcon, Paperclip, Reply, Send, X } from "lucide-react";
+import { FileText, ImageIcon, Lock, Mic, Paperclip, Reply, Send, Square, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { checkFileSize } from "@/components/vireo/FileDrop";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,6 +33,8 @@ type Props = {
   draftKey: string;
   onSend: (text: string, file: File | null) => void;
   onTyping: () => void;
+  /** Canal où l'on n'est pas auteur : un bandeau remplace le champ. */
+  readOnlyNote?: string | null;
 };
 
 export function Composer({
@@ -46,6 +48,7 @@ export function Composer({
   draftKey,
   onSend,
   onTyping,
+  readOnlyNote = null,
 }: Props) {
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -193,6 +196,16 @@ export function Composer({
   };
 
   const canSend = !disabled && (text.trim().length > 0 || !!file);
+  const voice = useVoiceRecorder((recorded) => onSend("", recorded));
+
+  if (readOnlyNote) {
+    return (
+      <div className="flex shrink-0 items-center justify-center gap-2 border-t bg-card px-4 py-4 text-sm text-muted-foreground">
+        <Lock size={15} aria-hidden />
+        {readOnlyNote}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -309,6 +322,7 @@ export function Composer({
 
           <textarea
             ref={areaRef}
+            hidden={voice.recording}
             rows={1}
             value={text}
             onChange={(e) => {
@@ -329,6 +343,40 @@ export function Composer({
             className="flex-1 resize-none bg-transparent py-2 px-1 text-sm leading-relaxed outline-none placeholder:text-muted-foreground max-h-40"
           />
 
+          {voice.recording ? (
+            <div className="flex flex-1 items-center gap-2 py-1.5" role="status" aria-live="polite">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#A62B2B]" aria-hidden />
+              <span className="text-sm font-semibold tabular-nums">{voice.elapsed}</span>
+              <span className="text-xs text-muted-foreground">Enregistrement de la note vocale…</span>
+              <button type="button" onClick={voice.cancel} className="ms-auto flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted" aria-label="Annuler l'enregistrement">
+                <Trash2 size={17} aria-hidden />
+              </button>
+            </div>
+          ) : null}
+
+          {!voice.recording && !text.trim() && !file && voice.supported ? (
+            <button
+              type="button"
+              onClick={voice.start}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white transition-transform hover:scale-105"
+              style={{ background: "var(--ax-accent)" }}
+              aria-label="Enregistrer une note vocale"
+              title="Enregistrer une note vocale"
+            >
+              <Mic size={17} aria-hidden />
+            </button>
+          ) : voice.recording ? (
+            <button
+              type="button"
+              onClick={voice.stop}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
+              style={{ background: "var(--ax-accent)" }}
+              aria-label="Arrêter et envoyer la note vocale"
+              title="Arrêter et envoyer"
+            >
+              <Square size={14} fill="currentColor" aria-hidden />
+            </button>
+          ) : (
           <button
             type="submit"
             disabled={!canSend}
@@ -338,6 +386,7 @@ export function Composer({
           >
             <Send size={16} aria-hidden />
           </button>
+          )}
         </form>
         <p className="hidden sm:block text-[10px] text-muted-foreground text-right pe-2">
           Entrée pour envoyer · Maj+Entrée pour aller à la ligne
@@ -346,4 +395,65 @@ export function Composer({
       </div>
     </div>
   );
+}
+
+/**
+ * La note vocale, au navigateur : `MediaRecorder` sur le micro. Un clic lance,
+ * un clic arrête et envoie, la corbeille annule. Le format est celui que le
+ * navigateur sait produire — WebM/Opus (Chrome, Firefox) ou MP4/AAC (Safari) —
+ * et Django accepte les deux (`EXTENSIONS_PIECE_JOINTE`).
+ */
+function useVoiceRecorder(onDone: (file: File) => void) {
+  const [recording, setRecording] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const cancelledRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const supported = typeof window !== "undefined" && typeof window.MediaRecorder !== "undefined" && !!navigator.mediaDevices;
+
+  const cleanup = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+    recorderRef.current = null;
+    setRecording(false);
+    setSeconds(0);
+  };
+
+  useEffect(() => () => cleanup(), []);
+
+  const start = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      cancelledRef.current = false;
+      recorder.ondataavailable = (e) => e.data.size && chunksRef.current.push(e.data);
+      recorder.onstop = () => {
+        const type = recorder.mimeType || "audio/webm";
+        const ext = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
+        const blob = new Blob(chunksRef.current, { type });
+        if (!cancelledRef.current && blob.size > 0) {
+          onDone(new File([blob], `note-vocale-${Date.now()}.${ext}`, { type }));
+        }
+        cleanup();
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+      setSeconds(0);
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    } catch {
+      toast.error("Micro inaccessible.", { description: "Autorisez le micro pour ce site dans votre navigateur." });
+    }
+  };
+
+  const stop = () => recorderRef.current?.state === "recording" && recorderRef.current.stop();
+  const cancel = () => {
+    cancelledRef.current = true;
+    stop();
+  };
+
+  const elapsed = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  return { supported, recording, elapsed, start, stop, cancel };
 }

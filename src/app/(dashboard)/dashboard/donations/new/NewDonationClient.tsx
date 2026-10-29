@@ -303,6 +303,20 @@ export function NewDonationClient({
                 </span>
               </label>
 
+              <label className="ax-check">
+                <input
+                  type="checkbox"
+                  name="publicInChannel"
+                  className="ax-checkbox"
+                />
+                <span className="text-sm">
+                  Afficher mon nom dans le canal « Les Jëfs du Kourel »
+                  <span className="block text-xs text-muted-foreground">
+                    Le montant n&apos;y apparaît jamais. Sans cette case, votre Jëf y est annoncé sans votre nom.
+                  </span>
+                </span>
+              </label>
+
               {errorMsg && (
                 <p className="ax-field__message ax-field__message--error">
                   {errorMsg}

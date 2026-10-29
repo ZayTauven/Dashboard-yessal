@@ -4,8 +4,6 @@ import { getDirectoryUsers } from "@/app/actions/directory";
 import { getDaaras } from "@/app/actions/daara";
 import { ChatInterface } from "./ChatInterface";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { PageHead } from "@/components/vireo/PageHead";
-import type { Role } from "@/lib/nav";
 import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
 
@@ -70,20 +68,11 @@ export default async function ChatPage({
       : null;
 
   /*
-   * La messagerie occupe toute la hauteur disponible : c'est le seul ecran ou
-   * la liste, le fil et le panneau d'infos doivent defiler independamment. La
-   * hauteur reste donc calculee, mais la carte passe sur `.ax-card` au lieu
-   * d'un `bg-card rounded-2xl border` recompose a la main.
+   * Plein écran : la coque du tableau de bord n'est plus là (voir le layout
+   * du groupe `(messagerie)`), la messagerie prend toute la fenêtre.
    */
   return (
-    <div className="flex h-[calc(100dvh-190px)] min-h-[520px] flex-col gap-4">
-      <PageHead
-        role={(role ?? "member") as Role}
-        title="Messagerie"
-        subtitle="Vos salons de Daara et vos discussions privées, en temps réel."
-      />
-
-      <div className="ax-card flex min-h-0 flex-1 overflow-hidden">
+    <div className="flex min-h-0 w-full flex-1">
         {error ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <ErrorAlert message={error} className="max-w-md" />
@@ -111,7 +100,6 @@ export default async function ChatPage({
             daarasForSelect={daarasForSelect}
           />
         )}
-      </div>
     </div>
   );
 }

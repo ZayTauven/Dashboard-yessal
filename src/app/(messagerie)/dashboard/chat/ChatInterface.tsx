@@ -1,44 +1,41 @@
 "use client";
 
 /**
- * La messagerie Yessal — chef d'orchestre.
+ * La messagerie Yessal — chef d'orchestre, en plein écran façon Discord
+ * (maquette validée le 2026-10-29).
  *
- * Ce fichier tenait 1 350 lignes à lui seul : la liste, le fil, le composeur,
- * les volets et le temps réel. Il ne garde que l'ÉTAT et le TEMPS RÉEL ; le
- * rendu vit dans `ConversationList`, `MessageThread`, `Composer`,
- * `ConversationInfo` et `SidePanels`.
+ *   ┌ canaux / salons / directs ┬ fil de la conversation ┬ membres ┐
+ *
+ * Ce fichier ne garde que l'ÉTAT et le TEMPS RÉEL ; le rendu vit dans
+ * `ChatSidebar`, `MessageThread`, `Composer`, `ConversationInfo`,
+ * `ChannelCards` et `SidePanels`.
  *
  * ── Le temps réel, canal par canal ──────────────────────────────────────────
  *
- *   private-user.{moi}     new-invitation · chat-updated (toute la liste)
- *   private-chat.{fil}     new-message · message-reaction · message-deleted · chat-read
+ *   private-user.{moi}     new-invitation · chat-updated (salons et directs)
+ *   private-kourel         chat-updated des canaux du Kourel (un seul envoi pour tous)
+ *   private-chat.{fil}     new-message · message-edited · message-reaction · message-deleted · chat-read
  *   presence-chat.{fil}    qui a le fil ouvert · client-typing
- *
- * `chat-updated` est nouveau : seul le fil OUVERT écoutait jusqu'ici, si bien
- * qu'un message dans un autre salon n'apparaissait qu'au rechargement de la
- * page — pastille comprise.
  *
  * ── L'envoi optimiste ───────────────────────────────────────────────────────
  *
  * La bulle part dans le fil AVANT la réponse du serveur, marquée « en cours ».
- * L'ancien champ se vidait puis rien ne se passait pendant l'aller-retour :
- * sur une connexion de Dakar, une à deux secondes pendant lesquelles on se
- * demandait si le message était parti — et on le renvoyait.
+ * Sur une connexion de Dakar, c'est ce qui évite le double envoi.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Pusher from "pusher-js";
 import { toast } from "sonner";
-import { ArrowLeft, BellOff, Hash, Info, MessageSquare, Search, Settings, Shield, UserCheck } from "lucide-react";
+import { ArrowLeft, BellOff, HandHeart, Hash, Megaphone, PanelRight, Search, X } from "lucide-react";
 import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   addChatMembers,
   createChat,
   createInvitation,
   deleteMessage,
+  editMessage,
   getChatMembers,
   getChats,
   getInvitations,
@@ -50,19 +47,21 @@ import {
   markChatAsRead,
   respondToInvitation,
   searchMembers,
+  searchMessages,
   sendChatMessage,
+  setChannelAuthor,
   toggleChatMute,
   toggleMessageReaction,
   updateMessagingPreferences,
   updatePilotageConfig,
   type ChatInviteMode,
 } from "@/app/actions/comms";
+import { ChatSidebar, type SidebarPanel } from "./ChatSidebar";
 import { Composer } from "./Composer";
 import { ConversationInfo } from "./ConversationInfo";
-import { ConversationList, sortByActivity } from "./ConversationList";
 import { MessageThread } from "./MessageThread";
 import { InvitesPanel, PilotagePanel, SearchPanel, SettingsPanel } from "./SidePanels";
-import { initials, roleLabel } from "./format";
+import { formatTime, initials, roleLabel } from "./format";
 import type {
   ChatInvitationRow,
   ChatMember,
@@ -109,7 +108,18 @@ function needsPresetDaara(mode: ChatInviteMode) {
   return mode === "daara_all" || mode === "daara_members" || mode === "daara_collectors" || mode === "daara_chefs";
 }
 
-type Panel = "chats" | "search" | "invites" | "pilotage" | "settings";
+/** Les canaux du Kourel restent en tête ; le reste suit l'activité. */
+export function sortChats(rows: ChatRow[]) {
+  const at = (c: ChatRow) => new Date(c.last_message?.sent_at || c.last_activity_at || 0).getTime();
+  return [...rows].sort((a, b) => at(b) - at(a));
+}
+
+function fileKind(file: File): MessageRow["file_kind"] {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type.startsWith("audio/")) return "audio";
+  if (file.type.startsWith("video/")) return "video";
+  return "document";
+}
 
 type PresenceMembers = { each: (fn: (m: { id: string; info: PresenceMember }) => void) => void };
 type PresenceChannel = {
@@ -161,23 +171,29 @@ export function ChatInterface({
   const isAdmin = viewerRole === "admin";
   const { ask, dialog } = useConfirm();
 
-  const [panel, setPanel] = useState<Panel>("chats");
-  /** Sous 768 px, la liste et le fil ne tiennent pas côte à côte. */
+  const [panel, setPanel] = useState<SidebarPanel>("chats");
+  /** Sous 768 px, la colonne des canaux et le fil ne tiennent pas côte à côte. */
   const [mobileView, setMobileView] = useState<"list" | "thread">(initialSelectedChatId ? "thread" : "list");
   const [showInfo, setShowInfo] = useState(false);
 
-  const [chatList, setChatList] = useState<ChatRow[]>(() => sortByActivity(initialChats));
-  const [selectedId, setSelectedId] = useState<number | null>(
-    () =>
-      initialChats.find((c) => Number(c.id) === Number(initialSelectedChatId))?.id ??
-      sortByActivity(initialChats)[0]?.id ??
-      null,
-  );
+  const [chatList, setChatList] = useState<ChatRow[]>(() => sortChats(initialChats));
+  const [selectedId, setSelectedId] = useState<number | null>(() => {
+    const wanted = initialChats.find((c) => Number(c.id) === Number(initialSelectedChatId));
+    if (wanted) return wanted.id;
+    /* Par défaut, la dernière conversation active hors canaux — sinon le canal du guide. */
+    const sorted = sortChats(initialChats);
+    return (sorted.find((c) => c.chat_type !== "channel") ?? sorted[0])?.id ?? null;
+  });
   const selectedChat = useMemo(() => chatList.find((c) => c.id === selectedId) ?? null, [chatList, selectedId]);
   const selectedIdRef = useRef<number | null>(selectedId);
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
+
+  /* Sur grand écran, le panneau des membres est ouvert d'office, comme sur la maquette. */
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 1280px)").matches) setShowInfo(true);
+  }, []);
 
   const [messages, setMessages] = useState<MessageRow[]>([]);
   const [loadingThread, setLoadingThread] = useState(false);
@@ -186,6 +202,11 @@ export function ChatInterface({
   const [members, setMembers] = useState<ChatMember[]>([]);
   const [unreadMark, setUnreadMark] = useState<{ fromId: number | null; count: number }>({ fromId: null, count: 0 });
   const [replyingTo, setReplyingTo] = useState<MessageRow | null>(null);
+  const [focusId, setFocusId] = useState<number | null>(null);
+
+  const [threadQuery, setThreadQuery] = useState("");
+  const [threadResults, setThreadResults] = useState<MessageRow[] | null>(null);
+  const threadSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [onlineMembers, setOnlineMembers] = useState<Record<string, PresenceMember>>({});
   const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; at: number }>>({});
@@ -229,7 +250,7 @@ export function ChatInterface({
   }, [daaraId]);
   const reloadChats = useCallback(async () => {
     const res = await getChats();
-    if (res.data) setChatList(sortByActivity(res.data as ChatRow[]));
+    if (res.data) setChatList(sortChats(res.data as ChatRow[]));
   }, []);
 
   useEffect(() => {
@@ -243,7 +264,7 @@ export function ChatInterface({
 
   const patchChat = useCallback((id: number, patch: Partial<ChatRow> | ((c: ChatRow) => Partial<ChatRow>)) => {
     setChatList((rows) =>
-      sortByActivity(rows.map((c) => (c.id === id ? { ...c, ...(typeof patch === "function" ? patch(c) : patch) } : c))),
+      sortChats(rows.map((c) => (c.id === id ? { ...c, ...(typeof patch === "function" ? patch(c) : patch) } : c))),
     );
   }, []);
 
@@ -255,7 +276,7 @@ export function ChatInterface({
     [patchChat],
   );
 
-  // ─── Pusher : connexion et canal personnel ────────────────────────────
+  // ─── Pusher : connexion, canal personnel et canal commun ──────────────
   useEffect(() => {
     const pusher = new Pusher(PUSHER_KEY, {
       cluster: PUSHER_CLUSTER,
@@ -273,12 +294,7 @@ export function ChatInterface({
     });
     pusherRef.current = pusher;
 
-    const userChannel = pusher.subscribe(`private-user.${currentUserId}`);
-    userChannel.bind("new-invitation", () => {
-      loadInvitations();
-      toast("Nouvelle demande de discussion", { description: "Ouvrez l'onglet Demandes pour répondre." });
-    });
-    userChannel.bind("chat-updated", (data: ChatUpdatedEvent) => {
+    const onChatUpdated = (data: ChatUpdatedEvent) => {
       setChatList((rows) => {
         const row = rows.find((c) => c.id === data.chat_id);
         if (!row) {
@@ -288,7 +304,7 @@ export function ChatInterface({
         }
         const mine = data.last_message.sender_id === currentUserId;
         const open = selectedIdRef.current === data.chat_id && document.visibilityState === "visible";
-        return sortByActivity(
+        return sortChats(
           rows.map((c) =>
             c.id === data.chat_id
               ? {
@@ -301,10 +317,17 @@ export function ChatInterface({
           ),
         );
       });
+    };
+
+    const userChannel = pusher.subscribe(`private-user.${currentUserId}`);
+    userChannel.bind("new-invitation", () => {
+      loadInvitations();
+      toast("Nouvelle demande de discussion", { description: "Ouvrez les demandes pour répondre." });
     });
+    userChannel.bind("chat-updated", onChatUpdated);
+    pusher.subscribe("private-kourel").bind("chat-updated", onChatUpdated);
 
     return () => {
-      pusher.unsubscribe(`private-user.${currentUserId}`);
       pusher.disconnect();
       pusherRef.current = null;
     };
@@ -322,6 +345,8 @@ export function ChatInterface({
     setHasMore(false);
     setLoadingThread(true);
     setUnreadMark({ fromId: null, count: 0 });
+    setThreadQuery("");
+    setThreadResults(null);
 
     (async () => {
       const [page, mem] = await Promise.all([getMessagesPage(selectedId), getChatMembers(String(selectedId))]);
@@ -394,6 +419,9 @@ export function ChatInterface({
         }, 700);
       }
     });
+    msgChannel.bind("message-edited", (data: MessageRow) => {
+      setMessages((prev) => prev.map((m) => (m.id === data.id ? { ...m, content: data.content, edited_at: data.edited_at } : m)));
+    });
     msgChannel.bind(
       "message-reaction",
       (data: { message_id: number; emoji: string; user_id: number; action: "add" | "remove" }) => {
@@ -417,9 +445,9 @@ export function ChatInterface({
 
     const presence = pusher.subscribe(`presence-chat.${chatId}`) as unknown as PresenceChannel;
     presenceRef.current = presence;
-    presence.bind("pusher:subscription_succeeded", ((members: PresenceMembers) => {
+    presence.bind("pusher:subscription_succeeded", ((list: PresenceMembers) => {
       const active: Record<string, PresenceMember> = {};
-      members.each((m) => {
+      list.each((m) => {
         if (!m.info?.hidden) active[m.id] = m.info;
       });
       setOnlineMembers(active);
@@ -453,7 +481,7 @@ export function ChatInterface({
       /* Au démontage, la connexion est déjà coupée par l'effet du canal
          personnel : se désabonner d'un socket fermé ne fait que salir la
          console. */
-      if (pusherRef.current === pusher) {
+      if (pusherRef.current === pusher && pusher.connection.state === "connected") {
         pusher.unsubscribe(`private-chat.${chatId}`);
         pusher.unsubscribe(`presence-chat.${chatId}`);
       }
@@ -492,6 +520,18 @@ export function ChatInterface({
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [chatList, markRead]);
 
+  // ─── Recherche dans la conversation ───────────────────────────────────
+  const onThreadSearch = (q: string) => {
+    setThreadQuery(q);
+    if (threadSearchRef.current) clearTimeout(threadSearchRef.current);
+    if (!selectedId || q.trim().length < 2) return setThreadResults(null);
+    const chatId = selectedId;
+    threadSearchRef.current = setTimeout(async () => {
+      const res = await searchMessages(chatId, q.trim());
+      if (selectedIdRef.current === chatId) setThreadResults(((res.data as MessageRow[]) ?? []).slice(-30).reverse());
+    }, 300);
+  };
+
   // ─── Actions du fil ───────────────────────────────────────────────────
   const loadOlder = useCallback(async () => {
     if (!selectedId || loadingOlder || !hasMore) return;
@@ -522,32 +562,28 @@ export function ChatInterface({
     }, TYPING_IDLE_MS);
   }, [currentUserId, currentUserName]);
 
-  const deliver = useCallback(
-    (chatId: number, local: MessageRow) => {
-      const formData = new FormData();
-      formData.append("chat", String(chatId));
-      formData.append("content", local.content);
-      if (local.local?.file) formData.append("file", local.local.file);
-      if (local.reply_to) formData.append("reply_to", String(local.reply_to));
+  const deliver = useCallback((chatId: number, local: MessageRow) => {
+    const formData = new FormData();
+    formData.append("chat", String(chatId));
+    formData.append("content", local.content);
+    if (local.local?.file) formData.append("file", local.local.file);
+    if (local.reply_to) formData.append("reply_to", String(local.reply_to));
 
-      startTransition(async () => {
-        const res = await sendChatMessage(formData);
-        if (res.error) {
-          toast.error(res.error);
-          setMessages((prev) => prev.map((m) => (m.id === local.id ? { ...m, local: { ...m.local!, status: "failed" } } : m)));
-          return;
-        }
-        const saved = res.data as MessageRow;
-        setMessages((prev) => {
-          const already = prev.some((m) => m.id === saved.id);
-          const next = already ? prev.filter((m) => m.id !== local.id) : prev.map((m) => (m.id === local.id ? saved : m));
-          return next;
-        });
-        if (local.local?.previewUrl) URL.revokeObjectURL(local.local.previewUrl);
+    startTransition(async () => {
+      const res = await sendChatMessage(formData);
+      if (res.error) {
+        toast.error(res.error);
+        setMessages((prev) => prev.map((m) => (m.id === local.id ? { ...m, local: { ...m.local!, status: "failed" } } : m)));
+        return;
+      }
+      const saved = res.data as MessageRow;
+      setMessages((prev) => {
+        const already = prev.some((m) => m.id === saved.id);
+        return already ? prev.filter((m) => m.id !== local.id) : prev.map((m) => (m.id === local.id ? saved : m));
       });
-    },
-    [],
-  );
+      if (local.local?.previewUrl) URL.revokeObjectURL(local.local.previewUrl);
+    });
+  }, []);
 
   const handleSend = (text: string, file: File | null) => {
     if (!selectedChat) return;
@@ -556,16 +592,17 @@ export function ChatInterface({
     presenceRef.current?.trigger("client-typing", { user_id: currentUserId, name: "", typing: false });
 
     const now = new Date().toISOString();
-    const isImage = !!file && file.type.startsWith("image/");
+    const kind = file ? fileKind(file) : null;
     const local: MessageRow = {
       id: -Date.now(),
       chat: selectedChat.id,
-      sender: { id: currentUserId, name: currentUserName || "Moi", avatar: currentUserAvatar },
+      sender: { id: currentUserId, name: currentUserName || "Moi", avatar: currentUserAvatar, role: viewerRole },
       message_type: file ? "file" : "text",
       content: text,
       file_name: file?.name ?? null,
       file_size: file?.size ?? null,
-      file_is_image: isImage,
+      file_is_image: kind === "image",
+      file_kind: kind,
       reply_to: replyingTo?.id ?? null,
       reply_preview: replyingTo
         ? {
@@ -579,14 +616,14 @@ export function ChatInterface({
       reactions: [],
       is_deleted: false,
       sent_at: now,
-      local: { status: "sending", file, previewUrl: isImage && file ? URL.createObjectURL(file) : null },
+      local: { status: "sending", file, previewUrl: kind === "image" && file ? URL.createObjectURL(file) : null },
     };
     setMessages((prev) => [...prev, local]);
     setReplyingTo(null);
     setUnreadMark({ fromId: null, count: 0 });
     patchChat(selectedChat.id, {
       last_message: {
-        content: file ? `Pièce jointe : ${file.name}` : text,
+        content: kind === "audio" ? "Note vocale" : file ? `Pièce jointe : ${file.name}` : text,
         sent_at: now,
         sender_name: currentUserName,
         sender_id: currentUserId,
@@ -602,6 +639,18 @@ export function ChatInterface({
     const again: MessageRow = { ...m, sent_at: new Date().toISOString(), local: { ...m.local!, status: "sending" } };
     setMessages((prev) => [...prev.filter((x) => x.id !== m.id), again]);
     deliver(selectedChat.id, again);
+  };
+
+  const handleEdit = async (m: MessageRow, text: string) => {
+    if (text === m.content) return true;
+    const res = await editMessage(m.id, text);
+    if (res.error) {
+      toast.error(res.error);
+      return false;
+    }
+    const saved = res.data as MessageRow;
+    setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, content: saved.content, edited_at: saved.edited_at } : x)));
+    return true;
   };
 
   const handleReact = async (m: MessageRow, emoji: string) => {
@@ -634,7 +683,7 @@ export function ChatInterface({
     });
   };
 
-  // ─── Conversation : sourdine, départ, ajout ───────────────────────────
+  // ─── Conversation : sourdine, départ, ajout, auteurs ──────────────────
   const handleToggleMute = async () => {
     if (!selectedChat) return;
     setInfoBusy(true);
@@ -658,11 +707,15 @@ export function ChatInterface({
         if (res.error) return void toast.error(res.error);
         setChatList((rows) => rows.filter((c) => c.id !== chat.id));
         setSelectedId(null);
-        setShowInfo(false);
         setMobileView("list");
         toast.success("Vous avez quitté le salon.");
       },
     });
+  };
+
+  const reloadMembers = async (chatId: number) => {
+    const mem = await getChatMembers(String(chatId));
+    if (selectedIdRef.current === chatId) setMembers((mem.data as ChatMember[]) ?? []);
   };
 
   const handleAddMembers = async (ids: number[]) => {
@@ -676,9 +729,23 @@ export function ChatInterface({
     }
     const added = (res.data as { added?: number })?.added ?? 0;
     toast.success(added > 1 ? `${added} membres ajoutés.` : added === 1 ? "Membre ajouté." : "Déjà présents.");
-    const mem = await getChatMembers(String(selectedChat.id));
-    setMembers((mem.data as ChatMember[]) ?? []);
+    await reloadMembers(selectedChat.id);
     patchChat(selectedChat.id, (c) => ({ members_count: (c.members_count ?? 0) + added }));
+    return true;
+  };
+
+  const handleSetAuthor = async (userId: number, canPost: boolean) => {
+    if (!selectedChat) return false;
+    setInfoBusy(true);
+    const res = await setChannelAuthor(selectedChat.id, userId, canPost);
+    setInfoBusy(false);
+    if (res.error) {
+      toast.error(res.error);
+      return false;
+    }
+    toast.success(canPost ? "Auteur désigné." : "Auteur retiré.");
+    if (userId === currentUserId) patchChat(selectedChat.id, { can_post: canPost });
+    await reloadMembers(selectedChat.id);
     return true;
   };
 
@@ -704,7 +771,6 @@ export function ChatInterface({
     setSelectedId(chat.id);
     setPanel("chats");
     setMobileView("thread");
-    setShowInfo(false);
   };
 
   const handleRespondInvite = async (inviteId: number, accept: boolean) => {
@@ -712,7 +778,7 @@ export function ChatInterface({
     if (res.error) return toast.error(res.error);
     loadInvitations();
     const chatsRes = await getChats();
-    if (chatsRes.data) setChatList(sortByActivity(chatsRes.data as ChatRow[]));
+    if (chatsRes.data) setChatList(sortChats(chatsRes.data as ChatRow[]));
     const accepted = res.data as { chat?: ChatRow } | undefined;
     if (accept && accepted?.chat) openChat(accepted.chat);
   };
@@ -774,7 +840,7 @@ export function ChatInterface({
       resetCreateForm();
       const chatsRes = await getChats();
       if (chatsRes.data) {
-        const rows = sortByActivity(chatsRes.data as ChatRow[]);
+        const rows = sortChats(chatsRes.data as ChatRow[]);
         setChatList(rows);
         const created = (res as { data?: { id?: number } }).data;
         const target = rows.find((c) => c.id === created?.id) ?? rows.find((c) => c.display_name === name);
@@ -787,199 +853,189 @@ export function ChatInterface({
   // ─── Dérivés d'affichage ──────────────────────────────────────────────
   const pickableUsers = directoryUsers.filter((u) => u.id !== currentUserId && u.role !== "admin");
   const pendingIncoming = invitations.filter((i) => i.status === "pending" && Number(i.recipient.id) === Number(currentUserId));
-  const totalUnread = chatList.reduce((acc, c) => acc + (c.is_muted ? 0 : c.unread_count || 0), 0);
   const onlineIds = useMemo(() => new Set(Object.keys(onlineMembers).map(Number)), [onlineMembers]);
   const typingNames = Object.values(typingUsers).map((t) => t.name);
   const isGroup = selectedChat?.chat_type === "group";
-  const peer = !isGroup ? members.find((m) => m.id !== currentUserId) : null;
-  const canManage = Boolean(
-    selectedChat && isGroup && (canCreateSalon || selectedChat.created_by === currentUserId),
-  );
+  const isChannel = selectedChat?.chat_type === "channel";
+  const peer = selectedChat?.chat_type === "direct" ? members.find((m) => m.id !== currentUserId) : null;
+  const canManage = Boolean(selectedChat && isGroup && (canCreateSalon || selectedChat.created_by === currentUserId));
 
-  const status = (() => {
+  const subtitle = (() => {
     if (!selectedChat) return "";
     if (typingNames.length) return typingNames.length === 1 ? `${typingNames[0]} écrit…` : "plusieurs personnes écrivent…";
+    if (isChannel) return selectedChat.description || "Canal du Kourel";
     if (isGroup) {
       const here = [...onlineIds].filter((id) => id !== currentUserId).length;
       const count = members.length || selectedChat.members_count || 0;
       return `${count} membre${count > 1 ? "s" : ""}${here ? ` · ${here} dans le salon` : ""}`;
     }
     if (peer && onlineIds.has(peer.id)) return "Dans la conversation";
-    return [roleLabel(peer?.role), peer?.daara_name].filter(Boolean).join(" · ");
+    return [peer?.title, roleLabel(peer?.role), peer?.daara_name].filter(Boolean).join(" · ");
   })();
-  const statusLive = typingNames.length > 0 || (!isGroup && !!peer && onlineIds.has(peer.id));
+  const subtitleLive = typingNames.length > 0 || (!!peer && onlineIds.has(peer.id));
 
-  const rail: { tab: Panel; icon: React.ReactNode; label: string; badge?: number }[] = [
-    { tab: "chats", icon: <MessageSquare size={20} />, label: "Discussions", badge: totalUnread },
-    { tab: "search", icon: <Search size={20} />, label: "Écrire à un membre" },
-    { tab: "invites", icon: <UserCheck size={20} />, label: "Demandes", badge: pendingIncoming.length },
-    ...(canCreateSalon ? [{ tab: "pilotage" as const, icon: <Shield size={20} />, label: "Pilotage" }] : []),
-    { tab: "settings", icon: <Settings size={20} />, label: "Réglages" },
-  ];
+  const readOnlyNote =
+    isChannel && !selectedChat?.can_post
+      ? selectedChat?.channel_kind === "jefs"
+        ? "Dans ce canal, on réagit — on ne répond pas."
+        : "Seul Sangue Bi publie ici. Réagissez aux annonces."
+      : null;
+
+  const headerIcon = !selectedChat ? null : isChannel ? (
+    selectedChat.channel_kind === "guide" ? (
+      <Megaphone size={20} className="text-[#7954D4]" aria-hidden />
+    ) : (
+      <HandHeart size={20} className="text-[#7954D4]" aria-hidden />
+    )
+  ) : isGroup ? (
+    <Hash size={22} className="text-[#7954D4]" aria-hidden />
+  ) : (
+    <span className="relative">
+      <Avatar className="h-8 w-8">
+        {selectedChat.avatar ? <AvatarImage src={selectedChat.avatar} alt="" /> : null}
+        <AvatarFallback className="bg-[#7954D4] text-[11px] font-bold text-white">{initials(selectedChat.display_name)}</AvatarFallback>
+      </Avatar>
+      {peer && onlineIds.has(peer.id) && (
+        <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card bg-[#1F9D55]" aria-hidden />
+      )}
+    </span>
+  );
 
   // ═══════════════════════════════════════════════════════════════
   //  RENDU
   // ═══════════════════════════════════════════════════════════════
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
-      {/* ── Rail ─────────────────────────────────────────────────── */}
-      <nav
-        aria-label="Sections de la messagerie"
-        className={`${mobileView === "thread" ? "hidden md:flex" : "flex"} shrink-0 items-center gap-1 border-b bg-card px-2 py-1.5 md:w-[68px] md:flex-col md:border-b-0 md:border-r md:px-2 md:py-4`}
-      >
-        {rail.map(({ tab, icon, label, badge }) => {
-          const active = panel === tab;
-          return (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setPanel(tab)}
-              title={label}
-              aria-label={label}
-              aria-current={active ? "page" : undefined}
-              className={`relative flex h-11 w-11 items-center justify-center rounded-xl transition-colors md:w-full ${
-                active ? "text-white" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              } ${tab === "settings" ? "md:mt-auto" : ""}`}
-              style={active ? { background: "var(--ax-accent)" } : undefined}
-            >
-              {icon}
-              {badge ? (
-                <span className="ax-badge-count absolute right-1 top-1">{badge > 9 ? "9+" : badge}</span>
-              ) : null}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* ── Colonne de gauche ───────────────────────────────────────── */}
-      <section
-        className={`${mobileView === "thread" ? "hidden md:flex" : "flex"} min-h-0 w-full flex-1 flex-col border-r bg-card md:w-[320px] md:flex-none`}
-      >
-        {panel === "chats" && (
-          <ConversationList
-            chats={chatList}
-            selectedId={selectedId}
-            typingByChat={selectedId ? { [selectedId]: typingNames.length > 0 } : {}}
-            canCreateSalon={canCreateSalon}
-            onSelect={openChat}
-            onCreateSalon={() => {
-              resetCreateForm();
-              setNewOpen(true);
-            }}
-            onFindMember={() => setPanel("search")}
-          />
-        )}
-        {panel === "search" && (
-          <SearchPanel
-            term={searchTerm}
-            results={searchResult}
-            chats={chatList}
-            invitations={invitations}
-            currentUserId={currentUserId}
-            onSearch={handleSearchMembers}
-            onInvite={handleSendInvite}
-            onOpenChat={openChat}
-          />
-        )}
-        {panel === "invites" && <InvitesPanel invitations={pendingIncoming} onRespond={handleRespondInvite} />}
-        {panel === "pilotage" && pilotage && <PilotagePanel pilotage={pilotage} onChange={handlePilotageChange} />}
-        {panel === "settings" && preferences && (
-          <SettingsPanel preferences={preferences} pilotage={pilotage} onChange={handlePrefChange} />
-        )}
-      </section>
+    <div className="relative flex h-full min-h-0 w-full overflow-hidden">
+      {/* ── Colonne des canaux ─────────────────────────────────────── */}
+      <div className={`${mobileView === "thread" ? "hidden md:flex" : "flex"} w-full shrink-0 flex-col md:w-[300px]`}>
+        <ChatSidebar
+          chats={chatList}
+          selectedId={selectedId}
+          panel={panel}
+          pendingInvites={pendingIncoming.length}
+          canPilot={canCreateSalon}
+          canCreateSalon={canCreateSalon}
+          onlineIds={onlineIds}
+          onSelect={openChat}
+          onPanel={setPanel}
+          onCreateSalon={() => {
+            resetCreateForm();
+            setNewOpen(true);
+          }}
+        >
+          {panel === "search" && (
+            <SearchPanel
+              term={searchTerm}
+              results={searchResult}
+              chats={chatList}
+              invitations={invitations}
+              currentUserId={currentUserId}
+              onSearch={handleSearchMembers}
+              onInvite={handleSendInvite}
+              onOpenChat={openChat}
+            />
+          )}
+          {panel === "invites" && <InvitesPanel invitations={pendingIncoming} onRespond={handleRespondInvite} />}
+          {panel === "pilotage" && pilotage && <PilotagePanel pilotage={pilotage} onChange={handlePilotageChange} />}
+          {panel === "settings" && preferences && (
+            <SettingsPanel preferences={preferences} pilotage={pilotage} onChange={handlePrefChange} />
+          )}
+        </ChatSidebar>
+      </div>
 
       {/* ── Fil ──────────────────────────────────────────────────────── */}
       <main
-        className={`${mobileView === "list" ? "hidden md:flex" : "flex"} min-h-0 min-w-0 flex-1 flex-col bg-background`}
+        className={`${mobileView === "list" ? "hidden md:flex" : "flex"} min-h-0 min-w-0 flex-1 flex-col bg-card`}
         aria-label={selectedChat ? `Conversation : ${selectedChat.display_name}` : "Conversation"}
       >
         {!selectedChat ? (
-          <div className="yc-thread flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-            <div
-              className="flex h-16 w-16 items-center justify-center rounded-2xl"
-              style={{ background: "color-mix(in srgb, var(--ax-accent) 12%, transparent)" }}
-            >
-              <MessageSquare size={30} style={{ color: "var(--ax-accent)" }} aria-hidden />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold">Vos échanges, au même endroit</h3>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                Choisissez une discussion à gauche, ou écrivez à un membre de votre Daara.
-              </p>
-            </div>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+            <p className="text-xl font-extrabold">Vos échanges, au même endroit</p>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Choisissez un canal, un salon ou une discussion à gauche, ou écrivez à un membre de votre Daara.
+            </p>
             <button type="button" className="ax-btn ax-btn--primary" onClick={() => setPanel("search")}>
               <span className="ax-btn__label">Écrire à un membre</span>
             </button>
           </div>
         ) : (
           <>
-            <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-card px-2 sm:px-4">
-              <button
-                type="button"
-                className="ax-btn ax-btn--ghost ax-btn--icon md:hidden"
-                onClick={() => setMobileView("list")}
-                aria-label="Revenir aux discussions"
-              >
+            <header className="relative flex h-14 shrink-0 items-center gap-3 border-b px-3 sm:px-5">
+              <button type="button" className="ax-btn ax-btn--ghost ax-btn--icon md:hidden" onClick={() => setMobileView("list")} aria-label="Revenir aux discussions">
                 <ArrowLeft size={18} aria-hidden />
               </button>
-              <button
-                type="button"
-                onClick={() => setShowInfo((s) => !s)}
-                className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1.5 py-1 text-left hover:bg-muted/40"
+              {headerIcon}
+              <h1 className="truncate text-base font-extrabold">{selectedChat.display_name}</h1>
+              {selectedChat.is_muted && <BellOff size={14} className="shrink-0 text-muted-foreground" aria-label="En sourdine" />}
+              <span
+                className={`hidden min-w-0 flex-1 truncate border-s ps-3 text-[13px] lg:block ${subtitleLive ? "font-medium text-[#4E2E9E]" : "text-muted-foreground"}`}
               >
-                <div className="relative shrink-0">
-                  <Avatar className="h-10 w-10">
-                    {selectedChat.avatar ? <AvatarImage src={selectedChat.avatar} alt="" /> : null}
-                    <AvatarFallback
-                      className="text-sm font-bold"
-                      style={
-                        isGroup
-                          ? { background: "color-mix(in srgb, var(--ax-accent) 16%, var(--ax-surface))", color: "var(--ax-accent)" }
-                          : { background: "var(--ax-accent)", color: "white" }
-                      }
-                    >
-                      {isGroup ? <Hash size={18} aria-hidden /> : initials(selectedChat.display_name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  {!isGroup && peer && onlineIds.has(peer.id) && (
-                    <span
-                      className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-[color:var(--ax-surface)]"
-                      style={{ background: "var(--ax-viz-emerald)" }}
-                      aria-hidden
-                    />
+                {subtitle}
+              </span>
+              <span className="flex-1 lg:hidden" />
+
+              <div className="relative hidden sm:block">
+                <label className="flex w-48 items-center gap-1.5 rounded-lg border bg-[#F7F7F5] px-2.5 py-1.5 focus-within:border-[color:var(--ax-accent)] dark:bg-muted xl:w-56">
+                  <Search size={14} className="text-muted-foreground" aria-hidden />
+                  <input
+                    type="search"
+                    value={threadQuery}
+                    onChange={(e) => onThreadSearch(e.target.value)}
+                    placeholder="Rechercher…"
+                    aria-label="Rechercher dans la conversation"
+                    className="w-full bg-transparent text-[13px] outline-none"
+                  />
+                  {threadQuery && (
+                    <button type="button" onClick={() => onThreadSearch("")} aria-label="Effacer la recherche" className="text-muted-foreground">
+                      <X size={13} aria-hidden />
+                    </button>
                   )}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="truncate text-sm font-semibold">{selectedChat.display_name}</span>
-                    {selectedChat.is_muted && <BellOff size={12} className="shrink-0 text-muted-foreground" aria-label="En sourdine" />}
+                </label>
+                {threadResults && (
+                  <div className="absolute right-0 top-10 z-30 max-h-96 w-80 overflow-y-auto rounded-xl border bg-card p-1 shadow-xl">
+                    <p className="px-2.5 py-1.5 text-[11px] font-bold tracking-wider text-muted-foreground">
+                      {threadResults.length ? `${threadResults.length} RÉSULTAT${threadResults.length > 1 ? "S" : ""}` : "AUCUN RÉSULTAT"}
+                    </p>
+                    {threadResults.map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => {
+                          setFocusId(null);
+                          requestAnimationFrame(() => setFocusId(r.id));
+                          setThreadResults(null);
+                        }}
+                        className="block w-full rounded-lg px-2.5 py-2 text-left hover:bg-muted"
+                      >
+                        <span className="flex items-center justify-between gap-2 text-xs">
+                          <strong className="truncate">{r.sender.name}</strong>
+                          <span className="shrink-0 text-muted-foreground">
+                            {new Date(r.sent_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} · {formatTime(r.sent_at)}
+                          </span>
+                        </span>
+                        <span className="line-clamp-2 text-[13px] text-muted-foreground">{r.content}</span>
+                      </button>
+                    ))}
                   </div>
-                  <div
-                    className={`truncate text-[11px] ${statusLive ? "font-medium" : "text-muted-foreground"}`}
-                    style={statusLive ? { color: "var(--ax-accent)" } : undefined}
-                  >
-                    {status}
-                  </div>
-                </div>
-              </button>
+                )}
+              </div>
+
               <button
                 type="button"
-                className="ax-btn ax-btn--ghost ax-btn--icon"
+                className={`ax-btn ax-btn--ghost ax-btn--icon ${showInfo ? "text-[#4E2E9E]" : ""}`}
                 aria-pressed={showInfo}
-                aria-label="Informations sur la conversation"
+                aria-label="Afficher les membres et les détails"
                 onClick={() => setShowInfo((s) => !s)}
               >
-                <Info size={18} aria-hidden />
+                <PanelRight size={18} aria-hidden />
               </button>
             </header>
 
             <MessageThread
-              chatId={selectedChat.id}
+              chat={selectedChat}
               messages={messages}
               currentUserId={currentUserId}
-              isGroup={isGroup}
               canDeleteAny={isAdmin}
-              peerLastReadAt={selectedChat.peer_last_read_at}
               typingNames={typingNames}
               loading={loadingThread}
               hasMore={hasMore}
@@ -991,10 +1047,12 @@ export function ChatInterface({
               onReact={handleReact}
               onDelete={handleDelete}
               onRetry={handleRetry}
+              onEdit={handleEdit}
+              focusId={focusId}
             />
 
             <Composer
-              placeholder={isGroup ? "Écrire au salon…" : "Écrire un message…"}
+              placeholder={isChannel ? `Publier dans ${selectedChat.display_name}…` : isGroup ? `Écrire dans #${selectedChat.display_name}` : `Écrire à ${selectedChat.display_name}`}
               disabled={loadingThread}
               allowFiles={!pilotage || pilotage.allow_file_sharing !== false}
               replyingTo={replyingTo}
@@ -1004,26 +1062,29 @@ export function ChatInterface({
               draftKey={String(selectedChat.id)}
               onSend={handleSend}
               onTyping={pushTyping}
+              readOnlyNote={readOnlyNote}
             />
           </>
         )}
       </main>
 
-      {/* ── Informations ─────────────────────────────────────────────── */}
+      {/* ── Membres et détails ─────────────────────────────────────────── */}
       {selectedChat && showInfo && (
-        <div className="absolute inset-0 z-30 flex lg:static lg:z-auto">
+        <div className="absolute inset-y-0 right-0 z-30 flex w-full shadow-2xl sm:w-[320px] xl:static xl:z-auto xl:w-auto xl:shadow-none">
           <ConversationInfo
             chat={selectedChat}
             members={members}
             onlineIds={onlineIds}
             currentUserId={currentUserId}
             canManage={canManage}
+            isAdmin={isAdmin}
             directoryUsers={directoryUsers}
             busy={infoBusy}
             onClose={() => setShowInfo(false)}
             onToggleMute={handleToggleMute}
             onLeave={handleLeave}
             onAddMembers={handleAddMembers}
+            onSetAuthor={handleSetAuthor}
           />
         </div>
       )}
@@ -1045,24 +1106,13 @@ export function ChatInterface({
               <label htmlFor="salon-name" className="ax-field__label">
                 Nom du salon
               </label>
-              <input
-                id="salon-name"
-                className="ax-input"
-                placeholder="Ex. Coordination Magal"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
+              <input id="salon-name" className="ax-input" placeholder="Ex. Coordination Magal" value={newName} onChange={(e) => setNewName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <label htmlFor="invite-mode" className="ax-field__label">
                 Qui y entre ?
               </label>
-              <select
-                id="invite-mode"
-                className="ax-select"
-                value={inviteMode}
-                onChange={(e) => setInviteMode(e.target.value as ChatInviteMode)}
-              >
+              <select id="invite-mode" className="ax-select" value={inviteMode} onChange={(e) => setInviteMode(e.target.value as ChatInviteMode)}>
                 {modeOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
@@ -1087,9 +1137,7 @@ export function ChatInterface({
             )}
             {inviteMode === "manual" && pickableUsers.length > 0 && (
               <div className="space-y-1.5">
-                <span className="ax-field__label">
-                  Membres à inviter{manualIds.length ? ` (${manualIds.length})` : ""}
-                </span>
+                <span className="ax-field__label">Membres à inviter{manualIds.length ? ` (${manualIds.length})` : ""}</span>
                 <input
                   className="ax-input ax-input--sm"
                   value={manualSearch}
@@ -1097,7 +1145,7 @@ export function ChatInterface({
                   placeholder="Filtrer les membres…"
                   aria-label="Filtrer les membres"
                 />
-                <ScrollArea className="h-40 rounded-xl border p-2">
+                <div className="h-40 overflow-y-auto rounded-xl border p-2">
                   <div className="space-y-1">
                     {pickableUsers
                       .filter((u) => {
@@ -1119,7 +1167,7 @@ export function ChatInterface({
                         </label>
                       ))}
                   </div>
-                </ScrollArea>
+                </div>
               </div>
             )}
             {createError && <p className="ax-field__message ax-field__message--error">{createError}</p>}

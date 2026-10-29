@@ -8,13 +8,15 @@ export type LastMessage = {
   sent_at: string | null;
   sender_name: string;
   sender_id?: number | null;
-  message_type?: "text" | "file" | "system";
+  message_type?: MessageType;
   is_mine?: boolean;
 };
 
+export type MessageType = "text" | "file" | "system" | "card";
+
 export type ChatRow = {
   id: number;
-  chat_type: "direct" | "group";
+  chat_type: "direct" | "group" | "channel";
   display_name: string;
   avatar?: string | null;
   last_message?: LastMessage | null;
@@ -29,6 +31,11 @@ export type ChatRow = {
   daara?: number | null;
   campaign?: number | null;
   created_by?: number | null;
+  /** Canaux du Kourel : « guide » (annonces de Sangue Bi) ou « jefs ». */
+  channel_kind?: "guide" | "jefs" | null;
+  description?: string;
+  /** Faux dans un canal pour qui n'en est pas auteur : on y réagit seulement. */
+  can_post?: boolean;
 };
 
 export type Reaction = { emoji: string; count: number; reacted_by_me: boolean };
@@ -37,20 +44,37 @@ export type ReplyPreview = {
   id: number;
   sender_name: string;
   content: string;
-  message_type: "text" | "file" | "system";
+  message_type: MessageType;
   is_deleted: boolean;
+};
+
+/** La carte qu'un Jëf confirmé pose dans « Les Jëfs du Kourel ». */
+export type JefCard = {
+  kind: "jef";
+  donation_id: number;
+  campaign_id: number;
+  campaign_name: string;
+  donor: { id: number; name: string; title?: string | null; avatar?: string | null } | null;
+  variant: "palier" | "diaspora" | "photo" | "picto";
+  picto?: string;
+  tone?: "peach" | "yellow" | "teal" | "pink" | "lilac";
+  photo_url?: string;
+  milestone?: number;
 };
 
 export type MessageRow = {
   id: number;
   chat: number;
-  sender: { id: number; name: string; avatar?: string | null; role?: string | null };
-  message_type: "text" | "file" | "system";
+  sender: { id: number; name: string; avatar?: string | null; role?: string | null; title?: string | null };
+  message_type: MessageType;
   content: string;
   file_url?: string | null;
   file_name?: string | null;
   file_size?: number | null;
   file_is_image?: boolean;
+  file_kind?: "image" | "audio" | "video" | "document" | null;
+  edited_at?: string | null;
+  payload?: JefCard | null;
   reply_to?: number | null;
   reply_preview?: ReplyPreview | null;
   reactions?: Reaction[];
@@ -69,6 +93,7 @@ export type ChatMember = {
   avatar?: string | null;
   daara_name?: string | null;
   role?: string | null;
+  title?: string | null;
 };
 
 export type ChatInvitationRow = {

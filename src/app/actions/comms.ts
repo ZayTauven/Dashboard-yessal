@@ -465,3 +465,42 @@ export async function leaveChat(chatId: number) {
 export async function addChatMembers(chatId: number, userIds: number[]) {
   return postChatAction(`${chatId}/add-members/`, { user_ids: userIds }, "Impossible d'ajouter ces membres.");
 }
+
+/** Corriger son propre message texte. */
+export async function editMessage(messageId: number, content: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/messages/${messageId}/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(await getAuthHeader() as Record<string, string>) },
+      body: JSON.stringify({ content }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: messageForErrors(body, "Impossible de modifier le message.") };
+    return { success: true, data: body };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur backend." };
+  }
+}
+
+/** Les messages d'une conversation qui contiennent `q`. */
+export async function searchMessages(chatId: number, q: string) {
+  const params = new URLSearchParams({ chat: String(chatId), q });
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/messages/?${params}`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) return { error: "Recherche impossible.", data: [] };
+    const raw = await res.json();
+    return { data: Array.isArray(raw) ? raw : raw.results ?? [] };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion.", data: [] };
+  }
+}
+
+/** Désigner (ou retirer) un auteur d'un canal — administrateurs seulement. */
+export async function setChannelAuthor(chatId: number, userId: number, canPost: boolean) {
+  return postChatAction(`${chatId}/authors/`, { user_id: userId, can_post: canPost }, "Impossible de changer les auteurs du canal.");
+}
