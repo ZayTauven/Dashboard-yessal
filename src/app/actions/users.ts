@@ -206,6 +206,62 @@ export async function createUserByAdmin(userData: JsonPayload) {
   }
 }
 
+/** Le sort d'une ligne du fichier — `accounts/services/user_import.py`. */
+export interface LigneImportMembre {
+  ligne: number;
+  nom: string;
+  identifiant: string;
+  verdict: "cree" | "cree_sans_daara" | "rejete";
+  role: string;
+  daara: string | null;
+  motif: string | null;
+  remarques: string[];
+}
+
+export interface RapportImportMembres {
+  success: boolean;
+  apercu: boolean;
+  message: string;
+  mot_de_passe: string;
+  totaux: {
+    lignes: number;
+    crees: number;
+    crees_sans_daara: number;
+    rejetes: number;
+    lignes_vides: number;
+  };
+  lignes: LigneImportMembre[];
+}
+
+/**
+ * L'import Excel des membres, désormais fait par Django.
+ *
+ * Il vivait dans le navigateur : une requête par ligne, la colonne Daara
+ * jetée, et les refus réduits à un compteur. `apercu` déroule tout sans rien
+ * écrire — c'est ce que l'écran montre avant de confirmer.
+ */
+export async function importMembers(
+  formData: FormData,
+): Promise<{ data?: RapportImportMembres; error?: string }> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/users/import-excel/`, {
+      method: "POST",
+      headers: await getAuthHeader(),
+      body: stripEmptyFiles(formData),
+    });
+    const corps = (await res.json().catch(() => null)) as
+      | (RapportImportMembres & { detail?: string })
+      | null;
+    if (!res.ok) {
+      return { error: corps?.message ?? messageForErrors(corps, "L'import a échoué.") };
+    }
+    return { data: corps ?? undefined };
+  } catch (err) {
+    console.error("importMembers:", err);
+    return { error: "Erreur réseau." };
+  }
+}
+
 export async function updateUserRole(userId: number, role: string) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/users/${userId}/`, {

@@ -17,10 +17,10 @@
  *   · Les cartes de demande d'inscription étaient posées sur `bg-white` en dur,
  *     donc invisibles en thème sombre (texte blanc sur blanc).
  *
- *   · L'import Excel crée les comptes avec un mot de passe unique écrit dans le
- *     source (`YessalPassword2024!`). Le comportement est conservé — c'est un
- *     chantier backend, consigné dans AGENTS/REFONTE_DETTE.md — mais la modale
- *     l'ANNONCE désormais à l'administrateur, qui l'ignorait.
+ *   · L'import Excel se fait désormais côté Django (`services/user_import.py`),
+ *     avec un aperçu ligne par ligne : il lisait le fichier ici et ne
+ *     transmettait jamais le Daara. Le mot de passe commun reste, ANNONCÉ à
+ *     l'administrateur ; le membre le remplace à la fin de son accueil.
  *
  *   · La recherche et le tri étaient réimplémentés à la main ; ils passent sur
  *     `useCollection`, avec le tri sur l'ensemble et non sur la page.
@@ -48,17 +48,19 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import {
   createUserByAdmin,
   deleteUserAction,
+  importMembers,
   resetMemberPasswordAction,
   reviewTitleRequest,
   updateUserAction,
   updateUserRole,
   updateUserStatus,
   validateDocument,
+  type RapportImportMembres,
 } from "@/app/actions/users";
+import { ImportMembresModal, telechargerModele } from "./ImportMembresModal";
 import { ExportButton } from "@/components/ExportButton";
 import PhoneNumberValidation from "@/components/PhoneNumberValidation";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -129,7 +131,8 @@ const DOC_TYPE_LABEL: Record<string, string> = {
   driver_license: "Permis de conduire",
 };
 
-/** Mot de passe attribué par l'import Excel — voir AGENTS/REFONTE_DETTE.md §2. */
+/** Mot de passe attribué par l'import Excel — copie d'AFFICHAGE de
+ *  `MOT_DE_PASSE_PAR_DEFAUT` (`accounts/services/user_import.py`), qui fait foi. */
 const IMPORT_DEFAULT_PASSWORD = "YessalPassword2024!";
 
 type SortKey = "name" | "role" | "status" | "daara";
@@ -175,6 +178,8 @@ export function UserManagementClient({
   const [selectedDaaraId, setSelectedDaaraId] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importApercu, setImportApercu] = useState<RapportImportMembres | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -373,52 +378,32 @@ export function UserManagementClient({
 
   /* ── Import Excel ── */
 
-  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+  /* Le fichier part à Django, d'abord en aperçu : voir <ImportMembresModal>.
+     La lecture se faisait ici, dans le navigateur, et la colonne Daara n'était
+     jamais envoyée — épreuve du 2026-10-29. */
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
 
-    const tooBig = checkFileSize(file);
+    const tooBig = checkFileSize(file, 5);
     if (tooBig) {
       toast.error(tooBig);
-      e.target.value = "";
       return;
     }
 
     setIsImporting(true);
-    const reader = new FileReader();
-
-    reader.onload = async (evt) => {
-      try {
-        const wb = XLSX.read(evt.target?.result, { type: "binary" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
-
-        let successCount = 0;
-        for (const row of rows) {
-          const { error } = await createUserByAdmin({
-            first_name: row["Prénom"] ?? row["first_name"],
-            last_name: row["Nom"] ?? row["last_name"],
-            email: row["Email"] ?? row["email"],
-            phone: row["Téléphone"] ?? row["phone"],
-            role: row["Rôle"] ?? row["role"] ?? "member",
-            password: IMPORT_DEFAULT_PASSWORD,
-          });
-          if (!error) successCount++;
-        }
-
-        toast.success(
-          `${successCount} compte${successCount > 1 ? "s" : ""} importé${successCount > 1 ? "s" : ""} sur ${rows.length}.`,
-        );
-        router.refresh();
-      } catch (err) {
-        toast.error(`Erreur lors de l'import : ${String(err)}`);
-      } finally {
-        setIsImporting(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    };
-
-    reader.readAsBinaryString(file);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("apercu", "true");
+    const { data, error } = await importMembers(fd);
+    setIsImporting(false);
+    if (error || !data) {
+      toast.error(error ?? "Le fichier n'a pas pu être lu.");
+      return;
+    }
+    setImportFile(file);
+    setImportApercu(data);
   };
 
   /* ── Création / édition ── */
@@ -786,9 +771,9 @@ export function UserManagementClient({
 
           {/*
             L'import Excel attribue le MEME mot de passe a tous les comptes
-            crees. C'est un defaut connu (chantier backend, voir
-            AGENTS/REFONTE_DETTE.md) ; en attendant, l'administrateur doit au
-            moins le savoir avant d'importer un fichier.
+            crees : l'administrateur doit le savoir avant d'importer. Le membre
+            le remplace a la derniere etape de son accueil, a la premiere
+            connexion (`accounts/services/accueil.py`).
           */}
           <div className="ax-alert ax-alert--warning ax-alert--inline">
             <ShieldAlert className="ax-alert__icon" aria-hidden="true" />
@@ -796,9 +781,18 @@ export function UserManagementClient({
               <p className="ax-alert__message">
                 Les comptes créés par import Excel reçoivent tous le même mot de
                 passe provisoire{" "}
-                <code className="ax-code">{IMPORT_DEFAULT_PASSWORD}</code>. Un
-                bandeau leur demandera de le remplacer dès leur première
-                connexion, et restera affiché tant que ce ne sera pas fait.
+                <code className="ax-code">{IMPORT_DEFAULT_PASSWORD}</code>. À sa
+                première connexion, chaque membre complète son Daara si le
+                fichier ne le désignait pas sans ambiguïté, sa fiche, puis
+                choisit son propre mot de passe. Un aperçu ligne par ligne
+                s’affiche avant toute création.{" "}
+                <button
+                  type="button"
+                  className="ax-link"
+                  onClick={telechargerModele}
+                >
+                  Télécharger le modèle de fichier
+                </button>
               </p>
             </div>
           </div>
@@ -1084,6 +1078,16 @@ export function UserManagementClient({
       )}
 
       {/* ── Création ── */}
+      <ImportMembresModal
+        file={importFile}
+        apercu={importApercu}
+        onClose={() => {
+          setImportFile(null);
+          setImportApercu(null);
+        }}
+        onImported={() => router.refresh()}
+      />
+
       <Modal
         open={isAddOpen}
         onOpenChange={(o) => {
