@@ -5,7 +5,6 @@ import { jwtDecode } from "jwt-decode";
 import { getProfile, getUserDocuments } from "@/app/actions/users";
 import { getNotificationsPreview } from "@/app/actions/notifications";
 import ProfileCompletionBanner from "@/components/ProfileCompletionBanner";
-import { PasswordChangeBanner } from "@/components/vireo/PasswordChangeBanner";
 import { FCMProvider } from "@/components/FCMProvider";
 import { AppShell } from "@/components/vireo/AppShell";
 
@@ -69,6 +68,17 @@ export default async function DashboardLayout({
   }
 
   const profile = profileRes.data;
+
+  /*
+   * Un compte créé par un tiers termine son accueil avant toute autre chose :
+   * Daara si l'import ne l'a pas désigné, fiche, puis son propre mot de passe.
+   * La règle est servie par Django (`onboarding`) ; ici, on ne fait que
+   * l'appliquer — comme la garde de `yessal-mobile/app/(app)/_layout.tsx`.
+   */
+  if (profile?.onboarding?.length) {
+    redirect("/bienvenue");
+  }
+
   if (profile?.id) {
     const { data: documents } = await getUserDocuments(profile.id);
     profile.documents = documents || [];
@@ -82,18 +92,11 @@ export default async function DashboardLayout({
         user={profile || user}
         notificationPreview={notificationPreview}
         /*
-          Deux bandeaux possibles, et un seul emplacement. Le mot de passe
-          passe devant : un profil incomplet est une gêne, un mot de passe
-          que d'autres connaissent est un compte ouvert à tous. Tant qu'il
-          n'est pas changé, c'est le seul message affiché.
+          Le bandeau « changez votre mot de passe » n'a plus lieu d'être : un
+          mot de passe attribué renvoie désormais à l'accueil (`/bienvenue`),
+          qui le fait remplacer avant d'ouvrir le tableau de bord.
         */
-        banner={
-          profile?.must_change_password ? (
-            <PasswordChangeBanner mustChange />
-          ) : (
-            <ProfileCompletionBanner profile={profile} />
-          )
-        }
+        banner={<ProfileCompletionBanner profile={profile} />}
       >
         {children}
       </AppShell>

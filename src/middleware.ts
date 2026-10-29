@@ -93,6 +93,9 @@ export async function middleware(request: NextRequest) {
    */
   const isProtectedRoute =
     pathname.startsWith("/dashboard") ||
+    // L'accueil d'un compte créé par un tiers — hors du groupe `(dashboard)`
+    // pour que la garde de son layout ne le renvoie pas sur lui-même.
+    pathname === "/bienvenue" ||
     pathname === "/guide" ||
     pathname.startsWith("/guide/");
   const isLoginRoute = pathname.startsWith("/login");

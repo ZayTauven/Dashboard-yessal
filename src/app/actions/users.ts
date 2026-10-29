@@ -262,6 +262,28 @@ export async function importMembers(
   }
 }
 
+/** L'étape « daara » de l'accueil : une seule fois, compte sans Daara. */
+export async function chooseDaaraAction(daaraId: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/profile/daara/`, {
+      method: "POST",
+      headers: {
+        ...(await getAuthHeader()),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ daara_id: daaraId }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: messageForErrors(err, "Le Daara n'a pas pu être enregistré.") };
+    }
+    return { data: await res.json() };
+  } catch (err) {
+    console.error("chooseDaaraAction:", err);
+    return { error: "Erreur réseau." };
+  }
+}
+
 export async function updateUserRole(userId: number, role: string) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/users/${userId}/`, {
