@@ -1,0 +1,160 @@
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Yessal Chat — la feuille de la messagerie
+ * ═══════════════════════════════════════════════════════════════════════════
+ * Ce que Tailwind dit mal : les coins de bulle qui changent selon la place
+ * dans une grappe, le repère qui clignote quand on remonte à un message cité,
+ * les trois points de frappe. Le reste vit en utilitaires dans le JSX.
+ *
+ * Bulles : les miennes en violet lavé (même parti que le mobile, Violet-300
+ * sur Violet-900), celles des autres en surface bordée. `color-mix` sur les
+ * jetons : le thème sombre et les douze accents du Customizer suivent seuls.
+ *
+ * @layer components, préfixe .yc-* — voir le préambule de _yessal-guide.css.
+ */
+
+@layer components {
+  .yc-thread {
+    background:
+      radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--ax-text) 5%, transparent) 1px, transparent 0) 0 0 / 22px 22px,
+      var(--ax-surface-subtle);
+  }
+
+  .yc-bubble {
+    --_r: 18px;
+    --_tight: 6px;
+    position: relative;
+    padding: 8px 12px 6px;
+    border-radius: var(--_r);
+    font-size: var(--ax-text-sm);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    transition: background-color var(--ax-motion-fast) var(--ax-ease-standard);
+  }
+  .yc-bubble--theirs {
+    background: var(--ax-surface);
+    border: 1px solid var(--ax-border);
+    color: var(--ax-text);
+    border-end-start-radius: var(--_tight);
+  }
+  .yc-bubble--theirs:not(.yc-bubble--first) {
+    border-start-start-radius: var(--_tight);
+  }
+  .yc-bubble--mine {
+    background: color-mix(in srgb, var(--ax-accent) 17%, var(--ax-surface));
+    border: 1px solid color-mix(in srgb, var(--ax-accent) 22%, transparent);
+    color: var(--ax-text-strong);
+    border-end-end-radius: var(--_tight);
+  }
+  .yc-bubble--mine:not(.yc-bubble--first) {
+    border-start-end-radius: var(--_tight);
+  }
+  .yc-bubble--deleted {
+    background: transparent;
+    border: 1px dashed var(--ax-border-strong);
+    color: var(--ax-text-muted);
+    font-style: italic;
+  }
+  .yc-bubble--media {
+    padding: 4px;
+  }
+
+  .yc-quote {
+    display: block;
+    width: 100%;
+    text-align: start;
+    margin-block-end: 6px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border-inline-start: 3px solid var(--ax-accent);
+    background: color-mix(in srgb, var(--ax-accent) 8%, transparent);
+    font-size: var(--ax-text-xs);
+    cursor: pointer;
+  }
+  .yc-quote:hover {
+    background: color-mix(in srgb, var(--ax-accent) 14%, transparent);
+  }
+
+  .yc-mention {
+    font-weight: var(--ax-weight-semibold);
+    color: var(--ax-accent-700);
+  }
+  [data-ax-theme="dark"] .yc-mention {
+    color: var(--ax-accent-300);
+  }
+
+  /* Le message vers lequel on vient de sauter depuis une citation. */
+  .yc-flash .yc-bubble {
+    animation: yc-flash 1.4s var(--ax-ease-standard);
+  }
+  @keyframes yc-flash {
+    0%,
+    40% {
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--ax-accent) 45%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  .yc-typing span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ax-text-muted);
+    animation: yc-typing 1.2s infinite ease-in-out;
+  }
+  .yc-typing span:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .yc-typing span:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  @keyframes yc-typing {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.45;
+    }
+    30% {
+      transform: translateY(-3px);
+      opacity: 1;
+    }
+  }
+
+  /* Une bulle qui vient d'arriver glisse d'un rien : le regard la trouve. */
+  .yc-enter {
+    animation: yc-enter 220ms var(--ax-ease-emphasized, ease-out);
+  }
+  @keyframes yc-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .yc-row-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--ax-motion-fast) var(--ax-ease-standard);
+  }
+  .yc-row:hover .yc-row-actions,
+  .yc-row:focus-within .yc-row-actions,
+  .yc-row.is-active .yc-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .yc-enter,
+    .yc-flash .yc-bubble,
+    .yc-typing span {
+      animation: none;
+    }
+  }
+}

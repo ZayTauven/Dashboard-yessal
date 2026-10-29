@@ -56,6 +56,13 @@
 @import "../styles/vireo/_yessal-guide.css";
 
 /*
+ * ── Yessal Chat ──
+ * Bulles en grappes, citations, repère de saut, indicateur de frappe. Même
+ * couche que le reste de Vireo ; préfixe .yc-*.
+ */
+@import "../styles/vireo/_yessal-chat.css";
+
+/*
  * Variante dark de Tailwind — deux sélecteurs volontairement.
  * next-themes appose `class="dark"` (dont dépendent les composants shadcn et
  * les pages existantes) ET `data-ax-theme="dark"` (dont dépend tout Vireo).

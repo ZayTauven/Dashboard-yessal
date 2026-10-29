@@ -30,6 +30,11 @@ export function FCMProvider() {
 
         // Foreground push → show as toast
         onMessage(messaging, (payload) => {
+          /* Sur l'écran de messagerie, la liste et le fil se mettent déjà à
+             jour en direct : un toast par message ferait doublon. */
+          if (payload.data?.type === 'chat_message' && window.location.pathname.startsWith('/dashboard/chat')) {
+            return;
+          }
           const title = payload.notification?.title || 'Notification';
           const body = payload.notification?.body;
           toast(title, {

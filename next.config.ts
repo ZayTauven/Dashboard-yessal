@@ -37,6 +37,17 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "15mb",
     },
   },
+
+  /*
+   * Les pièces jointes et portraits arrivent de Django en chemins RELATIFS
+   * (`/media/chat_files/…`). En production, nginx sert `/media/` sur le même
+   * hôte et ne laisse jamais la requête atteindre Next ; en local, rien ne
+   * les servait — une image partagée dans la messagerie s'affichait cassée.
+   */
+  async rewrites() {
+    const backend = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+    return [{ source: "/media/:path*", destination: `${backend}/media/:path*` }];
+  },
 };
 
 export default nextConfig;

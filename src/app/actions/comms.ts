@@ -84,7 +84,9 @@ export async function sendChatMessage(formData: FormData) {
       return { error: messageForErrors(err, "Impossible d'envoyer le message.") };
     }
 
-    revalidatePath("/dashboard/chat");
+    /* Pas de `revalidatePath` : l'écran tient son état côté client, et
+       revalider relançait TOUT le rendu serveur de la page — annuaire et
+       Daaras compris — à chaque message envoyé. */
     return { success: true, data: await res.json() };
   } catch (err) {
     console.error(err);
@@ -121,7 +123,6 @@ export async function deleteMessage(messageId: number) {
     if (!res.ok) {
       return { error: "Impossible de supprimer le message." };
     }
-    revalidatePath("/dashboard/chat");
     return { success: true };
   } catch (err) {
     console.error(err);
@@ -407,4 +408,60 @@ export async function createChat(payload: {
     console.error(err);
     return { error: "Erreur de connexion au serveur backend." };
   }
+}
+
+/**
+ * Une page du fil, en remontant : les `limit` derniers messages, ou ceux qui
+ * précèdent `before`. L'écran ne charge plus tout l'historique d'un salon de
+ * Daara à l'ouverture.
+ */
+export async function getMessagesPage(chatId: number, before?: number, limit = 40) {
+  const params = new URLSearchParams({ chat: String(chatId), limit: String(limit) });
+  if (before) params.set("before", String(before));
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/messages/?${params}`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: messageForErrors(err, "Impossible de charger les messages."), data: [], hasMore: false };
+    }
+    const raw = await res.json();
+    return { data: raw.results ?? [], hasMore: Boolean(raw.has_more) };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion.", data: [], hasMore: false };
+  }
+}
+
+async function postChatAction(path: string, payload: JsonPayload | null, fallback: string) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeader() as Record<string, string>),
+      },
+      body: payload ? JSON.stringify(payload) : undefined,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: messageForErrors(body, fallback) };
+    return { success: true, data: body };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur backend." };
+  }
+}
+
+export async function toggleChatMute(chatId: number) {
+  return postChatAction(`${chatId}/mute/`, null, "Impossible de changer la sourdine.");
+}
+
+export async function leaveChat(chatId: number) {
+  return postChatAction(`${chatId}/leave/`, null, "Impossible de quitter le salon.");
+}
+
+export async function addChatMembers(chatId: number, userIds: number[]) {
+  return postChatAction(`${chatId}/add-members/`, { user_ids: userIds }, "Impossible d'ajouter ces membres.");
 }

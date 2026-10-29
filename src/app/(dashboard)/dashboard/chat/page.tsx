@@ -76,11 +76,11 @@ export default async function ChatPage({
    * d'un `bg-card rounded-2xl border` recompose a la main.
    */
   return (
-    <div className="flex h-[calc(100vh-190px)] min-h-[520px] flex-col gap-4">
+    <div className="flex h-[calc(100dvh-190px)] min-h-[520px] flex-col gap-4">
       <PageHead
         role={(role ?? "member") as Role}
         title="Messagerie"
-        subtitle="Les salons sont créés par un administrateur ou un coordinateur de Daara ; les autres profils rejoignent ceux auxquels ils sont invités."
+        subtitle="Vos salons de Daara et vos discussions privées, en temps réel."
       />
 
       <div className="ax-card flex min-h-0 flex-1 overflow-hidden">
@@ -92,6 +92,10 @@ export default async function ChatPage({
           <ChatInterface
             initialChats={chats || []}
             currentUserId={currentUserId}
+            currentUserName={
+              [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.email || ""
+            }
+            currentUserAvatar={profile?.avatar ?? profile?.avatar_url ?? null}
             initialSelectedChatId={initialSelectedChatId}
             inviteUserId={inviteUserId}
             daaraId={daaraId}
