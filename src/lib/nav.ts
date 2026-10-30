@@ -15,6 +15,7 @@
  */
 
 import {
+  Activity,
   Bell,
   BookOpen,
   Building2,
@@ -33,7 +34,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export type Role = "admin" | "chef_daara" | "collector" | "member" | "tutelle";
+export type Role = "admin" | "chef_daara" | "collector" | "member" | "tutelle" | "guide";
 
 export interface NavLeaf {
   id: string;
@@ -100,6 +101,16 @@ export function navSections(role: Role): NavSection[] {
           href: "/dashboard",
           icon: LayoutDashboard,
           keywords: ["accueil", "kpi", "statistiques"],
+        },
+        /* La fenêtre de Sangue Bi, la guide du Kourel : toute la plateforme
+           d'un coup d'œil, et ses annonces. L'administration y entre aussi. */
+        {
+          id: "suivi",
+          title: "Suivi du Kourel",
+          href: "/dashboard/suivi",
+          icon: Activity,
+          roles: ["guide", "admin"],
+          keywords: ["sangue bi", "guide", "statistiques", "répartition", "ldd", "daara", "annonce"],
         },
         {
           id: "news",

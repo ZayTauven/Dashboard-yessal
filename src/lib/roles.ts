@@ -33,6 +33,7 @@ export const ROLE_LABEL: Record<string, string> = {
   chef_daara: "Coordinateur du Daara",
   tutelle: "Tutelle",
   admin: "Administrateur",
+  guide: "Sangue Bi",
 };
 
 const ROLE_LABEL_LONG: Record<string, string> = {
@@ -62,4 +63,5 @@ export const ROLE_OPTIONS = [
   { value: "chef_daara", label: ROLE_LABEL.chef_daara },
   { value: "tutelle", label: ROLE_LABEL.tutelle },
   { value: "admin", label: ROLE_LABEL.admin },
+  { value: "guide", label: ROLE_LABEL.guide },
 ] as const;

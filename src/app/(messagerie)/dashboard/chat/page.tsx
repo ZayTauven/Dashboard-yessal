@@ -19,7 +19,7 @@ export default async function ChatPage({
   ]);
 
   const role = profile?.role as string | undefined;
-  const canLoadDirectory = role === "admin" || role === "chef_daara";
+  const canLoadDirectory = role === "admin" || role === "chef_daara" || role === "guide";
 
   let directoryUsers: unknown[] = [];
   let daarasForSelect: { id: number; name?: string }[] = [];
