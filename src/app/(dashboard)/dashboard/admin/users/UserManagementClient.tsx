@@ -117,6 +117,9 @@ const ROLES = [
   { value: "chef_daara", label: "Coordinateur du Daara" },
   { value: "collector", label: "Collecteur" },
   { value: "member", label: "Talubé" },
+  /* La guide du Kourel : elle voit tout et annonce, sans rien modifier. Ce
+     rôle lui ouvre d'office le canal « Annonces de Sangue Bi ». */
+  { value: "guide", label: "Sangue Bi" },
 ];
 
 const ROLE_LABEL: Record<string, string> = Object.fromEntries(
