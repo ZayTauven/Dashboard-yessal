@@ -7,15 +7,18 @@
  * TITRE (AMIR, DIEUWRIGNE…) — la manière dont le Kourel se reconnaît — avec
  * la coordination en tête. Dans un canal, on ne liste pas tout le Kourel : on
  * montre ses auteurs, et l'administrateur les désigne d'ici.
+ *
+ * Dans un salon, ses modérateurs (le créateur d'office) ajoutent, retirent et
+ * nomment d'autres modérateurs — `chat.can_moderate` dit si l'on en est.
  */
 import { useMemo, useState } from "react";
-import { Bell, BellOff, LogOut, PenLine, Search, Settings2, UserMinus, UserPlus, X } from "lucide-react";
+import { Bell, BellOff, LogOut, PenLine, Settings2, Shield, ShieldCheck, UserMinus, UserPlus, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { chatIcon } from "./ChannelIcons";
 import { initials, roleLabel } from "./format";
-import type { ChatMember, ChatRow, ManualPickUser } from "./types";
+import { MemberPicker } from "./MemberPicker";
+import type { ChatMember, ChatRow, DirectorySearchUser } from "./types";
 
 const STAFF = new Set(["admin", "chef_daara"]);
 
@@ -26,12 +29,13 @@ export function ConversationInfo({
   currentUserId,
   canManage,
   isAdmin,
-  directoryUsers,
   busy,
   onClose,
   onToggleMute,
   onLeave,
   onAddMembers,
+  onRemoveMember,
+  onSetModerator,
   onSetAuthor,
   onOpenSettings,
 }: {
@@ -39,21 +43,22 @@ export function ConversationInfo({
   members: ChatMember[];
   onlineIds: Set<number>;
   currentUserId: number;
+  /** Modérer ce salon : ajouter, retirer, nommer. */
   canManage: boolean;
   isAdmin: boolean;
-  directoryUsers: ManualPickUser[];
   busy: boolean;
   onClose: () => void;
   onToggleMute: () => void;
   onLeave: () => void;
   onAddMembers: (ids: number[]) => Promise<boolean>;
+  onRemoveMember: (member: ChatMember) => void;
+  onSetModerator: (member: ChatMember, isModerator: boolean) => void;
   onSetAuthor: (userId: number, canPost: boolean) => Promise<boolean>;
   /** Les réglages du canal ou du salon par titre — administration. */
   onOpenSettings: () => void;
 }) {
   const [picking, setPicking] = useState<"members" | "author" | null>(null);
-  const [picked, setPicked] = useState<number[]>([]);
-  const [filter, setFilter] = useState("");
+  const [picked, setPicked] = useState<DirectorySearchUser[]>([]);
   const isGroup = chat.chat_type === "group";
   const isChannel = chat.chat_type === "channel";
   const isJefs = isChannel && chat.channel_kind === "jefs";
@@ -78,17 +83,18 @@ export function ConversationInfo({
   }, [members, onlineIds]);
 
   const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members]);
-  const pickable = directoryUsers.filter((u) => {
-    if (memberIds.has(u.id)) return false;
-    const q = filter.trim().toLowerCase();
-    return !q || `${u.first_name} ${u.last_name}`.toLowerCase().includes(q);
-  });
   const other = chat.chat_type === "direct" ? members.find((m) => m.id !== currentUserId) : null;
+
+  /* Mêmes règles que `remove_member` côté serveur. */
+  const canRemove = (m: ChatMember) =>
+    canManage &&
+    m.id !== currentUserId &&
+    !(isTitleSalon && m.par_audience) &&
+    (isAdmin || (!m.is_moderator && m.role !== "admin"));
 
   const closePicker = () => {
     setPicking(null);
     setPicked([]);
-    setFilter("");
   };
 
   return (
@@ -211,13 +217,39 @@ export function ConversationInfo({
                           <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-[#FBFAF8] bg-[#1F9D55] dark:border-card" aria-label="Dans la conversation" />
                         )}
                       </span>
-                      <span className="min-w-0">
+                      <span className="min-w-0 flex-1">
                         <span className={`block truncate text-sm ${onlineIds.has(m.id) ? "font-semibold" : "text-muted-foreground"}`}>
                           {m.name}
                           {m.id === currentUserId ? " (vous)" : ""}
                         </span>
-                        <span className="block truncate text-[11px] text-muted-foreground">{[roleLabel(m.role), m.daara_name].filter(Boolean).join(" · ")}</span>
+                        <span className="block truncate text-[11px] text-muted-foreground">
+                          {[isGroup && m.is_moderator ? "Modérateur" : null, roleLabel(m.role), m.daara_name].filter(Boolean).join(" · ")}
+                        </span>
                       </span>
+                      {isGroup && canManage && m.id !== currentUserId && (
+                        <button
+                          type="button"
+                          onClick={() => onSetModerator(m, !m.is_moderator)}
+                          disabled={busy}
+                          className={`rounded p-1 ${m.is_moderator ? "text-[#4E2E9E]" : "text-muted-foreground hover:text-[#4E2E9E]"}`}
+                          aria-label={m.is_moderator ? `Décharger ${m.name} de la modération` : `Nommer ${m.name} modérateur`}
+                          title={m.is_moderator ? "Décharger de la modération" : "Nommer modérateur"}
+                        >
+                          {m.is_moderator ? <ShieldCheck size={15} aria-hidden /> : <Shield size={15} aria-hidden />}
+                        </button>
+                      )}
+                      {isGroup && canRemove(m) && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveMember(m)}
+                          disabled={busy}
+                          className="rounded p-1 text-muted-foreground hover:text-[color:var(--ax-viz-red)]"
+                          aria-label={`Retirer ${m.name} du salon`}
+                          title="Retirer du salon"
+                        >
+                          <UserMinus size={15} aria-hidden />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -247,40 +279,13 @@ export function ConversationInfo({
               {chat.push_enabled === false ? "." : " ; chaque publication est envoyée en notification à ses abonnés."}
             </p>
           )}
-          <div className="ax-field__control">
-            <span className="ax-field__affix ax-field__affix--leading">
-              <Search aria-hidden="true" />
-            </span>
-            <input
-              className="ax-input ax-input--sm ax-input--with-leading-icon"
-              placeholder="Filtrer…"
-              aria-label="Filtrer les membres"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-          </div>
-          <div className="h-64 overflow-y-auto rounded-xl border p-2">
-            {pickable.length === 0 ? (
-              <p className="py-8 text-center text-xs text-muted-foreground">Personne à ajouter.</p>
-            ) : (
-              <div className="space-y-1">
-                {pickable.map((u) => (
-                  <label key={u.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-muted/50">
-                    <Checkbox
-                      checked={picked.includes(u.id)}
-                      onCheckedChange={() =>
-                        setPicked((p) => (picking === "author" ? (p.includes(u.id) ? [] : [u.id]) : p.includes(u.id) ? p.filter((x) => x !== u.id) : [...p, u.id]))
-                      }
-                    />
-                    <span className="font-medium">
-                      {u.first_name} {u.last_name}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">{roleLabel(u.role)}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+          <MemberPicker
+            selected={picked}
+            onChange={setPicked}
+            excludeIds={memberIds}
+            single={picking === "author"}
+            heightClass="h-64"
+          />
           <DialogFooter className="gap-2">
             <button type="button" className="ax-btn ax-btn--ghost" onClick={closePicker}>
               <span className="ax-btn__label">Annuler</span>
@@ -290,7 +295,8 @@ export function ConversationInfo({
               className="ax-btn ax-btn--primary"
               disabled={picked.length === 0 || busy}
               onClick={async () => {
-                const ok = picking === "author" ? await onSetAuthor(picked[0], true) : await onAddMembers(picked);
+                const ok =
+                  picking === "author" ? await onSetAuthor(picked[0].id, true) : await onAddMembers(picked.map((u) => u.id));
                 if (ok) closePicker();
               }}
             >

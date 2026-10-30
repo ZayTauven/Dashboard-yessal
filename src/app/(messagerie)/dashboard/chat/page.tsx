@@ -1,6 +1,6 @@
 import { getChats } from "@/app/actions/comms";
 import { getProfile } from "@/app/actions/users";
-import { getDirectoryUsers } from "@/app/actions/directory";
+import { getDirectoryUser } from "@/app/actions/directory";
 import { getDaaras } from "@/app/actions/daara";
 import { ChatInterface } from "./ChatInterface";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -19,15 +19,12 @@ export default async function ChatPage({
   ]);
 
   const role = profile?.role as string | undefined;
-  const canLoadDirectory = role === "admin" || role === "chef_daara" || role === "guide";
-
-  let directoryUsers: unknown[] = [];
+  /*
+   * Plus d'annuaire chargé d'un bloc : les membres d'un salon se choisissent
+   * par la recherche du serveur, comme sur le mobile (2026-10-30).
+   */
   let daarasForSelect: { id: number; name?: string }[] = [];
 
-  if (canLoadDirectory) {
-    const dir = await getDirectoryUsers({ messagerie: true });
-    directoryUsers = dir.data ?? [];
-  }
   if (role === "admin") {
     const da = await getDaaras();
     const raw = da.data as unknown;
@@ -61,6 +58,16 @@ export default async function ChatPage({
    * l'identifiant du membre ouvre la fenêtre avec lui déjà coché.
    */
   const inviteUserId = Number(resolvedSearchParams.with) || null;
+  const fiche = inviteUserId ? await getDirectoryUser(inviteUserId) : null;
+  const inviteUser = fiche
+    ? {
+        id: fiche.id,
+        name: [fiche.first_name, fiche.last_name].filter(Boolean).join(" ") || fiche.email || `Membre #${fiche.id}`,
+        role: fiche.role ?? null,
+        avatar: fiche.avatar_url ?? null,
+        daara_name: fiche.daara_name ?? null,
+      }
+    : null;
 
   const daaraId =
     profile?.daara && typeof profile.daara === "object" && "id" in profile.daara
@@ -86,17 +93,9 @@ export default async function ChatPage({
             }
             currentUserAvatar={profile?.avatar ?? profile?.avatar_url ?? null}
             initialSelectedChatId={initialSelectedChatId}
-            inviteUserId={inviteUserId}
+            inviteUser={inviteUser}
             daaraId={daaraId}
             viewerRole={role}
-            directoryUsers={
-              directoryUsers as {
-                id: number;
-                first_name: string;
-                last_name: string;
-                role: string;
-              }[]
-            }
             daarasForSelect={daarasForSelect}
           />
         )}

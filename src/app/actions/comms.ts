@@ -182,9 +182,11 @@ export async function getChatMembers(chatId: string) {
   }
 }
 
-export async function searchMembers(query: string) {
+/** `pour: "salon"` : la préférence consultée est celle des invitations aux salons. */
+export async function searchMembers(query: string, pour?: "salon") {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/comms/search-members/?q=${encodeURIComponent(query)}`, {
+    const suite = pour ? `&pour=${pour}` : "";
+    const res = await fetch(`${BACKEND_URL}/api/comms/search-members/?q=${encodeURIComponent(query)}${suite}`, {
       cache: "no-store",
       headers: await getAuthHeader(),
     });
@@ -467,6 +469,18 @@ export async function leaveChat(chatId: number) {
 
 export async function addChatMembers(chatId: number, userIds: number[]) {
   return postChatAction(`${chatId}/add-members/`, { user_ids: userIds }, "Impossible d'ajouter ces membres.");
+}
+
+export async function removeChatMember(chatId: number, userId: number) {
+  return postChatAction(`${chatId}/remove-member/`, { user_id: userId }, "Impossible de retirer ce membre.");
+}
+
+export async function setChatModerator(chatId: number, userId: number, isModerator: boolean) {
+  return postChatAction(
+    `${chatId}/moderators/`,
+    { user_id: userId, is_moderator: isModerator },
+    "Impossible de changer la modération.",
+  );
 }
 
 /** Corriger son propre message texte. */

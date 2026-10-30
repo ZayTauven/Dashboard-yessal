@@ -219,20 +219,31 @@ const PREF_KEYS = [
   { key: "allow_group_invites", label: "Invitations aux salons", desc: "Accepter d'être invité dans un salon." },
 ];
 
+/** Ce qu'un compte d'administration garde ouvert d'office (décision du 2026-10-30). */
+const OUVERT_POUR_ADMIN = new Set(["allow_direct_invites", "allow_group_invites"]);
+
 export function SettingsPanel({
   preferences,
   pilotage,
+  isAdmin = false,
   onChange,
 }: {
   preferences: MessagingPreferences;
   pilotage: PilotageConfig | null;
+  isAdmin?: boolean;
   onChange: (key: string, value: string | boolean) => void;
 }) {
-  const locked = Boolean(pilotage) && !pilotage?.allow_member_visibility_setting;
+  const locked = isAdmin || (Boolean(pilotage) && !pilotage?.allow_member_visibility_setting);
   return (
     <div className="flex h-full min-h-0 flex-col">
       <PanelHead icon={<Settings size={18} />} title="Réglages" hint="Confidentialité et notifications." />
       <div className="space-y-2 overflow-y-auto p-3">
+        {isAdmin && (
+          <p className="rounded-xl bg-[#EEE9FC] p-3 text-[11px] leading-relaxed text-[#2F1966]">
+            Un compte d&apos;administration reste joignable : visibilité et invitations restent ouvertes, et le pilotage
+            des Daaras ne s&apos;applique pas à vous.
+          </p>
+        )}
         <div className="space-y-1.5 rounded-xl bg-muted/40 p-3">
           <label htmlFor="pref-visibility" className="block text-xs font-semibold">
             Qui peut me trouver ?
@@ -240,7 +251,7 @@ export function SettingsPanel({
           <select
             id="pref-visibility"
             className="ax-select ax-select--sm"
-            value={preferences.visibility}
+            value={isAdmin ? "all" : preferences.visibility}
             onChange={(e) => onChange("visibility", e.target.value)}
             disabled={locked}
           >
@@ -248,17 +259,27 @@ export function SettingsPanel({
             <option value="daara_only">Mon Daara uniquement</option>
             <option value="nobody">Personne</option>
           </select>
-          {locked && <p className="text-[11px] italic text-muted-foreground">Verrouillé par l&apos;administrateur.</p>}
+          {locked && !isAdmin && <p className="text-[11px] italic text-muted-foreground">Verrouillé par l&apos;administrateur.</p>}
         </div>
-        {PREF_KEYS.map(({ key, label, desc }) => (
-          <label key={key} className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-muted/40 p-3 hover:bg-muted/60">
-            <span>
-              <span className="block text-xs font-semibold">{label}</span>
-              <span className="block text-[11px] text-muted-foreground">{desc}</span>
-            </span>
-            <Checkbox checked={Boolean(preferences[key])} onCheckedChange={(c) => onChange(key, !!c)} />
-          </label>
-        ))}
+        {PREF_KEYS.map(({ key, label, desc }) => {
+          const ouvert = isAdmin && OUVERT_POUR_ADMIN.has(key);
+          return (
+            <label
+              key={key}
+              className={`flex items-center justify-between gap-3 rounded-xl bg-muted/40 p-3 ${ouvert ? "opacity-70" : "cursor-pointer hover:bg-muted/60"}`}
+            >
+              <span>
+                <span className="block text-xs font-semibold">{label}</span>
+                <span className="block text-[11px] text-muted-foreground">{desc}</span>
+              </span>
+              <Checkbox
+                checked={ouvert || Boolean(preferences[key])}
+                disabled={ouvert}
+                onCheckedChange={(c) => onChange(key, !!c)}
+              />
+            </label>
+          );
+        })}
       </div>
     </div>
   );

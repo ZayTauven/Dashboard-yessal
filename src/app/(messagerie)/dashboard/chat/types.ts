@@ -36,6 +36,8 @@ export type ChatRow = {
   description?: string;
   /** Faux dans un canal pour qui n'en est pas auteur, et partout dans un fil archivé. */
   can_post?: boolean;
+  /** Salon : ajouter, retirer, nommer un modérateur — `services.peut_moderer`. */
+  can_moderate?: boolean;
   /** À qui s'adresse le fil — `comms/audience.py`. `null` : tout le Kourel (canal) ou composé à la main (salon). */
   audience?: Audience | null;
   push_enabled?: boolean;
@@ -114,6 +116,10 @@ export type ChatMember = {
   daara_name?: string | null;
   role?: string | null;
   title?: string | null;
+  /** Dans un salon : modérateur (le créateur d'office). */
+  is_moderator?: boolean;
+  /** Entré par son titre : la synchronisation le gère, on ne le retire pas à la main. */
+  par_audience?: boolean;
 };
 
 export type ChatInvitationRow = {
@@ -124,13 +130,6 @@ export type ChatInvitationRow = {
   chat_name?: string | null;
   status: "pending" | "accepted" | "declined" | "expired";
   created_at: string;
-};
-
-export type ManualPickUser = {
-  id: number;
-  first_name: string;
-  last_name: string;
-  role: string;
 };
 
 export type DaaraOption = { id: number; name?: string };

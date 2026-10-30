@@ -28,7 +28,6 @@ import { toast } from "sonner";
 import { ArrowLeft, BellOff, PanelRight, Search, X } from "lucide-react";
 import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   addChatMembers,
@@ -48,11 +47,13 @@ import {
   leaveChat,
   markChatAsRead,
   pinMessage,
+  removeChatMember,
   respondToInvitation,
   searchMembers,
   searchMessages,
   sendChatMessage,
   setChannelAuthor,
+  setChatModerator,
   toggleChatMute,
   toggleMessageReaction,
   updateMessagingPreferences,
@@ -64,6 +65,7 @@ import { ChannelSettings } from "./ChannelSettings";
 import { ChatSidebar, type SidebarPanel } from "./ChatSidebar";
 import { Composer } from "./Composer";
 import { ConversationInfo } from "./ConversationInfo";
+import { MemberPicker } from "./MemberPicker";
 import { MessageThread } from "./MessageThread";
 import { InvitesPanel, PilotagePanel, SearchPanel, SettingsPanel } from "./SidePanels";
 import { formatTime, initials, roleLabel } from "./format";
@@ -74,7 +76,6 @@ import type {
   ChatUpdatedEvent,
   DaaraOption,
   DirectorySearchUser,
-  ManualPickUser,
   MessageRow,
   MessagingPreferences,
   PilotageConfig,
@@ -158,10 +159,9 @@ export function ChatInterface({
   currentUserName = "",
   currentUserAvatar = null,
   initialSelectedChatId,
-  inviteUserId = null,
+  inviteUser = null,
   daaraId,
   viewerRole = "member",
-  directoryUsers = [],
   daarasForSelect = [],
 }: {
   initialChats: ChatRow[];
@@ -170,10 +170,9 @@ export function ChatInterface({
   currentUserAvatar?: string | null;
   initialSelectedChatId?: number | null;
   /** Membre à pré-cocher dans la fenêtre de création (lien « Inviter »). */
-  inviteUserId?: number | null;
+  inviteUser?: DirectorySearchUser | null;
   daaraId?: number | null;
   viewerRole?: string;
-  directoryUsers?: ManualPickUser[];
   daarasForSelect?: DaaraOption[];
 }) {
   const canCreateSalon = viewerRole === "admin" || viewerRole === "chef_daara";
@@ -255,9 +254,8 @@ export function ChatInterface({
   const [newName, setNewName] = useState("");
   const [inviteMode, setInviteMode] = useState<ChatInviteMode>("manual");
   const [presetDaaraId, setPresetDaaraId] = useState<string>("");
-  const [manualIds, setManualIds] = useState<number[]>([]);
+  const [manualPicked, setManualPicked] = useState<DirectorySearchUser[]>([]);
   const [createError, setCreateError] = useState("");
-  const [manualSearch, setManualSearch] = useState("");
 
   const modeOptions = isAdmin ? ADMIN_MODES : CHEF_MODES;
 
@@ -830,11 +828,44 @@ export function ChatInterface({
       toast.error(res.error);
       return false;
     }
-    const added = (res.data as { added?: number })?.added ?? 0;
-    toast.success(added > 1 ? `${added} membres ajoutés.` : added === 1 ? "Membre ajouté." : "Déjà présents.");
+    const { added = 0, refused = 0 } = (res.data as { added?: number; refused?: number }) ?? {};
+    toast.success(added > 1 ? `${added} membres ajoutés.` : added === 1 ? "Membre ajouté." : "Personne n'a été ajouté.", {
+      description: refused
+        ? `${refused} personne${refused > 1 ? "s n'acceptent" : " n'accepte"} pas d'invitation dans un salon.`
+        : undefined,
+    });
     await reloadMembers(selectedChat.id);
     patchChat(selectedChat.id, (c) => ({ members_count: (c.members_count ?? 0) + added }));
     return true;
+  };
+
+  const handleRemoveMember = (member: ChatMember) => {
+    if (!selectedChat) return;
+    const chat = selectedChat;
+    ask({
+      title: `Retirer ${member.name} du salon ?`,
+      description: `${member.name} ne recevra plus les messages de « ${chat.display_name} ». Un modérateur pourra l'y ajouter de nouveau.`,
+      confirmLabel: "Retirer du salon",
+      onConfirm: async () => {
+        setInfoBusy(true);
+        const res = await removeChatMember(chat.id, member.id);
+        setInfoBusy(false);
+        if (res.error) return void toast.error(res.error);
+        toast.success(`${member.name} a été retiré du salon.`);
+        await reloadMembers(chat.id);
+        patchChat(chat.id, (c) => ({ members_count: Math.max(0, (c.members_count ?? 1) - 1) }));
+      },
+    });
+  };
+
+  const handleSetModerator = async (member: ChatMember, isModerator: boolean) => {
+    if (!selectedChat) return;
+    setInfoBusy(true);
+    const res = await setChatModerator(selectedChat.id, member.id, isModerator);
+    setInfoBusy(false);
+    if (res.error) return void toast.error(res.error);
+    toast.success(isModerator ? `${member.name} modère désormais le salon.` : `${member.name} ne modère plus le salon.`);
+    await reloadMembers(selectedChat.id);
   };
 
   const handleSetAuthor = async (userId: number, canPost: boolean) => {
@@ -893,6 +924,13 @@ export function ChatInterface({
   const handleSendInvite = async (userId: number) => {
     const res = await createInvitation(userId);
     if (res.error) return toast.error(res.error);
+    /* L'administration écrit directement : le serveur rend le fil, on l'ouvre. */
+    const direct = (res.data as { direct?: boolean; chat?: ChatRow })?.direct ? (res.data as { chat: ChatRow }).chat : null;
+    if (direct) {
+      await reloadChats();
+      openChat(direct);
+      return;
+    }
     toast.success("Demande envoyée.", { description: "La discussion s'ouvrira dès qu'elle sera acceptée." });
     loadInvitations();
   };
@@ -935,19 +973,18 @@ export function ChatInterface({
   // ─── Création de salon ────────────────────────────────────────────────
   const inviteHandled = useRef(false);
   useEffect(() => {
-    if (inviteHandled.current || !inviteUserId || !canCreateSalon) return;
+    if (inviteHandled.current || !inviteUser || !canCreateSalon) return;
     inviteHandled.current = true;
     setInviteMode("manual");
-    setManualIds([inviteUserId]);
+    setManualPicked([inviteUser]);
     setNewOpen(true);
-  }, [inviteUserId, canCreateSalon]);
+  }, [inviteUser, canCreateSalon]);
 
   const resetCreateForm = () => {
     setNewName("");
     setInviteMode("manual");
     setPresetDaaraId("");
-    setManualIds([]);
-    setManualSearch("");
+    setManualPicked([]);
     setCreateError("");
     setTitleIds([]);
   };
@@ -967,7 +1004,7 @@ export function ChatInterface({
         title_ids: parTitre ? titleIds : undefined,
         daara_id: daaraId || undefined,
         preset_daara_id: presetDaaraId ? Number(presetDaaraId) : undefined,
-        manual_user_ids: inviteMode === "manual" && manualIds.length ? manualIds : undefined,
+        manual_user_ids: inviteMode === "manual" && manualPicked.length ? manualPicked.map((u) => u.id) : undefined,
       });
       if (res.error) return setCreateError(res.error);
       setNewOpen(false);
@@ -991,15 +1028,14 @@ export function ChatInterface({
   }, [inviteMode, titleOptions.length]);
 
   // ─── Dérivés d'affichage ──────────────────────────────────────────────
-  // Le backend décide qui figure dans l'annuaire : un admin y trouve ses pairs.
-  const pickableUsers = directoryUsers.filter((u) => u.id !== currentUserId);
   const pendingIncoming = invitations.filter((i) => i.status === "pending" && Number(i.recipient.id) === Number(currentUserId));
   const onlineIds = useMemo(() => new Set(Object.keys(onlineMembers).map(Number)), [onlineMembers]);
   const typingNames = Object.values(typingUsers).map((t) => t.name);
   const isGroup = selectedChat?.chat_type === "group";
   const isChannel = selectedChat?.chat_type === "channel";
   const peer = selectedChat?.chat_type === "direct" ? members.find((m) => m.id !== currentUserId) : null;
-  const canManage = Boolean(selectedChat && isGroup && (canCreateSalon || selectedChat.created_by === currentUserId));
+  /* Le serveur dit qui modère : admin, coordinateur du Daara, modérateurs du salon. */
+  const canManage = Boolean(isGroup && selectedChat?.can_moderate);
 
   const subtitle = (() => {
     if (!selectedChat) return "";
@@ -1089,7 +1125,7 @@ export function ChatInterface({
           {panel === "invites" && <InvitesPanel invitations={pendingIncoming} onRespond={handleRespondInvite} />}
           {panel === "pilotage" && pilotage && <PilotagePanel pilotage={pilotage} onChange={handlePilotageChange} />}
           {panel === "settings" && preferences && (
-            <SettingsPanel preferences={preferences} pilotage={pilotage} onChange={handlePrefChange} />
+            <SettingsPanel preferences={preferences} pilotage={pilotage} isAdmin={isAdmin} onChange={handlePrefChange} />
           )}
         </ChatSidebar>
       </div>
@@ -1231,12 +1267,13 @@ export function ChatInterface({
             currentUserId={currentUserId}
             canManage={canManage}
             isAdmin={isAdmin}
-            directoryUsers={directoryUsers}
             busy={infoBusy}
             onClose={() => setShowInfo(false)}
             onToggleMute={handleToggleMute}
             onLeave={handleLeave}
             onAddMembers={handleAddMembers}
+            onRemoveMember={handleRemoveMember}
+            onSetModerator={handleSetModerator}
             onSetAuthor={handleSetAuthor}
             onOpenSettings={() => setChannelDialog("edit")}
           />
@@ -1322,39 +1359,10 @@ export function ChatInterface({
                 <p className="text-xs text-muted-foreground">Qui reçoit le titre entre dans le salon, qui le perd en sort. Vous pouvez aussi ajouter quelqu&apos;un à la main.</p>
               </fieldset>
             )}
-            {inviteMode === "manual" && pickableUsers.length > 0 && (
+            {inviteMode === "manual" && (
               <div className="space-y-1.5">
-                <span className="ax-field__label">Membres à inviter{manualIds.length ? ` (${manualIds.length})` : ""}</span>
-                <input
-                  className="ax-input ax-input--sm"
-                  value={manualSearch}
-                  onChange={(e) => setManualSearch(e.target.value)}
-                  placeholder="Filtrer les membres…"
-                  aria-label="Filtrer les membres"
-                />
-                <div className="h-40 overflow-y-auto rounded-xl border p-2">
-                  <div className="space-y-1">
-                    {pickableUsers
-                      .filter((u) => {
-                        const q = manualSearch.trim().toLowerCase();
-                        return !q || `${u.first_name} ${u.last_name} ${u.role}`.toLowerCase().includes(q);
-                      })
-                      .map((u) => (
-                        <label key={u.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-muted/50">
-                          <Checkbox
-                            checked={manualIds.includes(u.id)}
-                            onCheckedChange={() =>
-                              setManualIds((prev) => (prev.includes(u.id) ? prev.filter((x) => x !== u.id) : [...prev, u.id]))
-                            }
-                          />
-                          <span className="font-medium">
-                            {u.first_name} {u.last_name}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">{roleLabel(u.role)}</span>
-                        </label>
-                      ))}
-                  </div>
-                </div>
+                <span className="ax-field__label">Membres à inviter{manualPicked.length ? ` (${manualPicked.length})` : ""}</span>
+                <MemberPicker selected={manualPicked} onChange={setManualPicked} heightClass="h-40" />
               </div>
             )}
             {createError && <p className="ax-field__message ax-field__message--error">{createError}</p>}

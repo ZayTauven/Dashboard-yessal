@@ -13,14 +13,9 @@ async function getAuthHeader(): Promise<HeadersInit | undefined> {
   return token ? { Authorization: `Bearer ${token}` } : undefined;
 }
 
-/**
- * `messagerie` : la liste de choix des salons. Pour un admin, le backend y
- * ajoute les autres admins et la guide, absents de l'annuaire de la communauté.
- */
-export async function getDirectoryUsers(options: { messagerie?: boolean } = {}) {
+export async function getDirectoryUsers() {
   try {
-    const query = options.messagerie ? "?messagerie=1" : "";
-    const res = await fetch(`${BACKEND_URL}/api/directory/users/${query}`, {
+    const res = await fetch(`${BACKEND_URL}/api/directory/users/`, {
       cache: "no-store",
       headers: await getAuthHeader(),
     });
@@ -37,6 +32,29 @@ export async function getDirectoryUsers(options: { messagerie?: boolean } = {}) 
   } catch (e) {
     console.error(e);
     return { error: "Erreur de connexion au serveur.", data: [] };
+  }
+}
+
+/** Une fiche de l'annuaire — `null` si elle n'est pas visible pour l'appelant. */
+export async function getDirectoryUser(userId: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/directory/users/${userId}/`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as {
+      id: number;
+      first_name?: string;
+      last_name?: string;
+      email?: string;
+      role?: string;
+      avatar_url?: string | null;
+      daara_name?: string | null;
+    };
+  } catch (e) {
+    console.error(e);
+    return null;
   }
 }
 
