@@ -13,9 +13,14 @@ async function getAuthHeader(): Promise<HeadersInit | undefined> {
   return token ? { Authorization: `Bearer ${token}` } : undefined;
 }
 
-export async function getDirectoryUsers() {
+/**
+ * `messagerie` : la liste de choix des salons. Pour un admin, le backend y
+ * ajoute les autres admins et la guide, absents de l'annuaire de la communauté.
+ */
+export async function getDirectoryUsers(options: { messagerie?: boolean } = {}) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/directory/users/`, {
+    const query = options.messagerie ? "?messagerie=1" : "";
+    const res = await fetch(`${BACKEND_URL}/api/directory/users/${query}`, {
       cache: "no-store",
       headers: await getAuthHeader(),
     });

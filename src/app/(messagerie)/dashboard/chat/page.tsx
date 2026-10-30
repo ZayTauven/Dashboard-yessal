@@ -25,7 +25,7 @@ export default async function ChatPage({
   let daarasForSelect: { id: number; name?: string }[] = [];
 
   if (canLoadDirectory) {
-    const dir = await getDirectoryUsers();
+    const dir = await getDirectoryUsers({ messagerie: true });
     directoryUsers = dir.data ?? [];
   }
   if (role === "admin") {

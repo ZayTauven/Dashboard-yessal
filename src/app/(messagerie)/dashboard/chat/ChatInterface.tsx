@@ -991,7 +991,8 @@ export function ChatInterface({
   }, [inviteMode, titleOptions.length]);
 
   // ─── Dérivés d'affichage ──────────────────────────────────────────────
-  const pickableUsers = directoryUsers.filter((u) => u.id !== currentUserId && u.role !== "admin");
+  // Le backend décide qui figure dans l'annuaire : un admin y trouve ses pairs.
+  const pickableUsers = directoryUsers.filter((u) => u.id !== currentUserId);
   const pendingIncoming = invitations.filter((i) => i.status === "pending" && Number(i.recipient.id) === Number(currentUserId));
   const onlineIds = useMemo(() => new Set(Object.keys(onlineMembers).map(Number)), [onlineMembers]);
   const typingNames = Object.values(typingUsers).map((t) => t.name);

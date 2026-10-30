@@ -80,7 +80,6 @@ export function ConversationInfo({
   const memberIds = useMemo(() => new Set(members.map((m) => m.id)), [members]);
   const pickable = directoryUsers.filter((u) => {
     if (memberIds.has(u.id)) return false;
-    if (picking === "members" && u.role === "admin") return false;
     const q = filter.trim().toLowerCase();
     return !q || `${u.first_name} ${u.last_name}`.toLowerCase().includes(q);
   });
