@@ -369,6 +369,8 @@ export async function createChat(payload: {
   preset_daara_id?: number | null;
   manual_user_ids?: number[];
   campaign_id?: number | null;
+  /** Un salon par titre : ses membres suivent le titre (administration seulement). */
+  title_ids?: number[];
 }) {
   const trimmed = payload.name.trim();
   if (!trimmed) {
@@ -385,6 +387,7 @@ export async function createChat(payload: {
     if (payload.manual_user_ids?.length)
       body.manual_user_ids = payload.manual_user_ids;
     if (payload.campaign_id != null) body.campaign_id = payload.campaign_id;
+    if (payload.title_ids?.length) body.title_ids = payload.title_ids;
 
     const res = await fetch(`${BACKEND_URL}/api/comms/`, {
       method: "POST",
@@ -514,4 +517,89 @@ export async function getUnreadSummary(): Promise<{ total?: number; chats?: numb
   } catch {
     return { error: "Erreur de connexion." };
   }
+}
+
+// ── Gestion des canaux par l'administration (2026-10-30) ───────────────────
+
+export type ChannelSettingsPayload = {
+  name?: string;
+  description?: string;
+  icon?: string;
+  push_enabled?: boolean;
+  show_amounts?: boolean;
+  /** `null` : tout le Kourel. */
+  audience?: { titles?: number[]; ldds?: number[]; daaras?: number[]; roles?: string[] } | null;
+};
+
+/** Créer un canal du Kourel, pour tous ou pour une audience ciblée. */
+export async function createChannel(payload: ChannelSettingsPayload) {
+  return postChatAction("channels/", payload, "Impossible de créer le canal.");
+}
+
+/** Réglages d'un canal (ou d'un salon par titre). */
+export async function updateChatSettings(chatId: number, payload: ChannelSettingsPayload) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/${chatId}/settings/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...(await getAuthHeader() as Record<string, string>) },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: messageForErrors(body, "Impossible d'enregistrer les réglages.") };
+    return { success: true, data: body };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur backend." };
+  }
+}
+
+/** Archiver ou réactiver un fil. Historique conservé. */
+export async function archiveChat(chatId: number, archived: boolean) {
+  return postChatAction(`${chatId}/archive/`, { archived }, archived ? "Impossible d'archiver." : "Impossible de réactiver.");
+}
+
+/** Épingler un message en tête du fil, ou désépingler (`null`). */
+export async function pinMessage(chatId: number, messageId: number | null) {
+  return postChatAction(`${chatId}/pin/`, { message_id: messageId }, "Impossible d'épingler ce message.");
+}
+
+/** Les fils archivés — l'administration seulement. */
+export async function getArchivedChats() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/?archives=1`, { cache: "no-store", headers: await getAuthHeader() });
+    if (!res.ok) return { error: "Archives indisponibles.", data: [] };
+    const raw = await res.json();
+    const rows: { archived_at?: string | null }[] = Array.isArray(raw) ? raw : raw?.results ?? [];
+    return { data: rows.filter((c) => c.archived_at) };
+  } catch {
+    return { error: "Erreur de connexion.", data: [] };
+  }
+}
+
+export type AudienceOptions = {
+  titles: { id: number; name: string }[];
+  ldds: { id: number; name: string }[];
+  daaras: { id: number; name: string; ldd?: number | null }[];
+};
+
+/** Les listes des sélecteurs d'audience : titres, LDD, Daaras. */
+export async function getAudienceOptions(): Promise<AudienceOptions> {
+  const headers = await getAuthHeader();
+  const lire = async (path: string) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/${path}`, { cache: "no-store", headers });
+      if (!res.ok) return [];
+      const raw = await res.json();
+      return (Array.isArray(raw) ? raw : raw?.results ?? []) as { id: number; name: string; ldd?: number | null }[];
+    } catch {
+      return [];
+    }
+  };
+  const [titles, ldds, daaras] = await Promise.all([lire("titles/"), lire("ldd/?page_size=1000"), lire("daara/?page_size=1000")]);
+  const tri = <T extends { name: string }>(l: T[]) => [...l].sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  return {
+    titles: tri(titles.map(({ id, name }) => ({ id, name }))),
+    ldds: tri(ldds.map(({ id, name }) => ({ id, name }))),
+    daaras: tri(daaras.map(({ id, name, ldd }) => ({ id, name, ldd: ldd ?? null }))),
+  };
 }

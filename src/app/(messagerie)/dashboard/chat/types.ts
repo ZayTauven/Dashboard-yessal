@@ -34,9 +34,25 @@ export type ChatRow = {
   /** Canaux du Kourel : « guide » (annonces de Sangue Bi) ou « jefs ». */
   channel_kind?: "guide" | "jefs" | null;
   description?: string;
-  /** Faux dans un canal pour qui n'en est pas auteur : on y réagit seulement. */
+  /** Faux dans un canal pour qui n'en est pas auteur, et partout dans un fil archivé. */
   can_post?: boolean;
+  /** À qui s'adresse le fil — `comms/audience.py`. `null` : tout le Kourel (canal) ou composé à la main (salon). */
+  audience?: Audience | null;
+  push_enabled?: boolean;
+  /** « Les Jëfs du Kourel » : montants affichés (avec le consentement du donateur). */
+  show_amounts?: boolean;
+  /** Clé d'icône (liste fermée côté serveur), vide : l'icône par défaut. */
+  icon?: string;
+  archived_at?: string | null;
+  pinned_message?: PinnedMessage | null;
+  /** Canal fondateur (Sangue Bi, Jëfs) : ni ciblé, ni archivé. */
+  is_system?: boolean;
 };
+
+/** Les catégories se combinent en ET, les valeurs d'une catégorie en OU. */
+export type Audience = { titles?: number[]; ldds?: number[]; daaras?: number[]; roles?: string[] };
+
+export type PinnedMessage = { id: number; preview: string; sender_name: string; sent_at: string };
 
 export type Reaction = { emoji: string; count: number; reacted_by_me: boolean };
 
@@ -60,6 +76,8 @@ export type JefCard = {
   tone?: "peach" | "yellow" | "teal" | "pink" | "lilac";
   photo_url?: string;
   milestone?: number;
+  /** Présent seulement si le donateur a consenti ET que le canal affiche les montants. */
+  amount?: number;
 };
 
 export type MessageRow = {

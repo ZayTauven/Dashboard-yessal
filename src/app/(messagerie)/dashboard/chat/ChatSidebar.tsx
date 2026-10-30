@@ -14,8 +14,9 @@
  */
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeft, BellOff, HandHeart, Megaphone, Plus, Search, Settings, Shield, UserCheck } from "lucide-react";
+import { Archive, ArrowLeft, BellOff, ChevronDown, ChevronRight, Plus, Search, Settings, Shield, UserCheck } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { chatIcon } from "./ChannelIcons";
 import { initials } from "./format";
 import type { ChatRow } from "./types";
 
@@ -53,6 +54,10 @@ export function ChatSidebar({
   onSelect,
   onPanel,
   onCreateSalon,
+  canManageChannels = false,
+  onCreateChannel,
+  archived = null,
+  onToggleArchived,
   children,
 }: {
   chats: ChatRow[];
@@ -65,6 +70,12 @@ export function ChatSidebar({
   onSelect: (chat: ChatRow) => void;
   onPanel: (panel: SidebarPanel) => void;
   onCreateSalon: () => void;
+  /** Administration : créer des canaux, voir les fils archivés. */
+  canManageChannels?: boolean;
+  onCreateChannel?: () => void;
+  /** Les fils archivés, chargés à la demande ; `null` : section repliée. */
+  archived?: ChatRow[] | null;
+  onToggleArchived?: () => void;
   /** Le volet ouvert (recherche, demandes, réglages…) remplace les listes. */
   children?: React.ReactNode;
 }) {
@@ -172,23 +183,29 @@ export function ChatSidebar({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3">
-            {channels.length > 0 && (
+            {(channels.length > 0 || canManageChannels) && (
               <section aria-labelledby="sec-canaux" className="mb-3">
-                <h2 id="sec-canaux" className="px-2.5 pb-1 pt-2 text-[11px] font-bold tracking-wider text-[#B79BF3]">
-                  CANAUX DU KOUREL
-                </h2>
-                <ul>
-                  {channels.map((c) =>
-                    row(
-                      c,
-                      c.channel_kind === "guide" ? (
-                        <Megaphone size={17} className="shrink-0 text-[#D7CBF6]" aria-hidden />
-                      ) : (
-                        <HandHeart size={17} className="shrink-0 text-[#D7CBF6]" aria-hidden />
-                      ),
-                      slug(c.display_name),
-                    ),
+                <div className="flex items-center justify-between px-2.5 pb-1 pt-2">
+                  <h2 id="sec-canaux" className="text-[11px] font-bold tracking-wider text-[#B79BF3]">
+                    CANAUX DU KOUREL
+                  </h2>
+                  {canManageChannels && onCreateChannel && (
+                    <button
+                      type="button"
+                      onClick={onCreateChannel}
+                      aria-label="Créer un canal du Kourel"
+                      title="Créer un canal du Kourel"
+                      className="rounded p-0.5 text-[#D7CBF6] hover:bg-white/10 hover:text-white"
+                    >
+                      <Plus size={15} aria-hidden />
+                    </button>
                   )}
+                </div>
+                <ul>
+                  {channels.map((c) => {
+                    const Icon = chatIcon(c);
+                    return row(c, <Icon size={17} className="shrink-0 text-[#D7CBF6]" aria-hidden />, slug(c.display_name));
+                  })}
                 </ul>
               </section>
             )}
@@ -211,9 +228,13 @@ export function ChatSidebar({
                 )}
               </div>
               <ul>
-                {groups.map((c) =>
-                  row(c, <span aria-hidden className="w-[17px] shrink-0 text-center text-base font-bold text-[#B79BF3]">#</span>, slug(c.display_name)),
-                )}
+                {groups.map((c) => {
+                  if (c.icon) {
+                    const Icon = chatIcon(c);
+                    return row(c, <Icon size={17} className="shrink-0 text-[#B79BF3]" aria-hidden />, slug(c.display_name));
+                  }
+                  return row(c, <span aria-hidden className="w-[17px] shrink-0 text-center text-base font-bold text-[#B79BF3]">#</span>, slug(c.display_name));
+                })}
                 {groups.length === 0 && <li className="px-2.5 py-1.5 text-xs text-[#D7CBF6]/80">Aucun salon.</li>}
               </ul>
             </section>
@@ -251,6 +272,31 @@ export function ChatSidebar({
                 )}
               </ul>
             </section>
+
+            {canManageChannels && onToggleArchived && (
+              <section aria-labelledby="sec-archives" className="mt-3">
+                <button
+                  type="button"
+                  id="sec-archives"
+                  onClick={onToggleArchived}
+                  aria-expanded={archived !== null}
+                  className="flex w-full items-center gap-1.5 px-2.5 pb-1 pt-2 text-[11px] font-bold tracking-wider text-[#B79BF3] hover:text-white"
+                >
+                  {archived !== null ? <ChevronDown size={13} aria-hidden /> : <ChevronRight size={13} aria-hidden />}
+                  <Archive size={13} aria-hidden />
+                  ARCHIVÉS
+                </button>
+                {archived !== null && (
+                  <ul>
+                    {archived.map((c) => {
+                      const Icon = chatIcon(c);
+                      return row(c, <Icon size={17} className="shrink-0 text-white/40" aria-hidden />, slug(c.display_name));
+                    })}
+                    {archived.length === 0 && <li className="px-2.5 py-1.5 text-xs text-[#D7CBF6]/80">Aucun fil archivé.</li>}
+                  </ul>
+                )}
+              </section>
+            )}
           </div>
         </>
       )}

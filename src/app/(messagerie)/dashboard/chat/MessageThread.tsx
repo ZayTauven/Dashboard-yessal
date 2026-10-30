@@ -27,6 +27,8 @@ import {
   FileText,
   Loader2,
   Pencil,
+  Pin,
+  PinOff,
   Reply,
   RotateCcw,
   SmilePlus,
@@ -67,6 +69,10 @@ type Props = {
   onEdit: (m: MessageRow, text: string) => Promise<boolean>;
   /** Un message à faire clignoter et rejoindre (résultat de recherche). */
   focusId?: number | null;
+  /** Épingler : l'administration, les auteurs d'un canal, le créateur d'un salon. */
+  canPin?: boolean;
+  /** Épingle ce message en tête du fil ; `null` le désépingle. */
+  onPin?: (m: MessageRow | null) => void;
 };
 
 export function MessageThread({
@@ -87,6 +93,8 @@ export function MessageThread({
   onRetry,
   onEdit,
   focusId,
+  canPin = false,
+  onPin,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
@@ -195,12 +203,40 @@ export function MessageThread({
     if (focusId) jumpTo(focusId);
   }, [focusId, jumpTo]);
 
+  const pinned = chat.pinned_message;
+
   return (
-    <div className="relative min-h-0 flex-1">
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      {pinned && (
+        /* Le message épinglé reste en tête du fil : un toucher y mène. */
+        <div className="flex items-center gap-2 border-b bg-[#F4F1FB] px-4 py-2 dark:bg-muted">
+          <Pin size={15} className="shrink-0 text-[#4E2E9E]" aria-hidden />
+          <button
+            type="button"
+            onClick={() => jumpTo(pinned.id)}
+            className="min-w-0 flex-1 text-left"
+            aria-label={`Message épinglé de ${pinned.sender_name} : ${pinned.preview}. Aller au message.`}
+          >
+            <span className="block text-[11px] font-bold uppercase tracking-wider text-[#4E2E9E]">Épinglé</span>
+            <span className="block truncate text-sm">{pinned.preview}</span>
+          </button>
+          {canPin && onPin && (
+            <button
+              type="button"
+              onClick={() => onPin(null)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-white hover:text-foreground dark:hover:bg-card"
+              aria-label="Désépingler"
+              title="Désépingler"
+            >
+              <PinOff size={15} aria-hidden />
+            </button>
+          )}
+        </div>
+      )}
       <div
         ref={scrollRef}
         onScroll={onScroll}
-        className={`h-full overflow-y-auto ${isChannel ? "bg-[#F7F7F5] dark:bg-background" : "bg-card"}`}
+        className={`min-h-0 flex-1 overflow-y-auto ${isChannel ? "bg-[#F7F7F5] dark:bg-background" : "bg-card"}`}
         role="log"
         aria-live="polite"
         aria-relevant="additions"
@@ -235,6 +271,8 @@ export function MessageThread({
                   onReact={onReact}
                   onDelete={onDelete}
                   onOpenImage={setLightbox}
+                  onPin={canPin ? onPin : undefined}
+                  pinned={pinned?.id === entry.message.id}
                 />
               ) : (
                 <ThreadItem
@@ -259,6 +297,8 @@ export function MessageThread({
                   onRetry={onRetry}
                   onJump={jumpTo}
                   onOpenImage={setLightbox}
+                  onPin={canPin ? onPin : undefined}
+                  pinned={entry.kind === "message" && pinned?.id === entry.message.id}
                 />
               ),
             )}
@@ -400,6 +440,8 @@ function ChannelPost({
   onReact,
   onDelete,
   onOpenImage,
+  onPin,
+  pinned,
 }: {
   message: MessageRow;
   chat: ChatRow;
@@ -409,6 +451,8 @@ function ChannelPost({
   onReact: (m: MessageRow, emoji: string) => void;
   onDelete: (m: MessageRow) => void;
   onOpenImage: (m: MessageRow) => void;
+  onPin?: (m: MessageRow | null) => void;
+  pinned: boolean;
 }) {
   const canDelete = !m.is_deleted && !m.local && (m.sender.id === currentUserId || canDeleteAny);
 
@@ -458,6 +502,18 @@ function ChannelPost({
         )}
         <div className="mt-3 flex items-center justify-between gap-2">
           {!m.is_deleted ? <Reactions message={m} onReact={onReact} /> : <span />}
+          <span className="flex items-center">
+          {onPin && !m.is_deleted && !m.local && (
+            <button
+              type="button"
+              onClick={() => onPin(pinned ? null : m)}
+              className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+              aria-label={pinned ? "Désépingler" : "Épingler en tête du canal"}
+              title={pinned ? "Désépingler" : "Épingler"}
+            >
+              {pinned ? <PinOff size={15} aria-hidden /> : <Pin size={15} aria-hidden />}
+            </button>
+          )}
           {canDelete && (
             <button
               type="button"
@@ -468,6 +524,7 @@ function ChannelPost({
               <Trash2 size={15} aria-hidden />
             </button>
           )}
+          </span>
         </div>
       </div>
     </article>
@@ -514,6 +571,8 @@ function ThreadItem({
   onRetry,
   onJump,
   onOpenImage,
+  onPin,
+  pinned = false,
 }: {
   entry: ThreadEntry;
   isChannel: boolean;
@@ -533,6 +592,8 @@ function ThreadItem({
   onRetry: (m: MessageRow) => void;
   onJump: (id: number) => void;
   onOpenImage: (m: MessageRow) => void;
+  onPin?: (m: MessageRow | null) => void;
+  pinned?: boolean;
 }) {
   if (entry.kind === "day") {
     return (
@@ -730,6 +791,11 @@ function ThreadItem({
               }}
             >
               <Copy size={15} />
+            </ActionBtn>
+          )}
+          {onPin && (
+            <ActionBtn label={pinned ? "Désépingler" : "Épingler"} onClick={() => onPin(pinned ? null : m)}>
+              {pinned ? <PinOff size={15} /> : <Pin size={15} />}
             </ActionBtn>
           )}
           {canDelete && (

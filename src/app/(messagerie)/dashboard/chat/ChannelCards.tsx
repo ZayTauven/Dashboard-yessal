@@ -36,17 +36,39 @@ function TitleTag({ title }: { title?: string | null }) {
   );
 }
 
+/**
+ * Le montant, quand le serveur l'envoie : le donateur a accepté d'être nommé
+ * ET l'administration affiche les montants sur ce canal. Jamais autrement.
+ */
+function AmountTag({ amount }: { amount?: number }) {
+  if (typeof amount !== "number") return null;
+  return (
+    <span className="ms-1.5 inline-block whitespace-nowrap rounded-full bg-white/80 px-2 py-px align-[1px] text-[12px] font-extrabold text-[#2F1966]">
+      {amount.toLocaleString("fr-FR")} FCFA
+    </span>
+  );
+}
+
 /** Le texte de la carte, avec le nom du donateur en gras quand il est public. */
 function CardText({ message, card }: { message: MessageRow; card: JefCard }) {
   const name = card.donor?.name;
-  if (!name || !message.content.includes(name)) return <>{message.content}</>;
+  if (!name || !message.content.includes(name)) {
+    return (
+      <>
+        {message.content}
+        <AmountTag amount={card.amount} />
+      </>
+    );
+  }
   const [before, ...rest] = message.content.split(name);
   return (
     <>
       {before}
-      <strong className="font-bold">{name}</strong>
+      {/* Hérite de la couleur de la carte : en thème sombre, la couleur globale de <strong> le rendait blanc sur pastel, invisible. */}
+      <strong className="font-bold" style={{ color: "inherit" }}>{name}</strong>
       <TitleTag title={card.donor?.title} />
       {rest.join(name)}
+      <AmountTag amount={card.amount} />
     </>
   );
 }

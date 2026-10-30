@@ -9,10 +9,11 @@
  * montre ses auteurs, et l'administrateur les désigne d'ici.
  */
 import { useMemo, useState } from "react";
-import { Bell, BellOff, HandHeart, Hash, LogOut, Megaphone, PenLine, Search, UserMinus, UserPlus, X } from "lucide-react";
+import { Bell, BellOff, LogOut, PenLine, Search, Settings2, UserMinus, UserPlus, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { chatIcon } from "./ChannelIcons";
 import { initials, roleLabel } from "./format";
 import type { ChatMember, ChatRow, ManualPickUser } from "./types";
 
@@ -32,6 +33,7 @@ export function ConversationInfo({
   onLeave,
   onAddMembers,
   onSetAuthor,
+  onOpenSettings,
 }: {
   chat: ChatRow;
   members: ChatMember[];
@@ -46,13 +48,19 @@ export function ConversationInfo({
   onLeave: () => void;
   onAddMembers: (ids: number[]) => Promise<boolean>;
   onSetAuthor: (userId: number, canPost: boolean) => Promise<boolean>;
+  /** Les réglages du canal ou du salon par titre — administration. */
+  onOpenSettings: () => void;
 }) {
   const [picking, setPicking] = useState<"members" | "author" | null>(null);
   const [picked, setPicked] = useState<number[]>([]);
   const [filter, setFilter] = useState("");
   const isGroup = chat.chat_type === "group";
   const isChannel = chat.chat_type === "channel";
-  const isGuide = isChannel && chat.channel_kind === "guide";
+  const isJefs = isChannel && chat.channel_kind === "jefs";
+  /* Tout canal qui n'est pas celui des Jëfs a des auteurs désignés. */
+  const hasAuthors = isChannel && !isJefs;
+  const isTitleSalon = isGroup && !!chat.audience && Object.values(chat.audience).some((v) => v && v.length);
+  const ChatIcon = chatIcon(chat);
 
   /* Coordination d'abord, puis un groupe par titre, puis les membres sans titre. */
   const sections = useMemo(() => {
@@ -98,7 +106,7 @@ export function ConversationInfo({
           <Avatar className="h-16 w-16">
             {chat.avatar ? <AvatarImage src={chat.avatar} alt="" /> : null}
             <AvatarFallback className={isChannel || isGroup ? "bg-[#EEE9FC] text-[#4E2E9E]" : "bg-[#7954D4] text-xl font-bold text-white"}>
-              {isGuide ? <Megaphone size={26} aria-hidden /> : isChannel ? <HandHeart size={26} aria-hidden /> : isGroup ? <Hash size={26} aria-hidden /> : initials(chat.display_name)}
+              {isChannel || isGroup ? <ChatIcon size={26} aria-hidden /> : initials(chat.display_name)}
             </AvatarFallback>
           </Avatar>
           <p className="text-base font-bold">{chat.display_name}</p>
@@ -121,7 +129,13 @@ export function ConversationInfo({
                 <span className="ax-btn__label">Ajouter</span>
               </button>
             )}
-            {isGuide && isAdmin && (
+            {isAdmin && (isChannel || isTitleSalon) && (
+              <button type="button" className="ax-btn ax-btn--outline ax-btn--sm" onClick={onOpenSettings}>
+                <Settings2 size={14} aria-hidden />
+                <span className="ax-btn__label">Réglages</span>
+              </button>
+            )}
+            {hasAuthors && isAdmin && (
               <button type="button" className="ax-btn ax-btn--outline ax-btn--sm" onClick={() => setPicking("author")}>
                 <PenLine size={14} aria-hidden />
                 <span className="ax-btn__label">Désigner un auteur</span>
@@ -129,14 +143,18 @@ export function ConversationInfo({
             )}
           </div>
           {chat.is_muted && <p className="text-[11px] text-muted-foreground">Aucune notification pour ce fil.</p>}
+          {chat.archived_at && (
+            <p className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">Archivé — lecture seule</p>
+          )}
+          {isTitleSalon && <p className="text-[11px] text-muted-foreground">Ses membres suivent le titre : qui le reçoit y entre, qui le perd en sort.</p>}
         </div>
 
         {isChannel ? (
           <div className="border-t px-3 py-3">
             <p className="px-2 pb-2 text-[11px] font-bold tracking-wider text-muted-foreground">
-              {isGuide ? `AUTEURS — ${members.length}` : "QUI PUBLIE ICI"}
+              {hasAuthors ? `AUTEURS — ${members.length}` : "QUI PUBLIE ICI"}
             </p>
-            {isGuide ? (
+            {hasAuthors ? (
               <ul className="space-y-0.5">
                 {members.map((m) => (
                   <li key={m.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
@@ -162,10 +180,18 @@ export function ConversationInfo({
             ) : (
               <p className="px-2 text-xs leading-relaxed text-muted-foreground">
                 Personne : chaque Jëf confirmé y apparaît de lui-même. Le nom du donateur n&apos;est affiché que s&apos;il
-                l&apos;a choisi, et le montant jamais.
+                l&apos;a choisi
+                {chat.show_amounts
+                  ? ", et son montant aussi dans ce cas — un Jëf anonyme reste sans montant."
+                  : ", et le montant n'est pas affiché."}
               </p>
             )}
-            <p className="px-2 pt-3 text-[11px] text-muted-foreground">Tout le Kourel est abonné à ce canal.</p>
+            <p className="px-2 pt-3 text-[11px] text-muted-foreground">
+              {chat.audience && Object.values(chat.audience).some((v) => v && v.length)
+                ? `Audience ciblée · ${chat.members_count ?? 0} abonné${(chat.members_count ?? 0) > 1 ? "s" : ""}.`
+                : "Tout le Kourel est abonné à ce canal."}
+              {chat.push_enabled === false ? " Pas de notification sur les téléphones." : ""}
+            </p>
           </div>
         ) : (
           <div className="border-t px-3 py-3">
@@ -218,7 +244,8 @@ export function ConversationInfo({
           </DialogHeader>
           {picking === "author" && (
             <p className="text-xs text-muted-foreground">
-              Un auteur publie dans « {chat.display_name} » ; chaque publication est envoyée en notification à tout le Kourel.
+              Un auteur publie dans « {chat.display_name} »
+              {chat.push_enabled === false ? "." : " ; chaque publication est envoyée en notification à ses abonnés."}
             </p>
           )}
           <div className="ax-field__control">

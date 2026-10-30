@@ -25,7 +25,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Pusher from "pusher-js";
 import { toast } from "sonner";
-import { ArrowLeft, BellOff, HandHeart, Hash, Megaphone, PanelRight, Search, X } from "lucide-react";
+import { ArrowLeft, BellOff, PanelRight, Search, X } from "lucide-react";
 import { useConfirm } from "@/components/vireo/ConfirmDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -36,6 +36,8 @@ import {
   createInvitation,
   deleteMessage,
   editMessage,
+  getArchivedChats,
+  getAudienceOptions,
   getChatMembers,
   getChats,
   getInvitations,
@@ -45,6 +47,7 @@ import {
   getPusherAuthSignature,
   leaveChat,
   markChatAsRead,
+  pinMessage,
   respondToInvitation,
   searchMembers,
   searchMessages,
@@ -56,6 +59,8 @@ import {
   updatePilotageConfig,
   type ChatInviteMode,
 } from "@/app/actions/comms";
+import { chatIcon } from "./ChannelIcons";
+import { ChannelSettings } from "./ChannelSettings";
 import { ChatSidebar, type SidebarPanel } from "./ChatSidebar";
 import { Composer } from "./Composer";
 import { ConversationInfo } from "./ConversationInfo";
@@ -102,6 +107,8 @@ const ADMIN_MODES: { value: ChatInviteMode; label: string }[] = [
   { value: "daara_chefs", label: "Coordinateurs d'un Daara" },
   { value: "global_chefs", label: "Tous les coordinateurs de Daara (plateforme)" },
   { value: "global_collectors", label: "Tous les collecteurs (plateforme)" },
+  /* Les membres SUIVENT le titre : qui le reçoit entre, qui le perd sort. */
+  { value: "by_title" as ChatInviteMode, label: "Les porteurs d'un titre (suit le titre)" },
 ];
 
 function needsPresetDaara(mode: ChatInviteMode) {
@@ -186,8 +193,18 @@ export function ChatInterface({
     const sorted = sortChats(initialChats);
     return (sorted.find((c) => c.chat_type !== "channel") ?? sorted[0])?.id ?? null;
   });
-  const selectedChat = useMemo(() => chatList.find((c) => c.id === selectedId) ?? null, [chatList, selectedId]);
+  /* Les fils archivés (administration) : chargés à la demande, `null` replié. */
+  const [archivedChats, setArchivedChats] = useState<ChatRow[] | null>(null);
+  const selectedChat = useMemo(
+    () => chatList.find((c) => c.id === selectedId) ?? archivedChats?.find((c) => c.id === selectedId) ?? null,
+    [chatList, archivedChats, selectedId],
+  );
   const selectedIdRef = useRef<number | null>(selectedId);
+  /* La liste vue par les écouteurs Pusher, sans se réabonner à chaque message. */
+  const chatListRef = useRef<ChatRow[]>(chatList);
+  useEffect(() => {
+    chatListRef.current = chatList;
+  }, [chatList]);
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
@@ -230,6 +247,11 @@ export function ChatInterface({
 
   const [isPending, startTransition] = useTransition();
   const [newOpen, setNewOpen] = useState(false);
+  /* Réglages d'un canal (création ou édition) — administration. */
+  const [channelDialog, setChannelDialog] = useState<"create" | "edit" | null>(null);
+  /* Salon par titre : les titres choisis, et leur liste. */
+  const [titleIds, setTitleIds] = useState<number[]>([]);
+  const [titleOptions, setTitleOptions] = useState<{ id: number; name: string }[]>([]);
   const [newName, setNewName] = useState("");
   const [inviteMode, setInviteMode] = useState<ChatInviteMode>("manual");
   const [presetDaaraId, setPresetDaaraId] = useState<string>("");
@@ -299,13 +321,18 @@ export function ChatInterface({
     pusherRef.current = pusher;
 
     const onChatUpdated = (data: ChatUpdatedEvent) => {
+      /* Un fil absent de la liste (salon où l'on vient d'être ajouté, canal
+         tout juste créé) : on recharge. HORS du `setChatList` — `reloadChats`
+         appelle une action serveur, qui met à jour le routeur de Next ; depuis
+         une fonction de mise à jour d'état, React refuse (« Cannot update a
+         component while rendering a different component »). */
+      if (!chatListRef.current.some((c) => c.id === data.chat_id)) {
+        void reloadChats();
+        return;
+      }
       setChatList((rows) => {
         const row = rows.find((c) => c.id === data.chat_id);
-        if (!row) {
-          // Un salon où l'on vient d'être ajouté : on recharge la liste.
-          void reloadChats();
-          return rows;
-        }
+        if (!row) return rows;
         const mine = data.last_message.sender_id === currentUserId;
         const open = selectedIdRef.current === data.chat_id && document.visibilityState === "visible";
         return sortChats(
@@ -334,7 +361,15 @@ export function ChatInterface({
       if (data.user_id !== currentUserId) return;
       setChatList((rows) => rows.map((c) => (c.id === data.chat_id ? { ...c, unread_count: 0 } : c)));
     });
-    pusher.subscribe("private-kourel").bind("chat-updated", onChatUpdated);
+    const kourel = pusher.subscribe("private-kourel");
+    kourel.bind("chat-updated", onChatUpdated);
+    /* Un canal créé, renommé, archivé, ciblé autrement : la liste se recharge ;
+       et si c'est le fil ouvert (les montants viennent d'être affichés, par
+       exemple), ses messages aussi. */
+    kourel.bind("chat-settings", (data: { chat_id: number }) => {
+      void reloadChats();
+      if (selectedIdRef.current === data.chat_id) setResyncTick((t) => t + 1);
+    });
 
     /* Après une coupure, des événements ont pu se perdre : la liste et le fil
        ouvert se rechargent. La toute première connexion n'en a pas besoin. */
@@ -409,6 +444,13 @@ export function ChatInterface({
     const chatId = selectedId;
 
     const msgChannel = pusher.subscribe(`private-chat.${chatId}`);
+    msgChannel.bind("chat-pinned", (data: { chat_id: number; pinned_message: ChatRow["pinned_message"] }) => {
+      patchChat(data.chat_id, { pinned_message: data.pinned_message });
+    });
+    msgChannel.bind("chat-settings", () => {
+      void reloadChats();
+      setResyncTick((t) => t + 1);
+    });
     msgChannel.bind("new-message", (data: MessageRow) => {
       setMessages((prev) => {
         if (prev.some((m) => m.id === data.id)) return prev;
@@ -528,7 +570,7 @@ export function ChatInterface({
         markReadTimeoutRef.current = null;
       }
     };
-  }, [selectedId, currentUserId, markRead, patchChat]);
+  }, [selectedId, currentUserId, markRead, patchChat, reloadChats]);
 
   /* Reconnexion : la dernière page du fil ouvert est refusionnée. */
   useEffect(() => {
@@ -810,6 +852,33 @@ export function ChatInterface({
     return true;
   };
 
+  const handlePin = async (m: MessageRow | null) => {
+    if (!selectedChat) return;
+    const res = await pinMessage(selectedChat.id, m ? m.id : null);
+    if (res.error) return void toast.error(res.error);
+    const pinned = (res.data as { pinned_message?: ChatRow["pinned_message"] })?.pinned_message ?? null;
+    patchChat(selectedChat.id, { pinned_message: pinned });
+    toast.success(m ? "Message épinglé en tête du fil." : "Message désépinglé.");
+  };
+
+  const toggleArchived = async () => {
+    if (archivedChats !== null) return setArchivedChats(null);
+    const res = await getArchivedChats();
+    setArchivedChats((res.data ?? []) as ChatRow[]);
+  };
+
+  /* Après création, réglage ou archivage : listes à jour, et le fil ouvert. */
+  const afterChannelSaved = async (chatId: number) => {
+    await reloadChats();
+    if (archivedChats !== null) {
+      const res = await getArchivedChats();
+      setArchivedChats((res.data ?? []) as ChatRow[]);
+    }
+    setSelectedId(chatId);
+    setPanel("chats");
+    setResyncTick((t) => t + 1);
+  };
+
   // ─── Volets secondaires ───────────────────────────────────────────────
   const handleSearchMembers = (q: string) => {
     setSearchTerm(q);
@@ -880,6 +949,7 @@ export function ChatInterface({
     setManualIds([]);
     setManualSearch("");
     setCreateError("");
+    setTitleIds([]);
   };
 
   const handleCreateChat = () => {
@@ -888,10 +958,13 @@ export function ChatInterface({
     if (!name) return setCreateError("Indiquez un nom pour le salon.");
     if (isAdmin && needsPresetDaara(inviteMode) && !presetDaaraId)
       return setCreateError("Sélectionnez le Daara cible pour ce mode d'invitation.");
+    const parTitre = (inviteMode as string) === "by_title";
+    if (parTitre && titleIds.length === 0) return setCreateError("Choisissez au moins un titre.");
     startTransition(async () => {
       const res = await createChat({
         name,
-        invite_mode: inviteMode,
+        invite_mode: parTitre ? "manual" : inviteMode,
+        title_ids: parTitre ? titleIds : undefined,
         daara_id: daaraId || undefined,
         preset_daara_id: presetDaaraId ? Number(presetDaaraId) : undefined,
         manual_user_ids: inviteMode === "manual" && manualIds.length ? manualIds : undefined,
@@ -910,6 +983,12 @@ export function ChatInterface({
       toast.success(`Salon « ${name} » créé.`);
     });
   };
+
+  useEffect(() => {
+    if ((inviteMode as string) === "by_title" && titleOptions.length === 0) {
+      void getAudienceOptions().then((o) => setTitleOptions(o.titles));
+    }
+  }, [inviteMode, titleOptions.length]);
 
   // ─── Dérivés d'affichage ──────────────────────────────────────────────
   const pickableUsers = directoryUsers.filter((u) => u.id !== currentUserId && u.role !== "admin");
@@ -935,21 +1014,27 @@ export function ChatInterface({
   })();
   const subtitleLive = typingNames.length > 0 || (!!peer && onlineIds.has(peer.id));
 
-  const readOnlyNote =
-    isChannel && !selectedChat?.can_post
+  const readOnlyNote = selectedChat?.archived_at
+    ? "Ce fil est archivé : on peut le relire, plus y écrire."
+    : isChannel && !selectedChat?.can_post
       ? selectedChat?.channel_kind === "jefs"
         ? "Dans ce canal, on réagit — on ne répond pas."
-        : "Seul Sangue Bi publie ici. Réagissez aux annonces."
+        : selectedChat?.channel_kind === "guide"
+          ? "Seul Sangue Bi publie ici. Réagissez aux annonces."
+          : "Seuls les auteurs du canal publient ici. Réagissez aux publications."
       : null;
 
-  const headerIcon = !selectedChat ? null : isChannel ? (
-    selectedChat.channel_kind === "guide" ? (
-      <Megaphone size={20} className="text-[#7954D4]" aria-hidden />
-    ) : (
-      <HandHeart size={20} className="text-[#7954D4]" aria-hidden />
-    )
-  ) : isGroup ? (
-    <Hash size={22} className="text-[#7954D4]" aria-hidden />
+  /* Épingler : l'administration ; dans un canal, ses auteurs ; dans un salon, son créateur. */
+  const canPin = Boolean(
+    selectedChat &&
+      !selectedChat.archived_at &&
+      selectedChat.chat_type !== "direct" &&
+      (isAdmin || (isChannel && selectedChat.can_post) || (isGroup && selectedChat.created_by === currentUserId)),
+  );
+  const HeaderIcon = selectedChat && (isChannel || isGroup) ? chatIcon(selectedChat) : null;
+
+  const headerIcon = !selectedChat ? null : HeaderIcon ? (
+    <HeaderIcon size={isGroup ? 22 : 20} className="text-[#7954D4]" aria-hidden />
   ) : (
     <span className="relative">
       <Avatar className="h-8 w-8">
@@ -983,6 +1068,10 @@ export function ChatInterface({
             resetCreateForm();
             setNewOpen(true);
           }}
+          canManageChannels={isAdmin}
+          onCreateChannel={() => setChannelDialog("create")}
+          archived={archivedChats}
+          onToggleArchived={toggleArchived}
         >
           {panel === "search" && (
             <SearchPanel
@@ -1110,6 +1199,8 @@ export function ChatInterface({
               onRetry={handleRetry}
               onEdit={handleEdit}
               focusId={focusId}
+              canPin={canPin}
+              onPin={handlePin}
             />
 
             <Composer
@@ -1146,8 +1237,19 @@ export function ChatInterface({
             onLeave={handleLeave}
             onAddMembers={handleAddMembers}
             onSetAuthor={handleSetAuthor}
+            onOpenSettings={() => setChannelDialog("edit")}
           />
         </div>
+      )}
+
+      {isAdmin && (
+        <ChannelSettings
+          open={channelDialog !== null}
+          mode={channelDialog ?? "create"}
+          chat={channelDialog === "edit" ? selectedChat : null}
+          onClose={() => setChannelDialog(null)}
+          onSaved={afterChannelSaved}
+        />
       )}
 
       {/* ── Création de salon ───────────────────────────────────────── */}
@@ -1195,6 +1297,29 @@ export function ChatInterface({
                   ))}
                 </select>
               </div>
+            )}
+            {(inviteMode as string) === "by_title" && (
+              <fieldset className="space-y-1.5">
+                <legend className="ax-field__label">Titres</legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {titleOptions.length === 0 && <p className="text-xs text-muted-foreground">Chargement…</p>}
+                  {titleOptions.map((t) => {
+                    const on = titleIds.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setTitleIds((p) => (on ? p.filter((x) => x !== t.id) : [...p, t.id]))}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${on ? "border-[#4E2E9E] bg-[#EEE9FC] text-[#2F1966]" : "hover:bg-muted"}`}
+                      >
+                        {t.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">Qui reçoit le titre entre dans le salon, qui le perd en sort. Vous pouvez aussi ajouter quelqu&apos;un à la main.</p>
+              </fieldset>
             )}
             {inviteMode === "manual" && pickableUsers.length > 0 && (
               <div className="space-y-1.5">
