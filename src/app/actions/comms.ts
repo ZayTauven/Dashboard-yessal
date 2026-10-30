@@ -504,3 +504,14 @@ export async function searchMessages(chatId: number, q: string) {
 export async function setChannelAuthor(chatId: number, userId: number, canPost: boolean) {
   return postChatAction(`${chatId}/authors/`, { user_id: userId, can_post: canPost }, "Impossible de changer les auteurs du canal.");
 }
+
+/** Le total des non-lus (hors sourdine), pour la pastille du menu. */
+export async function getUnreadSummary(): Promise<{ total?: number; chats?: number; error?: string }> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/unread/`, { cache: "no-store", headers: await getAuthHeader() });
+    if (!res.ok) return { error: "Compteur indisponible." };
+    return await res.json();
+  } catch {
+    return { error: "Erreur de connexion." };
+  }
+}

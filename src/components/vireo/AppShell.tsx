@@ -21,7 +21,7 @@
  *     la navigation elle-même.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useCustomizer } from "@/context/CustomizerContext";
@@ -34,6 +34,7 @@ import { AmbientBackdrop } from "./AmbientBackdrop";
 import { getTitleRequests, getPendingDocuments } from "@/app/actions/users";
 import type { NotificationDto } from "@/app/actions/notifications";
 import type { NavCounts, Role } from "@/lib/nav";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 
 /** Seuil de bascule rail ↔ tiroir. Doit suivre --ax-bp-lg de Vireo (992 px). */
 const DESKTOP_QUERY = "(min-width: 992px)";
@@ -70,6 +71,9 @@ function writeFlag(key: string, value: string): void {
 
 export interface AppShellProps {
   user?: {
+    /** `id` depuis le profil, `user_id` depuis le jeton — l'un ou l'autre. */
+    id?: number;
+    user_id?: number;
     first_name?: string | null;
     last_name?: string | null;
     email?: string | null;
@@ -99,6 +103,8 @@ export function AppShell({
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [counts, setCounts] = useState<NavCounts>({});
+  const unreadMessages = useUnreadMessages(user?.id ?? user?.user_id ?? null);
+  const navCounts = useMemo(() => ({ ...counts, messages: unreadMessages }), [counts, unreadMessages]);
   const { setTheme } = useTheme();
 
   /*
@@ -210,7 +216,7 @@ export function AppShell({
         <ShellSidebar
           role={role}
           user={user}
-          counts={counts}
+          counts={navCounts}
           onNavigate={() => setDrawerOpen(false)}
         />
 

@@ -84,7 +84,9 @@ export type MessageRow = {
    * État local d'un message pas encore confirmé par le serveur. Absent sur
    * tout ce qui vient de l'API ou de Pusher.
    */
-  local?: { status: "sending" | "failed"; file?: File | null; previewUrl?: string | null };
+  local?: { status: "sending" | "failed"; file?: File | null; previewUrl?: string | null; clientId?: string };
+  /** Renvoyé par l'événement Pusher : l'identifiant de la bulle optimiste d'origine. */
+  client_id?: string | null;
 };
 
 export type ChatMember = {

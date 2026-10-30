@@ -60,6 +60,8 @@ export interface NavSection {
 export interface NavCounts {
   pilotage?: number;
   notifications?: number;
+  /** Messages non lus, hors fils en sourdine — `useUnreadMessages`. */
+  messages?: number;
 }
 
 /*
@@ -181,6 +183,7 @@ export function navSections(role: Role): NavSection[] {
           title: "Messagerie",
           href: "/dashboard/chat",
           icon: MessageSquare,
+          badgeKey: "messages",
           keywords: ["discussion", "conversation", "messages"],
         },
         {

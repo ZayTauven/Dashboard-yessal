@@ -127,6 +127,8 @@ type PresenceChannel = {
   trigger: (event: string, data: unknown) => boolean;
 };
 
+type ReactionState = { emoji: string; count: number; user_ids: number[] };
+
 function applyReaction(reactions: Reaction[] = [], emoji: string, add: boolean, mine: boolean): Reaction[] {
   const next = reactions.map((r) => ({ ...r }));
   const i = next.findIndex((r) => r.emoji === emoji);
@@ -203,6 +205,8 @@ export function ChatInterface({
   const [unreadMark, setUnreadMark] = useState<{ fromId: number | null; count: number }>({ fromId: null, count: 0 });
   const [replyingTo, setReplyingTo] = useState<MessageRow | null>(null);
   const [focusId, setFocusId] = useState<number | null>(null);
+  /* Incrémenté à chaque reconnexion de Pusher : le fil ouvert se recale. */
+  const [resyncTick, setResyncTick] = useState(0);
 
   const [threadQuery, setThreadQuery] = useState("");
   const [threadResults, setThreadResults] = useState<MessageRow[] | null>(null);
@@ -325,7 +329,23 @@ export function ChatInterface({
       toast("Nouvelle demande de discussion", { description: "Ouvrez les demandes pour répondre." });
     });
     userChannel.bind("chat-updated", onChatUpdated);
+    /* Lu sur un autre appareil : la pastille s'éteint ici aussi. */
+    userChannel.bind("chat-read", (data: { chat_id: number; user_id: number }) => {
+      if (data.user_id !== currentUserId) return;
+      setChatList((rows) => rows.map((c) => (c.id === data.chat_id ? { ...c, unread_count: 0 } : c)));
+    });
     pusher.subscribe("private-kourel").bind("chat-updated", onChatUpdated);
+
+    /* Après une coupure, des événements ont pu se perdre : la liste et le fil
+       ouvert se rechargent. La toute première connexion n'en a pas besoin. */
+    let dejaConnecte = false;
+    pusher.connection.bind("connected", () => {
+      if (dejaConnecte) {
+        void reloadChats();
+        setResyncTick((t) => t + 1);
+      }
+      dejaConnecte = true;
+    });
 
     return () => {
       pusher.disconnect();
@@ -395,8 +415,12 @@ export function ChatInterface({
         /* Mon propre message peut arriver par Pusher avant la réponse HTTP :
            il remplace alors sa bulle optimiste au lieu de la doubler. */
         if (data.sender?.id === currentUserId) {
-          const idx = prev.findIndex(
-            (m) => m.local?.status === "sending" && m.content === data.content && m.message_type === data.message_type,
+          /* Par l'identifiant donné à la bulle — et, pour un événement d'un
+             serveur plus ancien qui ne le renvoie pas, par le contenu. */
+          const idx = prev.findIndex((m) =>
+            data.client_id
+              ? m.local?.clientId === data.client_id
+              : m.local?.status === "sending" && m.content === data.content && m.message_type === data.message_type,
           );
           if (idx >= 0) {
             const next = [...prev];
@@ -424,7 +448,18 @@ export function ChatInterface({
     });
     msgChannel.bind(
       "message-reaction",
-      (data: { message_id: number; emoji: string; user_id: number; action: "add" | "remove" }) => {
+      (data: { message_id: number; emoji: string; user_id: number; action: "add" | "remove"; reactions?: ReactionState[] }) => {
+        /* L'état complet, quand le serveur l'envoie : appliqué tel quel, y
+           compris pour ses propres réactions faites depuis un autre appareil. */
+        if (data.reactions) {
+          const next = data.reactions.map((r) => ({
+            emoji: r.emoji,
+            count: r.count,
+            reacted_by_me: r.user_ids.includes(currentUserId),
+          }));
+          setMessages((prev) => prev.map((m) => (m.id === data.message_id ? { ...m, reactions: next } : m)));
+          return;
+        }
         // Les miennes sont déjà appliquées, de façon optimiste.
         if (data.user_id === currentUserId) return;
         setMessages((prev) =>
@@ -494,6 +529,26 @@ export function ChatInterface({
       }
     };
   }, [selectedId, currentUserId, markRead, patchChat]);
+
+  /* Reconnexion : la dernière page du fil ouvert est refusionnée. */
+  useEffect(() => {
+    const chatId = selectedIdRef.current;
+    if (!resyncTick || !chatId) return;
+    let active = true;
+    getMessagesPage(chatId).then((page) => {
+      if (!active || selectedIdRef.current !== chatId) return;
+      const fresh = (page.data as MessageRow[]) ?? [];
+      setMessages((prev) => {
+        const byId = new Map(prev.filter((m) => !m.local).map((m) => [m.id, m]));
+        for (const m of fresh) byId.set(m.id, m);
+        const pending = prev.filter((m) => m.local);
+        return [...[...byId.values()].sort((a, b) => new Date(a.sent_at).getTime() - new Date(b.sent_at).getTime()), ...pending];
+      });
+    });
+    return () => {
+      active = false;
+    };
+  }, [resyncTick]);
 
   /* Les « écrit… » orphelins s'éteignent seuls. */
   useEffect(() => {
@@ -566,6 +621,7 @@ export function ChatInterface({
     const formData = new FormData();
     formData.append("chat", String(chatId));
     formData.append("content", local.content);
+    if (local.local?.clientId) formData.append("client_id", local.local.clientId);
     if (local.local?.file) formData.append("file", local.local.file);
     if (local.reply_to) formData.append("reply_to", String(local.reply_to));
 
@@ -616,7 +672,12 @@ export function ChatInterface({
       reactions: [],
       is_deleted: false,
       sent_at: now,
-      local: { status: "sending", file, previewUrl: kind === "image" && file ? URL.createObjectURL(file) : null },
+      local: {
+        status: "sending",
+        file,
+        previewUrl: kind === "image" && file ? URL.createObjectURL(file) : null,
+        clientId: `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      },
     };
     setMessages((prev) => [...prev, local]);
     setReplyingTo(null);
