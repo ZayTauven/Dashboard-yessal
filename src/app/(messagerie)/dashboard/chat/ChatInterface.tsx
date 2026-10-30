@@ -77,7 +77,7 @@ import type {
   Reaction,
 } from "./types";
 
-const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY || "0369577c46baf67bfc0a";
+const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY || "bea7b0eb7536983d2be8";
 const PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "eu";
 
 /** On renvoie « écrit » au plus toutes les 3 s, et on l'éteint après 2,5 s de silence. */

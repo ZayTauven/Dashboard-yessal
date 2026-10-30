@@ -12,16 +12,16 @@
  *   private-kourel       chat-updated (canaux du Kourel)
  *
  * Plutôt que d'additionner des +1 — qui ne sauraient pas qu'un fil est en
- * sourdine — chaque événement redemande le total, regroupé sur une seconde :
- * un salon qui s'anime ne déclenche qu'un appel.
+ * sourdine — chaque événement redemande le total, regroupé sur 300 ms :
+ * une rafale de messages ne déclenche qu'un appel.
  */
 import { useEffect, useRef, useState } from "react";
 import Pusher from "pusher-js";
 import { getPusherAuthSignature, getUnreadSummary } from "@/app/actions/comms";
 
-const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY || "0369577c46baf67bfc0a";
+const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY || "bea7b0eb7536983d2be8";
 const PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "eu";
-const REGROUPEMENT_MS = 1000;
+const REGROUPEMENT_MS = 300;
 
 export function useUnreadMessages(userId?: number | null) {
   const [total, setTotal] = useState(0);
