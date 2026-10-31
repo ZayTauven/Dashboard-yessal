@@ -1061,13 +1061,19 @@ export function ChatInterface({
           : "Seuls les auteurs du canal publient ici. Réagissez aux publications."
       : null;
 
-  /* Épingler : l'administration ; dans un canal, ses auteurs ; dans un salon, son créateur. */
+  /* Épingler : l'administration ; dans un canal, ses auteurs ; dans un salon,
+     ses modérateurs (`can_moderate`, calculé par le serveur — le créateur
+     seul était retenu ici, les modérateurs nommés en étaient exclus). */
   const canPin = Boolean(
     selectedChat &&
       !selectedChat.archived_at &&
       selectedChat.chat_type !== "direct" &&
-      (isAdmin || (isChannel && selectedChat.can_post) || (isGroup && selectedChat.created_by === currentUserId)),
+      (isAdmin || (isChannel && selectedChat.can_post) || (isGroup && selectedChat.can_moderate)),
   );
+  /* Retirer le message d'un autre : l'administration, et les modérateurs
+     d'un salon qui n'est pas archivé. */
+  const canDeleteAny =
+    isAdmin || Boolean(isGroup && selectedChat?.can_moderate && !selectedChat.archived_at);
   const HeaderIcon = selectedChat && (isChannel || isGroup) ? chatIcon(selectedChat) : null;
 
   const headerIcon = !selectedChat ? null : HeaderIcon ? (
@@ -1222,7 +1228,7 @@ export function ChatInterface({
               chat={selectedChat}
               messages={messages}
               currentUserId={currentUserId}
-              canDeleteAny={isAdmin}
+              canDeleteAny={canDeleteAny}
               typingNames={typingNames}
               loading={loadingThread}
               hasMore={hasMore}
