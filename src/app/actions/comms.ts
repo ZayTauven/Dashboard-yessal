@@ -419,6 +419,24 @@ export async function leaveChat(chatId: number) {
   return postChatAction(`${chatId}/leave/`, null, "Impossible de quitter le salon.");
 }
 
+/** Supprimer un salon, messages et fichiers compris — l'administration seulement. */
+export async function deleteChat(chatId: number) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/comms/${chatId}/`, {
+      method: "DELETE",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { error: messageForErrors(body, "Impossible de supprimer le salon.") };
+    }
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { error: "Erreur de connexion au serveur backend." };
+  }
+}
+
 export async function addChatMembers(chatId: number, userIds: number[]) {
   return postChatAction(`${chatId}/add-members/`, { user_ids: userIds }, "Impossible d'ajouter ces membres.");
 }

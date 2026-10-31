@@ -12,7 +12,7 @@
  * nomment d'autres modérateurs — `chat.can_moderate` dit si l'on en est.
  */
 import { useMemo, useState } from "react";
-import { Bell, BellOff, LogOut, PenLine, Settings2, Shield, ShieldCheck, UserMinus, UserPlus, X } from "lucide-react";
+import { Bell, BellOff, LogOut, PenLine, Settings2, Shield, ShieldCheck, Trash2, UserMinus, UserPlus, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { chatIcon } from "./ChannelIcons";
@@ -33,6 +33,7 @@ export function ConversationInfo({
   onClose,
   onToggleMute,
   onLeave,
+  onDelete,
   onAddMembers,
   onRemoveMember,
   onSetModerator,
@@ -50,6 +51,8 @@ export function ConversationInfo({
   onClose: () => void;
   onToggleMute: () => void;
   onLeave: () => void;
+  /** Supprimer le salon — l'administration. */
+  onDelete: () => void;
   onAddMembers: (ids: number[]) => Promise<boolean>;
   onRemoveMember: (member: ChatMember) => void;
   onSetModerator: (member: ChatMember, isModerator: boolean) => void;
@@ -258,12 +261,21 @@ export function ConversationInfo({
           </div>
         )}
 
+        {/* L'administration supprime le salon au lieu de le quitter : c'est
+            elle qui retrouve les salons que tous leurs membres ont quittés. */}
         {isGroup && (
           <div className="border-t px-4 py-4">
-            <button type="button" className="ax-btn ax-btn--ghost-danger ax-btn--sm w-full" onClick={onLeave} disabled={busy}>
-              <LogOut size={14} aria-hidden />
-              <span className="ax-btn__label">Quitter le salon</span>
-            </button>
+            {isAdmin ? (
+              <button type="button" className="ax-btn ax-btn--ghost-danger ax-btn--sm w-full" onClick={onDelete} disabled={busy}>
+                <Trash2 size={14} aria-hidden />
+                <span className="ax-btn__label">Supprimer le salon</span>
+              </button>
+            ) : (
+              <button type="button" className="ax-btn ax-btn--ghost-danger ax-btn--sm w-full" onClick={onLeave} disabled={busy}>
+                <LogOut size={14} aria-hidden />
+                <span className="ax-btn__label">Quitter le salon</span>
+              </button>
+            )}
           </div>
         )}
       </div>

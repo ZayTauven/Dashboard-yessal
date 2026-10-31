@@ -45,6 +45,7 @@ import {
   getPilotageConfig,
   getPusherAuthSignature,
   leaveChat,
+  deleteChat,
   markChatAsRead,
   pinMessage,
   removeChatMember,
@@ -814,6 +815,26 @@ export function ChatInterface({
     });
   };
 
+  const handleDeleteSalon = () => {
+    if (!selectedChat) return;
+    const chat = selectedChat;
+    ask({
+      title: `Supprimer « ${chat.display_name} » ?`,
+      description:
+        "Le salon, tous ses messages et les fichiers partagés seront effacés pour tous ses membres. Cette suppression est définitive.",
+      confirmLabel: "Supprimer le salon",
+      onConfirm: async () => {
+        const res = await deleteChat(chat.id);
+        if (res.error) return void toast.error(res.error);
+        setChatList((rows) => rows.filter((c) => c.id !== chat.id));
+        setArchivedChats((rows) => (rows ? rows.filter((c) => c.id !== chat.id) : rows));
+        setSelectedId(null);
+        setMobileView("list");
+        toast.success("Salon supprimé.");
+      },
+    });
+  };
+
   const reloadMembers = async (chatId: number) => {
     const mem = await getChatMembers(String(chatId));
     if (selectedIdRef.current === chatId) setMembers((mem.data as ChatMember[]) ?? []);
@@ -1277,6 +1298,7 @@ export function ChatInterface({
             onClose={() => setShowInfo(false)}
             onToggleMute={handleToggleMute}
             onLeave={handleLeave}
+            onDelete={handleDeleteSalon}
             onAddMembers={handleAddMembers}
             onRemoveMember={handleRemoveMember}
             onSetModerator={handleSetModerator}
