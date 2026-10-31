@@ -55,6 +55,7 @@ import { Menu } from "@/components/vireo/Menu";
 import { Modal } from "@/components/vireo/Modal";
 import { Pagination } from "@/components/vireo/Pagination";
 import { ALL, useCollection } from "@/hooks/useCollection";
+import { PERIODE_JOURS, prochainesCollectes } from "@/lib/editions";
 
 type Fete = {
   id: number;
@@ -290,6 +291,10 @@ export function EventsClient({
 
   /* Le formulaire est strictement le même en création et en édition : une
      seule définition, `fete` fournit les valeurs par défaut. */
+  /* La date de référence du formulaire ouvert : l'aperçu des collectes, dans
+     `SerieFields`, en dépend. Un seul formulaire est monté à la fois. */
+  const [dateReference, setDateReference] = useState("");
+
   const renderForm = (fete: Fete | null, action: (fd: FormData) => void) => (
     <form action={action} className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -309,7 +314,11 @@ export function EventsClient({
         </div>
         <div className="ax-field">
           <label className="ax-field__label">Date de référence</label>
-          <DatePicker name="event_date" defaultValue={fete?.date || ""} />
+          <DatePicker
+            name="event_date"
+            defaultValue={fete?.date || ""}
+            onValueChange={setDateReference}
+          />
           <p className="ax-field__hint">
             Une date où l&apos;événement a eu ou aura lieu (un vendredi pour le
             Toggou). Les suivantes se calculent selon la récurrence.
@@ -333,7 +342,7 @@ export function EventsClient({
         />
       </div>
 
-      <SerieFields key={fete?.id ?? "new"} fete={fete} />
+      <SerieFields key={fete?.id ?? "new"} fete={fete} dateReference={dateReference} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="ax-field">
@@ -638,11 +647,26 @@ export function EventsClient({
  * récurrence « Annuel (hégirien) », ce qui demande un état — impossible dans
  * `renderForm`, qui n'est qu'une fonction appelée au rendu.
  */
-function SerieFields({ fete }: { fete: Fete | null }) {
+function SerieFields({ fete, dateReference }: { fete: Fete | null; dateReference: string }) {
   const id = fete?.id ?? "new";
   const [recurrence, setRecurrence] = useState(fete?.recurrence ?? "annual");
+  const [ouvre, setOuvre] = useState(fete?.ouvre_jours_avant ?? 0);
+  const [ferme, setFerme] = useState(fete?.ferme_jours_apres ?? 0);
   const hijri = recurrence === "annual_hijri";
   const ponctuel = recurrence === "none";
+
+  /* Une collecte plus longue que la période déborderait sur l'édition
+     suivante : le serveur la refuse, l'écran le dit avant l'envoi. */
+  const periode = PERIODE_JOURS[recurrence];
+  const deborde = periode !== undefined && ouvre + ferme + 1 > periode;
+  const apercu = hijri || deborde ? [] : prochainesCollectes(dateReference, recurrence, ouvre, ferme);
+
+  const changerRecurrence = (valeur: string) => {
+    setRecurrence(valeur);
+    /* Un NOUVEL hebdomadaire part d'une semaine pleine (6 et 0), ce que les
+       membres attendent ; une série existante garde ses réglages. */
+    if (!fete && valeur === "weekly" && ouvre === 0 && ferme === 0) setOuvre(6);
+  };
 
   return (
     <>
@@ -656,7 +680,7 @@ function SerieFields({ fete }: { fete: Fete | null }) {
             name="recurrence"
             className="ax-select"
             value={recurrence}
-            onChange={(e) => setRecurrence(e.target.value)}
+            onChange={(e) => changerRecurrence(e.target.value)}
           >
             {Object.entries(RECURRENCE_LABELS).map(([v, l]) => (
               <option key={v} value={v}>
@@ -733,7 +757,8 @@ function SerieFields({ fete }: { fete: Fete | null }) {
                 min={0}
                 max={60}
                 className="ax-input"
-                defaultValue={fete?.ouvre_jours_avant ?? 0}
+                value={ouvre}
+                onChange={(e) => setOuvre(Math.max(0, Number(e.target.value) || 0))}
               />
             </div>
             <div className="ax-field">
@@ -747,7 +772,8 @@ function SerieFields({ fete }: { fete: Fete | null }) {
                 min={0}
                 max={60}
                 className="ax-input"
-                defaultValue={fete?.ferme_jours_apres ?? 0}
+                value={ferme}
+                onChange={(e) => setFerme(Math.max(0, Number(e.target.value) || 0))}
               />
             </div>
             <div className="ax-field">
@@ -768,12 +794,38 @@ function SerieFields({ fete }: { fete: Fete | null }) {
               />
             </div>
           </div>
+          {/* Le conseil était « 1 et 1 » : du jeudi au samedi, puis quatre
+              jours sans aucune édition ouverte, et des membres qui ne
+              savaient plus à quelle semaine rattacher leur Jëf. */}
           <p className="ax-field__hint">
-            Pour le Toggou du vendredi : 1 et 1, la collecte court du jeudi au
-            samedi. La diaspora des Amériques peut ainsi donner son vendredi
-            soir. Chaque édition reprend la description et l&apos;objectif ; on
-            les retouche ensuite, avec sa photo, pour cette édition seule.
+            Pour le Toggou du vendredi : 6 et 0, une semaine pleine du samedi au
+            vendredi, sans trou ni doublon. Chaque édition reprend la description
+            et l&apos;objectif ; on les retouche ensuite, avec sa photo, pour
+            cette édition seule.
           </p>
+          {deborde ? (
+            <p className="ax-field__message ax-field__message--error" role="alert">
+              {/* Une seule chaîne : avec `&apos;`, SWC mangeait l'espace
+                  avant les deux-points (« période de 7: elle »). */}
+              {`La collecte durerait ${ouvre + ferme + 1} jours pour une période de ${periode} : elle déborderait sur l’édition suivante.`}
+            </p>
+          ) : apercu.length > 0 ? (
+            <div aria-live="polite">
+              <p className="ax-field__label">Prochaines collectes</p>
+              <ul className="ax-text-subtle mt-1 flex flex-col gap-0.5 text-sm">
+                {apercu.map((f) => (
+                  <li key={f.ouverture}>
+                    · du {f.ouverture} au {f.cloture}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : hijri ? (
+            <p className="ax-field__hint">
+              Calendrier lunaire : les dates de collecte suivront la date
+              confirmée de chaque édition.
+            </p>
+          ) : null}
         </fieldset>
       )}
     </>

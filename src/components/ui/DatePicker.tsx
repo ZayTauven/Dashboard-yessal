@@ -44,6 +44,8 @@ interface DatePickerProps {
   disabled?: boolean;
   /** Précision affichée sous le champ. */
   hint?: string;
+  /** Appelé avec la date choisie (`AAAA-MM-JJ`, vide si aucune), dès le montage. */
+  onValueChange?: (iso: string) => void;
 }
 
 export function DatePicker({
@@ -54,6 +56,7 @@ export function DatePicker({
   required,
   disabled,
   hint,
+  onValueChange,
 }: DatePickerProps) {
   const [date, setDate] = useState<Date | undefined>(() => {
     if (!defaultValue) return undefined;
@@ -67,6 +70,16 @@ export function DatePicker({
   const fieldId = useId();
 
   const isoValue = date ? format(date, "yyyy-MM-dd") : "";
+
+  /* Le rappel dans une ref : une fonction recréée à chaque rendu du parent
+     relancerait l'effet en boucle. */
+  const onValueChangeRef = useRef(onValueChange);
+  useEffect(() => {
+    onValueChangeRef.current = onValueChange;
+  }, [onValueChange]);
+  useEffect(() => {
+    onValueChangeRef.current?.(isoValue);
+  }, [isoValue]);
 
   /*
    * La contrainte est posée sur le DÉCLENCHEUR, seul élément visible et donc
