@@ -38,6 +38,9 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  // Les métadonnées partent AVANT la page : sans ce contrôle, la redirection
+  // d'un faux cookie emportait encore le titre et le chapeau du chapitre.
+  await exigerSession();
   const { slug } = await params;
   const chapter = chapterBySlug(slug);
   if (!chapter) return { title: "Chapitre introuvable" };
