@@ -12,13 +12,15 @@ import type { NextConfig } from "next";
  *
  * La CSP se limite à ce qui ne casse rien : pas de `script-src`, qui exigerait
  * un nonce pour le script de thème inline de `app/layout.tsx`.
+ *
+ * `nosniff` et `Referrer-Policy` restent à nginx
+ * (`deploy/nginx/yessal.conf.template`) : posés ici aussi, ils partaient en
+ * double, et pour `Referrer-Policy` c'est la valeur de nginx qui l'emportait.
  */
 const SECURITY_HEADERS = [
   { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Strict-Transport-Security", value: "max-age=31536000" },
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
 ];
 
 const nextConfig: NextConfig = {
