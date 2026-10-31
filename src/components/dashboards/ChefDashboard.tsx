@@ -84,6 +84,8 @@ interface BarRow {
 interface PieRow {
   method: string;
   dons: number;
+  /** Montant en FCFA ; absent d'une API plus ancienne. */
+  amount?: number;
 }
 interface AreaRow {
   name: string;
@@ -120,9 +122,12 @@ export default function ChefDashboard({ stats }: { stats: ChefStats | null }) {
     label: r.month,
     value: Number(r.online ?? 0) + Number(r.manual ?? 0),
   }));
+  /* L'ARGENT par moyen de paiement, comme sur le tableau de l'admin : le
+     centre affichait « Collecté 5 », soit cinq dons lus comme cinq francs. */
+  const hasAmounts = pieRows.some((r) => r.amount !== undefined);
   const parMethode: Point[] = pieRows.map((r) => ({
     label: r.method,
-    value: Number(r.dons ?? 0),
+    value: Number((hasAmounts ? r.amount : r.dons) ?? 0),
   }));
   const septJours: Point[] = areaRows.map((r) => ({
     label: r.name,
@@ -232,7 +237,8 @@ export default function ChefDashboard({ stats }: { stats: ChefStats | null }) {
           <div className="ax-card__body pt-0">
             <DonutBreakdown
               data={parMethode}
-              totalLabel="Collecté"
+              totalLabel={hasAmounts ? "Collecté" : "Jëfs"}
+              currency={hasAmounts}
               height={300}
               emptyMessage="Aucun paiement à ventiler."
             />
