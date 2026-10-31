@@ -1,17 +1,39 @@
 import type { NextConfig } from "next";
 
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ * En-têtes de sécurité
+ * ═══════════════════════════════════════════════════════════════════════════
+ * nginx ne pose que `nosniff` et `Referrer-Policy`, et le commentaire « Django
+ * envoie déjà X-Frame-Options » ne vaut que pour les réponses de Django : les
+ * PAGES viennent d'ici. Sans `frame-ancestors`, un site tiers pouvait afficher
+ * /dashboard/admin/users dans un cadre invisible et faire cliquer un
+ * administrateur connecté (valider un compte, confirmer une remise).
+ *
+ * La CSP se limite à ce qui ne casse rien : pas de `script-src`, qui exigerait
+ * un nonce pour le script de thème inline de `app/layout.tsx`.
+ */
+const SECURITY_HEADERS = [
+  { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Strict-Transport-Security", value: "max-age=31536000" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+];
+
 const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "images.pexels.com",
-      },
-      {
-        protocol: "https",
-        hostname: "*.onrender.com",
-      },
-    ],
+  /*
+   * Aucun hôte distant pour l'optimiseur d'images. Il autorisait
+   * `images.pexels.com` et `*.onrender.com`, que plus rien n'utilisait : le
+   * second laissait quiconque crée un sous-domaine Render gratuit faire
+   * télécharger et décoder par ce serveur un fichier de son choix — la porte
+   * d'entrée des failles de l'optimiseur (SVG, AVIF, SSRF). `next/image` ne
+   * sert plus que les fichiers de `public/`.
+   */
+  poweredByHeader: false,
+
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
 
   /*

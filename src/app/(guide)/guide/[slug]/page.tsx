@@ -14,6 +14,7 @@ import { GuideIcon } from "@/components/guide/GuideIcon";
 import { GuideToc } from "@/components/guide/GuideToc";
 import { ChapterFooter } from "@/components/guide/ChapterFooter";
 import { Pill } from "@/components/guide/primitives";
+import { exigerSession } from "../../exiger-session";
 
 /*
  * ═══════════════════════════════════════════════════════════════════════════
@@ -48,6 +49,7 @@ export default async function ChapterPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  await exigerSession();
   const { slug } = await params;
   const chapter = chapterBySlug(slug);
   const Body = CHAPTER_BODIES[slug];

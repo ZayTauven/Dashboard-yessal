@@ -11,6 +11,7 @@ import { GuideIcon } from "@/components/guide/GuideIcon";
 import { RolePicker } from "@/components/guide/RolePicker";
 import { Faq } from "@/components/guide/Faq";
 import { Card, Cards, Ornament, Pill } from "@/components/guide/primitives";
+import { exigerSession } from "../exiger-session";
 
 /*
  * ═══════════════════════════════════════════════════════════════════════════
@@ -136,7 +137,8 @@ const FAQ = [
   },
 ];
 
-export default function GuideHome() {
+export default async function GuideHome() {
+  await exigerSession();
   const featured = LEXIQUE.slice(0, 4);
 
   return (

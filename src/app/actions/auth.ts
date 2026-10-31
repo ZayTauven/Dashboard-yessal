@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { messageForErrors } from "@/lib/api-result";
+import { clientIpHeaders } from "@/lib/client-ip";
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
@@ -52,6 +53,7 @@ export async function loginAction(formData: FormData) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(await clientIpHeaders()),
       },
       body: JSON.stringify({ identifier, password }),
     });
@@ -112,7 +114,7 @@ export async function registerAction(formData: FormData) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/auth/register/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
       body: JSON.stringify(data),
     });
     const result = await res.json();
@@ -132,7 +134,7 @@ export async function forgotPasswordAction(email: string) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/auth/forgot-password/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
       body: JSON.stringify({ email }),
     });
     const result = await res.json();
@@ -166,7 +168,7 @@ export async function resetPasswordAction(
   try {
     const res = await fetch(`${BACKEND_URL}/api/auth/reset-password/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await clientIpHeaders()) },
       body: JSON.stringify({ uid, token, new_password: newPassword }),
     });
 
