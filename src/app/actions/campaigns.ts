@@ -304,7 +304,12 @@ export async function addCampaignTodo(campaignId: number, title: string) {
         is_completed: false,
       }),
     });
-    if (!res.ok) return { error: "Erreur lors de l'ajout de la tâche." };
+    if (!res.ok) {
+      /* Le motif du serveur (« Vous ne gérez pas ce Ndiguel… ») : le message
+         générique cachait le 403 qui bloquait les organisateurs. */
+      const data = await res.json().catch(() => ({}));
+      return { error: messageForErrors(data, "Erreur lors de l'ajout de la tâche.") };
+    }
     revalidatePath("/dashboard/campaigns");
     return { success: true };
   } catch (err) {
@@ -326,8 +331,10 @@ export async function toggleCampaignTodo(todoId: number, isCompleted: boolean) {
         body: JSON.stringify({ is_completed: isCompleted }),
       },
     );
-    if (!res.ok)
-      return { error: "Erreur lors de la mise à jour de la tâche." };
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { error: messageForErrors(data, "Erreur lors de la mise à jour de la tâche.") };
+    }
     revalidatePath("/dashboard/campaigns");
     return { success: true };
   } catch (err) {

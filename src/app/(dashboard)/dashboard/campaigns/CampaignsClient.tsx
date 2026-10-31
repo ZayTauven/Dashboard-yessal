@@ -132,6 +132,16 @@ export function CampaignsClient({
   const [selectedAssistantIds, setSelectedAssistantIds] = useState<number[]>([]);
   const [assistantSearch, setAssistantSearch] = useState("");
 
+  /* Les tâches du Ndiguel ouvert, lues dans la liste À JOUR : `selectedCampaign`
+     est une copie prise à l'ouverture, que `router.refresh()` ne touche pas.
+     Une tâche ajoutée ou cochée n'apparaissait qu'en rouvrant la fenêtre. */
+  const selectedTodos = useMemo(
+    () =>
+      (initialCampaigns.find((camp) => camp.id === selectedCampaign?.id) ?? selectedCampaign)
+        ?.todos ?? [],
+    [initialCampaigns, selectedCampaign],
+  );
+
   const filters = useMemo(
     () => ({ status: (c: CampaignCard, v: string) => statusOf(c) === v }),
     [],
@@ -557,13 +567,13 @@ export function CampaignsClient({
                 </button>
               </form>
 
-              {!selectedCampaign.todos || selectedCampaign.todos.length === 0 ? (
+              {selectedTodos.length === 0 ? (
                 <p className="ax-text-subtle text-sm italic">
                   Aucune tâche enregistrée.
                 </p>
               ) : (
                 <ul className="ax-list ax-list--compact ax-scroll-y max-h-72">
-                  {selectedCampaign.todos.map((todo) => (
+                  {selectedTodos.map((todo) => (
                     <li key={todo.id} className="ax-list__row">
                       <button
                         type="button"
