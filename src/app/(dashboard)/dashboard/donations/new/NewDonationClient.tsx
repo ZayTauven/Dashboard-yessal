@@ -39,6 +39,7 @@ import { PaymentMethodPicker } from "@/components/vireo/PaymentMethodPicker";
 import { MAX_JEF, MIN_JEF } from "@/lib/jef";
 import { collecteUnavailableHint, memberMethods } from "@/lib/payment-methods";
 import type { CollecteStatus } from "@/app/actions/collecte";
+import type { BankAccountConfig } from "@/app/actions/donations";
 
 type CampaignOption = { id: number | string; name: string };
 type TutelleOption = {
@@ -59,13 +60,8 @@ export function NewDonationClient({
   campaigns: CampaignOption[];
   tutelles: TutelleOption[];
   defaultCampaignId?: string;
-  bankConfig: {
-    bank_name: string;
-    iban: string;
-    bic: string;
-    account_name: string;
-    reference_format: string;
-  };
+  /** `null` : coordonnées non configurées côté serveur, pas de virement. */
+  bankConfig: BankAccountConfig | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -230,13 +226,15 @@ export function NewDonationClient({
               <PaymentMethodPicker
                 value={selectedMethod}
                 onChange={setSelectedMethod}
-                methods={memberMethods(collecte)}
+                methods={memberMethods(collecte).filter(
+                  (m) => m !== "virement" || bankConfig !== null,
+                )}
               />
               {collecteUnavailableHint(collecte) && (
                 <p className="ax-field__hint">{collecteUnavailableHint(collecte)}</p>
               )}
 
-              {selectedMethod === "virement" && (
+              {selectedMethod === "virement" && bankConfig && (
                 <div className="ax-card ax-card--compact">
                   <div className="ax-card__body flex flex-col gap-3">
                     <h3 className="ax-eyebrow">Coordonnées bancaires</h3>

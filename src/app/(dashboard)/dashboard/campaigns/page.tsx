@@ -1,5 +1,4 @@
 import { getCampaigns } from "@/app/actions/campaigns";
-import { getCollecteStatus } from "@/app/actions/collecte";
 import { getProfile } from "@/app/actions/users";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PageHead } from "@/components/vireo/PageHead";
@@ -7,13 +6,11 @@ import type { Role } from "@/lib/nav";
 import { CampaignsClient } from "./CampaignsClient";
 
 export default async function CampaignsPage() {
-  const [{ data: campaigns, error: campaignError }, { data: profile }, { data: collecte }] =
-    await Promise.all([getCampaigns(), getProfile(), getCollecteStatus()]);
+  const [{ data: campaigns, error: campaignError }, { data: profile }] =
+    await Promise.all([getCampaigns(), getProfile()]);
 
   const role = (profile?.role ?? "member") as Role;
   const isAdmin = role === "admin";
-  const canUseDonationPage =
-    role === "member" || role === "collector" || role === "chef_daara";
   /* Le talubé et la tutelle ne voient que les Ndiguels ouverts : le serveur
      ne leur envoie plus les Ndiguels terminés, l'onglet resterait vide. */
   const hideCompleted = role === "member" || role === "tutelle";
@@ -37,9 +34,7 @@ export default async function CampaignsPage() {
         <CampaignsClient
           initialCampaigns={campaigns || []}
           isAdmin={isAdmin}
-          canUseDonationPage={canUseDonationPage}
           hideCompleted={hideCompleted}
-          collecte={collecte ?? null}
         />
       )}
     </div>

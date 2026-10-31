@@ -247,15 +247,35 @@ export async function getArchiveDonations(archiveId: number) {
   }
 }
 
-export async function getBankAccountConfig() {
-  return {
-    bank_name: process.env.BANK_NAME || "BICIS",
-    iban: process.env.BANK_IBAN || "SN28 XXXX XXXX XXXX XXXX XXXX XXX",
-    bic: process.env.BANK_BIC || "BICISSND",
-    account_name: process.env.BANK_ACCOUNT_NAME || "Association Yessal Gui",
-    reference_format:
-      process.env.BANK_REFERENCE_FORMAT || "YG-{member_id}-{date}",
-  };
+export type BankAccountConfig = {
+  bank_name: string;
+  iban: string;
+  bic: string;
+  account_name: string;
+  reference_format: string;
+};
+
+/**
+ * Les coordonnées du compte à créditer, telles que Django les sert.
+ *
+ * Le web lisait ses propres variables d'environnement, avec des valeurs de
+ * repli : sans `BANK_IBAN`, il affichait « SN28 XXXX XXXX… » comme un IBAN
+ * véritable — le gabarit que Django refuse précisément de servir (503), parce
+ * qu'un membre devant son guichet recopierait des X. `null` quand rien n'est
+ * configuré : l'écran retire alors le virement au lieu d'inventer un compte.
+ */
+export async function getBankAccountConfig(): Promise<BankAccountConfig | null> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/contributions/bank-account/`, {
+      cache: "no-store",
+      headers: await getAuthHeader(),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as BankAccountConfig;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
 }
 
 export async function makeDonation(formData: FormData) {
@@ -344,7 +364,7 @@ export async function makeDonation(formData: FormData) {
   }
 }
 
-export async function payDonation(
+async function payDonation(
   donationId: number,
   paymentMethod: string,
   wireReference = "",

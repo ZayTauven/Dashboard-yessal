@@ -35,17 +35,14 @@ import {
   CheckCircle2,
   ChevronRight,
   Circle,
-  CreditCard,
   MessageSquare,
   Pencil,
   Plus,
   Settings2,
   Target,
   Trash2,
-  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
-import { makeDonation, payDonation } from "@/app/actions/donations";
 import {
   addCampaignTodo,
   closeCampaign,
@@ -59,13 +56,9 @@ import { roleLabel } from "@/lib/roles";
 import { formatFCFA } from "@/components/charts/YessalCharts";
 import { Modal } from "@/components/vireo/Modal";
 import { Pagination } from "@/components/vireo/Pagination";
-import { PaymentMethodPicker } from "@/components/vireo/PaymentMethodPicker";
 import { StatusBadge } from "@/components/vireo/StatusBadge";
 import { CoverImage } from "@/components/vireo/CoverImage";
 import { ALL, useCollection } from "@/hooks/useCollection";
-import { MAX_JEF, MIN_JEF } from "@/lib/jef";
-import { collecteUnavailableHint, memberMethods } from "@/lib/payment-methods";
-import type { CollecteStatus } from "@/app/actions/collecte";
 
 type Todo = {
   id: number;
@@ -114,15 +107,10 @@ const statusOf = (c: CampaignCard) => c.effective_status ?? c.status;
 export function CampaignsClient({
   initialCampaigns,
   isAdmin,
-  canUseDonationPage,
   hideCompleted = false,
-  collecte = null,
 }: {
-  /** Disponibilité de la collecte en espèces pour ce membre. */
-  collecte?: CollecteStatus | null;
   initialCampaigns: CampaignCard[];
   isAdmin: boolean;
-  canUseDonationPage: boolean;
   /** Talubé et tutelle : pas d'onglet « Terminés », le serveur ne les envoie plus. */
   hideCompleted?: boolean;
 }) {
@@ -132,20 +120,17 @@ export function CampaignsClient({
   const { ask, dialog } = useConfirm();
 
   const router = useRouter();
-  const [isDonationOpen, setIsDonationOpen] = useState(false);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<CampaignCard | null>(
     null,
   );
   const [isPending, startTransition] = useTransition();
-  const [errorMsg, setErrorMsg] = useState("");
   const [newTodoTitle, setNewTodoTitle] = useState("");
   const [organizerUsers, setOrganizerUsers] = useState<OrganizerUser[]>([]);
   const [organizerUsersError, setOrganizerUsersError] = useState("");
   const [chatName, setChatName] = useState("");
   const [selectedAssistantIds, setSelectedAssistantIds] = useState<number[]>([]);
   const [assistantSearch, setAssistantSearch] = useState("");
-  const [selectedMethod, setSelectedMethod] = useState("orange_money");
 
   const filters = useMemo(
     () => ({ status: (c: CampaignCard, v: string) => statusOf(c) === v }),
@@ -192,53 +177,6 @@ export function CampaignsClient({
       cancelled = true;
     };
   }, [isManageOpen, selectedCampaign]);
-
-  const handleDonation = async (formData: FormData) => {
-    setErrorMsg("");
-    const paymentMethod = formData.get("paymentMethod") as string;
-
-    startTransition(async () => {
-      const res = await makeDonation(formData);
-      if (res.error) {
-        setErrorMsg(res.error);
-        return;
-      }
-
-      const donation = res.data;
-
-      // Collecte physique : rien à payer en ligne, on notifie les responsables.
-      if (paymentMethod === "collector") {
-        setIsDonationOpen(false);
-        toast.success(
-          "Demande de collecte enregistrée. Les responsables ont été notifiés.",
-        );
-        return;
-      }
-
-      // Paiement digital : on enchaîne sur Bictorys.
-      if (paymentMethod !== "paypal") {
-        const payRes = await payDonation(donation.id, paymentMethod);
-        if (payRes.error) {
-          setErrorMsg(payRes.error);
-          return;
-        }
-
-        if (paymentMethod === "visa" || paymentMethod === "mastercard") {
-          if (payRes.data?.checkout_url) {
-            window.location.href = payRes.data.checkout_url;
-            return;
-          }
-        } else {
-          toast.success(
-            "Demande de paiement envoyée. Validez sur votre téléphone.",
-          );
-        }
-      }
-
-      setIsDonationOpen(false);
-      toast.success("Demande de Jëf effectuée avec succès.");
-    });
-  };
 
   const handleAddTodo = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -516,7 +454,7 @@ export function CampaignsClient({
                   <div className="ax-btn-group min-w-0">
                     {/* Seul un Ndiguel en cours reçoit un Jëf : le serveur
                         refuse les clos, les « à venir » et les suspendus. */}
-                    {status !== "active" ? null : canUseDonationPage ? (
+                    {status === "active" && (
                       <Link
                         href={`/dashboard/donations/new?campaign=${camp.id}`}
                         className="ax-btn ax-btn--tonal"
@@ -524,19 +462,6 @@ export function CampaignsClient({
                         <span className="ax-btn__label">Faire un Jëf</span>
                         <ChevronRight className="ax-btn__icon" size={14} aria-hidden="true" />
                       </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        className="ax-btn ax-btn--tonal"
-                        onClick={() => {
-                          setSelectedCampaign(camp);
-                          setErrorMsg("");
-                          setIsDonationOpen(true);
-                        }}
-                      >
-                        <span className="ax-btn__label">Faire un Jëf</span>
-                        <ChevronRight className="ax-btn__icon" size={14} aria-hidden="true" />
-                      </button>
                     )}
 
                     {camp.is_manageable && status !== "completed" && (
@@ -759,83 +684,6 @@ export function CampaignsClient({
         )}
       </Modal>
 
-      {/* ── Paiement d'un Jëf ── */}
-      <Modal
-        open={isDonationOpen && Boolean(selectedCampaign)}
-        onOpenChange={setIsDonationOpen}
-        title="Faire un Jëf"
-        description={selectedCampaign?.name}
-        size="sm"
-      >
-        {selectedCampaign && (
-          <form action={handleDonation} className="flex flex-col gap-5">
-            <input type="hidden" name="campaignId" value={selectedCampaign.id} />
-
-            <div className="ax-field">
-              <label className="ax-field__label" htmlFor="amount">
-                Montant du Jëf
-                <span className="ax-field__required" aria-hidden="true"> *</span>
-              </label>
-              <div className="ax-field__control">
-                <span className="ax-field__affix ax-field__affix--leading">
-                  <Wallet aria-hidden="true" />
-                </span>
-                <input
-                  id="amount"
-                  name="amount"
-                  type="number"
-                  min={MIN_JEF}
-                  max={MAX_JEF}
-                  step={1}
-                  inputMode="numeric"
-                  className="ax-input ax-input--with-leading-icon ax-input--lg font-mono tabular"
-                  placeholder="5000"
-                  required
-                />
-                <span className="ax-field__affix ax-field__affix--trailing">
-                  FCFA
-                </span>
-              </div>
-            </div>
-
-            {/*
-              Sélecteur partagé avec « Nouveau Jëf ». Le virement bancaire
-              rejoint au passage cette modale : il y manquait sans raison
-              métier, les deux listes ayant divergé au fil des copies.
-            */}
-            <PaymentMethodPicker
-              value={selectedMethod}
-              onChange={setSelectedMethod}
-              methods={memberMethods(collecte)}
-            />
-            {collecteUnavailableHint(collecte) && (
-              <p className="ax-field__hint">{collecteUnavailableHint(collecte)}</p>
-            )}
-
-            {errorMsg && (
-              <p className="ax-field__message ax-field__message--error">
-                {errorMsg}
-              </p>
-            )}
-
-            <div className="flex flex-col gap-2">
-              <button
-                type="submit"
-                className="ax-btn ax-btn--primary ax-btn--lg ax-btn--block"
-                disabled={isPending}
-              >
-                <CreditCard className="ax-btn__icon" size={18} aria-hidden="true" />
-                <span className="ax-btn__label">
-                  {isPending ? "Traitement…" : "Confirmer le paiement"}
-                </span>
-              </button>
-              <p className="ax-text-subtle text-center text-xs">
-                Paiement sécurisé, chiffré de bout en bout.
-              </p>
-            </div>
-          </form>
-        )}
-      </Modal>
       {dialog}
     </div>
   );

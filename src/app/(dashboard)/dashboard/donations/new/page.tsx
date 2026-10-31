@@ -9,7 +9,12 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { PageHead } from "@/components/vireo/PageHead";
 import type { Role } from "@/lib/nav";
 
-const DONATE_ROLES = new Set(["member", "collector", "chef_daara"]);
+/* Tous ceux à qui la page « Les Ndiguels » propose « Faire un Jëf ».
+   L'administration, la tutelle et la Sangue Bi passaient par une modale à
+   part, restée sur les anciens moyens de paiement : le virement y réclamait
+   une référence sans champ pour la saisir, la carte ne redirigeait pas, et le
+   Jëf était créé AVANT l'échec — un doublon à chaque nouvel essai. */
+const DONATE_ROLES = new Set(["member", "collector", "chef_daara", "admin", "tutelle", "guide"]);
 
 export default async function NewDonationPage({
   searchParams,
