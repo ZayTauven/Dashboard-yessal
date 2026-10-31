@@ -216,13 +216,14 @@ export interface LigneImportMembre {
   daara: string | null;
   motif: string | null;
   remarques: string[];
+  /** Le provisoire du compte créé — rendu une seule fois, par l'import réel. */
+  mot_de_passe: string | null;
 }
 
 export interface RapportImportMembres {
   success: boolean;
   apercu: boolean;
   message: string;
-  mot_de_passe: string;
   totaux: {
     lignes: number;
     crees: number;

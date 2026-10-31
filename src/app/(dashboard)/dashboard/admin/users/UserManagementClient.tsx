@@ -134,10 +134,6 @@ const DOC_TYPE_LABEL: Record<string, string> = {
   driver_license: "Permis de conduire",
 };
 
-/** Mot de passe attribué par l'import Excel — copie d'AFFICHAGE de
- *  `MOT_DE_PASSE_PAR_DEFAUT` (`accounts/services/user_import.py`), qui fait foi. */
-const IMPORT_DEFAULT_PASSWORD = "YessalPassword2024!";
-
 type SortKey = "name" | "role" | "status" | "daara";
 type Tab = "list" | "requests";
 
@@ -773,8 +769,8 @@ export function UserManagementClient({
           )}
 
           {/*
-            L'import Excel attribue le MEME mot de passe a tous les comptes
-            crees : l'administrateur doit le savoir avant d'importer. Le membre
+            L'import Excel attribue a chaque compte son propre mot de passe
+            provisoire, affiche une seule fois a la fin de l'import. Le membre
             le remplace a la derniere etape de son accueil, a la premiere
             connexion (`accounts/services/accueil.py`).
           */}
@@ -782,9 +778,9 @@ export function UserManagementClient({
             <ShieldAlert className="ax-alert__icon" aria-hidden="true" />
             <div className="ax-alert__content">
               <p className="ax-alert__message">
-                Les comptes créés par import Excel reçoivent tous le même mot de
-                passe provisoire{" "}
-                <code className="ax-code">{IMPORT_DEFAULT_PASSWORD}</code>. À sa
+                Chaque compte créé par import Excel reçoit son propre mot de
+                passe provisoire, affiché une seule fois à la fin de l’import :
+                téléchargez-les pour les transmettre de vive voix. À sa
                 première connexion, chaque membre complète son Daara si le
                 fichier ne le désignait pas sans ambiguïté, sa fiche, puis
                 choisit son propre mot de passe. Un aperçu ligne par ligne

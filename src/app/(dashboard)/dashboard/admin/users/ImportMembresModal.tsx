@@ -45,6 +45,24 @@ export function telechargerModele() {
   XLSX.writeFile(classeur, "Yessal_Modele_Import_Membres.xlsx");
 }
 
+/**
+ * Les provisoires de l'import, en classeur. Django ne les rend qu'UNE fois et
+ * n'en garde aucune copie en clair : ce fichier est le seul moyen de les
+ * retrouver pour les transmettre de vive voix.
+ */
+function telechargerMotsDePasse(rapport: RapportImportMembres) {
+  const lignes = rapport.lignes
+    .filter((l) => l.mot_de_passe)
+    .map((l) => [l.nom, l.identifiant, l.daara ?? "", l.mot_de_passe ?? ""]);
+  const feuille = XLSX.utils.aoa_to_sheet([
+    ["Membre", "Identifiant", "Daara", "Mot de passe provisoire"],
+    ...lignes,
+  ]);
+  const classeur = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(classeur, feuille, "Provisoires");
+  XLSX.writeFile(classeur, "Yessal_Mots_De_Passe_Provisoires.xlsx");
+}
+
 export function ImportMembresModal({
   file,
   apercu,
@@ -147,9 +165,28 @@ export function ImportMembresModal({
                   Un Daara n’est affecté que si le fichier le désigne sans
                   ambiguïté. Les comptes « Sans Daara » sont bien créés : le
                   membre choisira lui-même sa LDD et son Daara à sa première
-                  connexion, avant de remplacer le mot de passe{" "}
-                  <code className="ax-code">{rapport.mot_de_passe}</code>.
+                  connexion, avant de remplacer son mot de passe provisoire.
                 </p>
+              </div>
+            </div>
+          )}
+
+          {final && aCreer > 0 && (
+            <div className="ax-alert ax-alert--warning ax-alert--inline">
+              <div className="ax-alert__content">
+                <p className="ax-alert__message">
+                  Chaque compte a son propre mot de passe provisoire, à
+                  transmettre de vive voix. Ils ne s’affichent qu’ici, une seule
+                  fois : téléchargez-les avant de fermer.
+                </p>
+                <button
+                  type="button"
+                  className="ax-btn ax-btn--outline ax-btn--sm self-start mt-2"
+                  onClick={() => telechargerMotsDePasse(final)}
+                >
+                  <Download className="ax-btn__icon" size={14} aria-hidden="true" />
+                  <span className="ax-btn__label">Télécharger les mots de passe</span>
+                </button>
               </div>
             </div>
           )}
@@ -171,6 +208,7 @@ export function ImportMembresModal({
                   <th scope="col">Résultat</th>
                   <th scope="col">Daara</th>
                   <th scope="col">Détail</th>
+                  {final && <th scope="col">Mot de passe</th>}
                 </tr>
               </thead>
               <tbody>
@@ -190,6 +228,15 @@ export function ImportMembresModal({
                     <td className="text-sm">
                       {[l.motif, ...l.remarques].filter(Boolean).join(" · ") || "—"}
                     </td>
+                    {final && (
+                      <td>
+                        {l.mot_de_passe ? (
+                          <code className="ax-code">{l.mot_de_passe}</code>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
