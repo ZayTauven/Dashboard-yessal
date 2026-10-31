@@ -215,5 +215,3 @@ export function DataTable<T, SK extends string = string>({
     </div>
   );
 }
-
-export default DataTable;

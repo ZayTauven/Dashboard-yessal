@@ -27,7 +27,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Les quatre tuiles d'icône de Vireo : accent, cyan, violet, ambre. */
-export type CardHeaderTone = "c1" | "c2" | "c3" | "c4";
+type CardHeaderTone = "c1" | "c2" | "c3" | "c4";
 
 export interface CardHeaderProps {
   title: React.ReactNode;
@@ -81,5 +81,3 @@ export function CardHeader({
     </div>
   );
 }
-
-export default CardHeader;

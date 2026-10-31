@@ -332,5 +332,3 @@ export function QuickActions({ role = "member", open, onOpenChange }: QuickActio
     </Command.Dialog>
   );
 }
-
-export default QuickActions;

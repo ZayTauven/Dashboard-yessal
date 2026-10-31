@@ -78,5 +78,3 @@ export function HeaderMenu({
     </div>
   );
 }
-
-export default HeaderMenu;

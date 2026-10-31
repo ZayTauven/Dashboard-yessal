@@ -18,5 +18,3 @@ export function AmbientBackdrop() {
     </div>
   );
 }
-
-export default AmbientBackdrop;

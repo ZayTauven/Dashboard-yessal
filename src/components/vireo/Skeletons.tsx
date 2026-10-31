@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 /* ── Primitives ────────────────────────────────────────────────────────── */
 
-export function SkeletonLine({
+function SkeletonLine({
   className,
   width,
 }: {
@@ -38,7 +38,7 @@ export function SkeletonLine({
   );
 }
 
-export function SkeletonCircle({ size = 40 }: { size?: number }) {
+function SkeletonCircle({ size = 40 }: { size?: number }) {
   return (
     <span
       className="ax-skeleton ax-skeleton--circle block"
@@ -48,7 +48,7 @@ export function SkeletonCircle({ size = 40 }: { size?: number }) {
   );
 }
 
-export function SkeletonRect({
+function SkeletonRect({
   height = 120,
   className,
 }: {

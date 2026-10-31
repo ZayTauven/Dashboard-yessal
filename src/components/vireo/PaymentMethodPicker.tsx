@@ -23,17 +23,12 @@
 import { cn } from "@/lib/utils";
 /*
  * Le registre a demenage dans `lib/payment-methods.ts` : il etait ecrit ici ET
- * dans `StatusBadge`, et deux catalogues finissent toujours par diverger. On le
- * reexporte pour ne casser aucun import existant.
+ * dans `StatusBadge`, et deux catalogues finissent toujours par diverger.
  */
 import {
   ALL_METHODS,
   PAYMENT_METHODS,
-  type PaymentMethodOption,
 } from "@/lib/payment-methods";
-
-export { ALL_METHODS, PAYMENT_METHODS };
-export type { PaymentMethodOption };
 
 export interface PaymentMethodPickerProps {
   value: string;
@@ -93,5 +88,3 @@ export function PaymentMethodPicker({
     </fieldset>
   );
 }
-
-export default PaymentMethodPicker;

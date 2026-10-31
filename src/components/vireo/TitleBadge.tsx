@@ -44,5 +44,3 @@ export function TitleBadge({ title, size = "md", className }: TitleBadgeProps) {
     </span>
   );
 }
-
-export default TitleBadge;

@@ -55,12 +55,12 @@ export interface ConfirmRequest {
   onConfirm: () => void | Promise<void>;
 }
 
-export interface ConfirmDialogProps extends ConfirmRequest {
+interface ConfirmDialogProps extends ConfirmRequest {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ConfirmDialog({
+function ConfirmDialog({
   open,
   onOpenChange,
   title,
@@ -173,5 +173,3 @@ export function useConfirm() {
 
   return { ask, dialog };
 }
-
-export default ConfirmDialog;

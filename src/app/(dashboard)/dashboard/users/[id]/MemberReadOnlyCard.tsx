@@ -65,5 +65,3 @@ export function MemberReadOnlyCard({ member }: { member: DirectoryUserPayload })
     </section>
   );
 }
-
-export default MemberReadOnlyCard;

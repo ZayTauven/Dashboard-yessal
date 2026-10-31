@@ -117,7 +117,7 @@ function needsPresetDaara(mode: ChatInviteMode) {
 }
 
 /** Les canaux du Kourel restent en tête ; le reste suit l'activité. */
-export function sortChats(rows: ChatRow[]) {
+function sortChats(rows: ChatRow[]) {
   const at = (c: ChatRow) => new Date(c.last_message?.sent_at || c.last_activity_at || 0).getTime();
   return [...rows].sort((a, b) => at(b) - at(a));
 }

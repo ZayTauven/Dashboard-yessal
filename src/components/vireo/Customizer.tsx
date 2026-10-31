@@ -268,5 +268,3 @@ export function Customizer({ open, onClose }: { open: boolean; onClose: () => vo
     </aside>
   );
 }
-
-export default Customizer;

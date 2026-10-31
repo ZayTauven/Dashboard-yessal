@@ -5,7 +5,7 @@
  */
 
 export const PREFIX = 'ax:';
-export const SCHEMA = '1';
+const SCHEMA = '1';
 
 let LS: Storage | null = null;
 try {
@@ -42,7 +42,7 @@ export function remove(key: string): void {
 }
 
 /** Every ax: key currently persisted. */
-export function keys(): string[] {
+function keys(): string[] {
   try {
     if (!LS) return [];
     return Object.keys(LS).filter((k) => k.indexOf(PREFIX) === 0);
@@ -52,7 +52,7 @@ export function keys(): string[] {
 }
 
 /** Wipe every ax: key (used by customizer Reset). */
-export function clearAll(): void {
+function clearAll(): void {
   keys().forEach((k) => remove(k));
 }
 

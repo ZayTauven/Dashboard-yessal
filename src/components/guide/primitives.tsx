@@ -320,7 +320,7 @@ export type MatrixMark = "yes" | "no" | "part";
  * Les trois marques portent un libellé lisible au lecteur d'écran : une coche
  * verte dans une grille de droits n'est pas une décoration, c'est l'information.
  */
-export function Mark({ value, note }: { value: MatrixMark; note?: string }) {
+function Mark({ value, note }: { value: MatrixMark; note?: string }) {
   if (value === "yes")
     return (
       <span className="yg-matrix__yes" title={note}>

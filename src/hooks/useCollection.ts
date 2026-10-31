@@ -20,7 +20,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 
-export type SortDir = "asc" | "desc";
+type SortDir = "asc" | "desc";
 
 export interface SortState<K extends string = string> {
   key: K;
@@ -200,5 +200,3 @@ export function useCollection<T, FK extends string, SK extends string>(
     total,
   };
 }
-
-export default useCollection;

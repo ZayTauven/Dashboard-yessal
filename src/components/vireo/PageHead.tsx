@@ -22,7 +22,7 @@ import { usePathname } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
 import { trailFor, type Role } from "@/lib/nav";
 
-export interface Crumb {
+interface Crumb {
   label: string;
   href?: string;
 }
@@ -103,5 +103,3 @@ export function PageHead({
     </div>
   );
 }
-
-export default PageHead;

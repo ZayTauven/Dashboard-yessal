@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils";
 export const MAX_FILE_SIZE_MB = 15;
 
 /** 2411724 → « 2,3 Mo ». Le séparateur décimal est la virgule, en français. */
-export function formatFileSize(bytes: number): string {
+function formatFileSize(bytes: number): string {
   if (bytes >= 1024 * 1024) {
     return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} Mo`;
   }
@@ -266,5 +266,3 @@ export function FileDrop({
     </div>
   );
 }
-
-export default FileDrop;

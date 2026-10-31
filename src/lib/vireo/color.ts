@@ -28,14 +28,14 @@ export function parseHex(hex: unknown): RGB | null {
   };
 }
 
-export function toHex({ r, g, b }: RGB): string {
+function toHex({ r, g, b }: RGB): string {
   const c = (n: number) =>
     Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
   return '#' + c(r) + c(g) + c(b);
 }
 
 /** Relative sRGB luminance (0-1), used to pick on-accent ink. */
-export function luminance({ r, g, b }: RGB): number {
+function luminance({ r, g, b }: RGB): number {
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }
 
@@ -57,15 +57,15 @@ function mix(a: RGB, b: RGB, t: number): RGB {
 const WHITE: RGB = { r: 255, g: 255, b: 255 };
 const BLACK: RGB = { r: 0, g: 0, b: 0 };
 
-export function lighten(rgb: RGB, t: number): RGB {
+function lighten(rgb: RGB, t: number): RGB {
   return mix(rgb, WHITE, t);
 }
-export function darken(rgb: RGB, t: number): RGB {
+function darken(rgb: RGB, t: number): RGB {
   return mix(rgb, BLACK, t);
 }
 
 /** "30, 133, 108" channel string for rgba() glow/wash derivations. */
-export function rgbString(hex: string): string {
+function rgbString(hex: string): string {
   const rgb = parseHex(hex);
   return rgb ? `${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)}` : '0, 0, 0';
 }

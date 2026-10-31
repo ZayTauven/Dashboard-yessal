@@ -74,5 +74,3 @@ export function DateTile({
     </div>
   );
 }
-
-export default DateTile;

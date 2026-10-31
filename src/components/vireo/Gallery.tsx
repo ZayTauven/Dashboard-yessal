@@ -23,7 +23,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronLeft, ChevronRight, ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export interface GalleryImage {
+interface GalleryImage {
   id: number | string;
   image: string;
   caption?: string | null;

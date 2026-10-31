@@ -559,5 +559,3 @@ export function NewsForm({ post }: { post?: NewsPost | null }) {
     </>
   );
 }
-
-export default NewsForm;

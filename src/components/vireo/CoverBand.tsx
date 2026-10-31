@@ -62,5 +62,3 @@ export function CoverBand({
     </div>
   );
 }
-
-export default CoverBand;

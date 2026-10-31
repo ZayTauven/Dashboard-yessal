@@ -3,14 +3,14 @@
 export type Periode = "mois" | "3mois" | "tout";
 export type RepartitionPar = "ldd" | "daara" | "titre" | "pays";
 
-export interface SuiviPersonne {
+interface SuiviPersonne {
   id: number;
   name: string;
   title: string | null;
   avatar: string | null;
 }
 
-export interface SuiviJef {
+interface SuiviJef {
   id: number;
   donor: SuiviPersonne;
   amount: number;
@@ -32,7 +32,7 @@ export interface SuiviNdiguel {
   recurrent: boolean;
 }
 
-export interface SuiviAlerte {
+interface SuiviAlerte {
   kind: string;
   strong: string;
   text: string;
@@ -53,7 +53,7 @@ export interface SuiviOverview {
   recent: SuiviJef[];
 }
 
-export interface SuiviRepartitionLigne {
+interface SuiviRepartitionLigne {
   id: number | string | null;
   name: string;
   amount: number;

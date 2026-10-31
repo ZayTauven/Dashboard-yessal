@@ -217,5 +217,3 @@ export function DaaraCombobox({
     </Popover>
   );
 }
-
-export default DaaraCombobox;

@@ -25,12 +25,12 @@ import { cn } from "@/lib/utils";
 
 const nf = new Intl.NumberFormat("fr-SN");
 
-export interface FilterOption {
+interface FilterOption {
   value: string;
   label: string;
 }
 
-export interface FilterSpec {
+interface FilterSpec {
   /** Libellé accessible — masqué visuellement, le select étant explicite. */
   label: string;
   value: string;
@@ -162,5 +162,3 @@ export function FilterBar({
     </div>
   );
 }
-
-export default FilterBar;

@@ -41,7 +41,7 @@ import { AudioPlayer, JefCardView } from "./ChannelCards";
 import { buildThread, formatFileSize, formatTime, initials, roleLabel, tokenize, type ThreadEntry } from "./format";
 import type { ChatRow, MessageRow } from "./types";
 
-export const QUICK_REACTIONS = ["👍", "❤️", "🙏", "🤲", "😂", "😮"];
+const QUICK_REACTIONS = ["👍", "❤️", "🙏", "🤲", "😂", "😮"];
 
 /** En deçà de cette distance du bas, on considère qu'on « suit » le fil. */
 const STICKY_PX = 120;

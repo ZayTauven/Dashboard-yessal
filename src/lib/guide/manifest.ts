@@ -273,12 +273,3 @@ export function chaptersForRole(role: GuideRole): GuideChapter[] {
     (c) => c.roles.length === 0 || c.roles.includes(role),
   );
 }
-
-/** Correspondance pour la palette de recherche. */
-export function chapterMatches(chapter: GuideChapter, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  if (chapter.title.toLowerCase().includes(q)) return true;
-  if (chapter.lead.toLowerCase().includes(q)) return true;
-  return (chapter.keywords || []).some((k) => k.includes(q));
-}

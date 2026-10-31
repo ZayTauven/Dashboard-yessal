@@ -23,7 +23,7 @@ import { MoreHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export interface MenuItem {
+interface MenuItem {
   label: string;
   icon?: LucideIcon;
   onSelect?: () => void;
@@ -120,5 +120,3 @@ export function Menu({
     </DropdownMenu.Root>
   );
 }
-
-export default Menu;

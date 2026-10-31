@@ -87,16 +87,6 @@ export function formatFCFAParts(value: number): {
   };
 }
 
-/** 1113000000 → « 1,11 Md FCFA » ; 187000 → « 187 000 FCFA ». */
-export function formatFCFACompact(value: number): string {
-  return formatFCFAParts(value).display;
-}
-
-/** 0.734 → « 73 % ». */
-export function formatPercent(value: number): string {
-  return `${nf.format(Math.round(value * 100))} %`;
-}
-
 /** 1250000 → « 1 250 000 », sans unité. */
 export function formatNumber(value: number): string {
   return nf.format(Math.round(value));

@@ -22,6 +22,10 @@ import { GuideShell } from "@/components/guide/GuideShell";
  * dans un moteur de recherche.
  */
 
+// Chaque page vérifie la session auprès de Django (`exiger-session.ts`) : rien
+// à prérendre au build, où cette vérification ne ferait qu'échouer.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: {
     default: "Yessal Guide",

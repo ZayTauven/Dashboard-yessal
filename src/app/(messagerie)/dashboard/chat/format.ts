@@ -1,7 +1,7 @@
 import type { MessageRow } from "./types";
 
 /** Le rôle, en clair : « member » n'est pas un mot que l'on montre. */
-export const ROLE_LABEL: Record<string, string> = {
+const ROLE_LABEL: Record<string, string> = {
   admin: "Administrateur",
   chef_daara: "Coordinateur du Daara",
   collector: "Collecteur",
@@ -34,29 +34,7 @@ export function formatTime(iso: string) {
   return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
-/**
- * L'horodatage d'une ligne de la liste : l'heure aujourd'hui, « Hier »,
- * le jour de la semaine sur sept jours, puis la date. L'ancien écran
- * affichait l'heure seule — un message d'il y a trois semaines semblait
- * arrivé ce matin.
- */
-export function formatListStamp(iso?: string | null) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const days = daysAgo(d);
-  if (days === 0) return formatTime(iso);
-  if (days === 1) return "Hier";
-  if (days < 7) return d.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "");
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  return d.toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    ...(sameYear ? {} : { year: "2-digit" }),
-  });
-}
-
-export function dayLabel(iso: string) {
+function dayLabel(iso: string) {
   const d = new Date(iso);
   const days = daysAgo(d);
   if (days === 0) return "Aujourd'hui";

@@ -530,5 +530,3 @@ export function RichTextEditor({
     </div>
   );
 }
-
-export default RichTextEditor;

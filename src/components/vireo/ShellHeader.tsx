@@ -384,5 +384,3 @@ export function ShellHeader({
     </header>
   );
 }
-
-export default ShellHeader;

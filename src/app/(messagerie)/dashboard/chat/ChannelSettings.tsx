@@ -38,7 +38,7 @@ function vide(a: Audience | null | undefined) {
 }
 
 /** « Les Serigne ou les Sokhna · de la LDD Casamance » */
-export function resumeAudience(a: Audience | null | undefined, options: AudienceOptions | null): string {
+function resumeAudience(a: Audience | null | undefined, options: AudienceOptions | null): string {
   if (vide(a)) return "Tout le Kourel";
   const noms = (ids: number[] | undefined, liste: { id: number; name: string }[] | undefined) =>
     (ids ?? []).map((id) => liste?.find((x) => x.id === id)?.name ?? `#${id}`);

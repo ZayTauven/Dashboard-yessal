@@ -102,5 +102,3 @@ export function Avatar({
     </span>
   );
 }
-
-export default Avatar;

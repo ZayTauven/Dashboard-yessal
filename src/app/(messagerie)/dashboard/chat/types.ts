@@ -3,7 +3,7 @@
  * liste, le fil, le composeur et le panneau d'informations.
  */
 
-export type LastMessage = {
+type LastMessage = {
   content: string;
   sent_at: string | null;
   sender_name: string;
@@ -12,7 +12,7 @@ export type LastMessage = {
   is_mine?: boolean;
 };
 
-export type MessageType = "text" | "file" | "system" | "card";
+type MessageType = "text" | "file" | "system" | "card";
 
 export type ChatRow = {
   id: number;
@@ -54,11 +54,11 @@ export type ChatRow = {
 /** Les catégories se combinent en ET, les valeurs d'une catégorie en OU. */
 export type Audience = { titles?: number[]; ldds?: number[]; daaras?: number[]; roles?: string[] };
 
-export type PinnedMessage = { id: number; preview: string; sender_name: string; sent_at: string };
+type PinnedMessage = { id: number; preview: string; sender_name: string; sent_at: string };
 
 export type Reaction = { emoji: string; count: number; reacted_by_me: boolean };
 
-export type ReplyPreview = {
+type ReplyPreview = {
   id: number;
   sender_name: string;
   content: string;

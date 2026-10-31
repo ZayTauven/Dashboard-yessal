@@ -33,34 +33,6 @@ export async function getChats() {
   }
 }
 
-export async function sendMessage(chatId: string, content: string) {
-  if (!content.trim()) return { error: "Le message ne peut pas être vide." };
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/comms/messages/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(await getAuthHeader() as Record<string, string>),
-      },
-      body: JSON.stringify({
-        chat: chatId,
-        content,
-      }),
-    });
-
-    if (!res.ok) {
-      return { error: "Impossible d'envoyer le message." };
-    }
-
-    revalidatePath("/dashboard/chat");
-    return { success: true };
-  } catch (err) {
-    console.error(err);
-    return { error: "Erreur de connexion au serveur backend." };
-  }
-}
-
 export async function sendChatMessage(formData: FormData) {
   /* Garde-fou de frontiere, PAS un correctif : aucun appelant actuel n'envoie
      de fichier vide — tous construisent leur FormData a la main, sous garde
@@ -91,26 +63,6 @@ export async function sendChatMessage(formData: FormData) {
   } catch (err) {
     console.error(err);
     return { error: "Erreur de connexion au serveur backend." };
-  }
-}
-
-export async function getMessagesForChat(chatId: string) {
-  try {
-    const res = await fetch(
-      `${BACKEND_URL}/api/comms/messages/?chat=${encodeURIComponent(chatId)}`,
-      {
-        cache: "no-store",
-        headers: await getAuthHeader(),
-      },
-    );
-    if (!res.ok) {
-      return { error: "Impossible de charger les messages.", data: [] };
-    }
-    const data = await res.json();
-    return { data: Array.isArray(data) ? data : data.results ?? [] };
-  } catch (err) {
-    console.error(err);
-    return { error: "Erreur de connexion.", data: [] };
   }
 }
 

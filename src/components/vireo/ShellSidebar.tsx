@@ -39,7 +39,7 @@ import {
 /** Où mènent la photo et le nom du pied de rail. */
 const PROFILE_HREF = "/dashboard/profile";
 
-export interface SidebarUser {
+interface SidebarUser {
   id?: number;
   first_name?: string | null;
   last_name?: string | null;
@@ -277,5 +277,3 @@ export function ShellSidebar({
     </aside>
   );
 }
-
-export default ShellSidebar;

@@ -36,12 +36,12 @@ const D: HTMLElement =
 const PREFIX = store.PREFIX;
 
 /* ── attribute ↔ key ↔ default registry (BUILD-CONVENTIONS §4) ── */
-export interface RegEntry {
+interface RegEntry {
   attr: string;
   key: string;
   def: string;
 }
-export const REGISTRY: Record<string, RegEntry> = {
+const REGISTRY: Record<string, RegEntry> = {
   nav: { attr: 'data-ax-nav', key: 'ax:nav', def: 'vertical' },
   'shell-style': { attr: 'data-ax-shell-style', key: 'ax:shell-style', def: 'default' },
   'sidebar-behavior': { attr: 'data-ax-sidebar-behavior', key: 'ax:sidebar-behavior', def: 'collapsible' },
@@ -90,7 +90,7 @@ const ALL_ATTRS = [
   'data-ax-menu', 'data-ax-page', 'data-ax-width', 'data-ax-header-position', 'data-ax-sidebar-position',
   'data-ax-sidebar', 'data-ax-header', 'data-ax-sidebar-image', 'data-ax-loader', 'data-ax-collapsed',
 ];
-export const RECENT_SWATCH_KEY = 'ax:accent-recent';
+const RECENT_SWATCH_KEY = 'ax:accent-recent';
 
 export function emitChange(reason: string): void {
   document.dispatchEvent(new CustomEvent('ax:change', { detail: { reason } }));
@@ -104,14 +104,14 @@ function systemDark(): boolean {
     return false;
   }
 }
-export function resolveTheme(theme?: string): 'light' | 'dark' {
+function resolveTheme(theme?: string): 'light' | 'dark' {
   const t = theme || store.get(PREFIX + 'theme') || 'system';
   return t === 'system' ? (systemDark() ? 'dark' : 'light') : (t as 'light' | 'dark');
 }
 
 /* ── generic writers ── */
 /** Write attr + key; selecting the default removes BOTH. */
-export function apply(attr: string, key: string, val: string, def: string): void {
+function apply(attr: string, key: string, val: string, def: string): void {
   if (val === def) {
     D.removeAttribute(attr);
     store.remove(key);
@@ -128,26 +128,7 @@ export function setByName(name: string, val: string): string {
   return val;
 }
 
-/* ── theme / accent / direction ── */
-export function setMode(m: string): string {
-  if (m === 'system') {
-    store.set('ax:theme', 'system');
-    D.setAttribute('data-ax-theme', resolveTheme('system'));
-    listenSystem();
-  } else {
-    store.set('ax:theme', m);
-    D.setAttribute('data-ax-theme', m);
-  }
-  applyCanvas(D.getAttribute('data-ax-theme') || 'light');
-  emitChange('theme');
-  document.dispatchEvent(new CustomEvent('ax-theme-change', { detail: { theme: m } }));
-  return m;
-}
-/** Header quick-toggle: flip light↔dark only (never system). */
-export function quickToggleTheme(): string {
-  const cur = D.getAttribute('data-ax-theme') === 'dark' ? 'dark' : 'light';
-  return setMode(cur === 'dark' ? 'light' : 'dark');
-}
+/* ── accent / direction ── */
 
 export function setDir(d: string): string {
   if (d === 'rtl') {
@@ -255,7 +236,7 @@ export function toggleCollapsed(): boolean {
 }
 
 /* ── per-mode custom canvas ── */
-export function applyCanvas(resolved: string): void {
+function applyCanvas(resolved: string): void {
   const r = resolved || resolveTheme();
   const bg = store.get(r === 'dark' ? 'ax:bg-custom-dark' : 'ax:bg-custom');
   if (bg) D.style.setProperty('--ax-canvas', bg);
@@ -263,7 +244,7 @@ export function applyCanvas(resolved: string): void {
 }
 
 /* ── reset / copy / snapshot ── */
-export function currentConfig(): Record<string, string> {
+function currentConfig(): Record<string, string> {
   const cfg: Record<string, string> = {};
   ALL_KEYS.forEach((k) => {
     const v = store.get(k);

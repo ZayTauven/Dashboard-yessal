@@ -431,27 +431,6 @@ export async function createTitle(payload: {
   }
 }
 
-export async function updateTitle(
-  titleId: number,
-  payload: { name?: string; description?: string; is_active?: boolean },
-) {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/titles/${titleId}/`, {
-      method: "PATCH",
-      headers: {
-        ...(await getAuthHeader()),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) return { error: "Mise a jour du titre echouee." };
-    return { data: await res.json() };
-  } catch (err) {
-    console.error("updateTitle:", err);
-    return { error: "Erreur reseau." };
-  }
-}
-
 export async function deleteTitle(titleId: number) {
   try {
     const res = await fetch(`${BACKEND_URL}/api/titles/${titleId}/`, {

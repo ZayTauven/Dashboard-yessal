@@ -70,5 +70,3 @@ export function AuroraToaster({ ...props }: ToasterProps) {
     />
   );
 }
-
-export default AuroraToaster;

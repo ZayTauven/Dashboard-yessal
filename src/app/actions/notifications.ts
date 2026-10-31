@@ -89,21 +89,6 @@ export async function registerFCMToken(token: string) {
   }
 }
 
-export async function unregisterFCMToken(token: string) {
-  try {
-    await fetch(`${BACKEND_URL}/api/comms/fcm-token/`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...((await getAuthHeader()) as Record<string, string>),
-      },
-      body: JSON.stringify({ token }),
-    });
-  } catch {
-    // silent
-  }
-}
-
 export async function markAllNotificationsRead() {
   try {
     const res = await fetch(`${BACKEND_URL}/api/comms/notifications/mark-all-read/`, {

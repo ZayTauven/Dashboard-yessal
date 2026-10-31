@@ -7,11 +7,11 @@
  * qui n'a pas complété son inscription n'a ni date de naissance ni adresse.
  */
 
-export type MemberRole = "admin" | "chef_daara" | "collector" | "member";
+type MemberRole = "admin" | "chef_daara" | "collector" | "member";
 
 /* `accounts.User.Status` — quatre valeurs, pas cinq. « suspended » n'existe
    pas cote Django ; c'est « inactive ». */
-export type MemberStatus = "active" | "pending" | "inactive" | "blocked";
+type MemberStatus = "active" | "pending" | "inactive" | "blocked";
 
 /*
  * `accounts.UserDocument.ValidationStatus`. La valeur validee est
@@ -22,12 +22,12 @@ export type MemberStatus = "active" | "pending" | "inactive" | "blocked";
  */
 export type DocumentStatus = "pending" | "validated" | "rejected";
 
-export interface MemberDaara {
+interface MemberDaara {
   id?: number;
   name?: string | null;
 }
 
-export interface MemberTitle {
+interface MemberTitle {
   id?: number;
   name?: string | null;
 }

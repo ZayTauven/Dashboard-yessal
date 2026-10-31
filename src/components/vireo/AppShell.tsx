@@ -268,5 +268,3 @@ export function AppShell({
     </>
   );
 }
-
-export default AppShell;

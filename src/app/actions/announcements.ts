@@ -45,12 +45,6 @@ export async function getAnnouncements() {
   }
 }
 
-export async function getAnnouncementsPreview(limit = 3) {
-  const { data, error } = await getAnnouncements();
-  if (error || !data) return { data: [] as AnnouncementDto[], error };
-  return { data: data.slice(0, limit) };
-}
-
 export async function createAnnouncement(payload: JsonPayload) {
   try {
     const sanitized = { ...payload };

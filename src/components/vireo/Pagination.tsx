@@ -130,5 +130,3 @@ export function Pagination({
     </nav>
   );
 }
-
-export default Pagination;

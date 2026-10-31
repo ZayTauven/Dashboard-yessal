@@ -538,5 +538,3 @@ export function MemberProfileCard({
     </section>
   );
 }
-
-export default MemberProfileCard;

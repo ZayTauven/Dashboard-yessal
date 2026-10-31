@@ -23,28 +23,21 @@
 import { useMemo } from "react";
 import type { ApexOptions } from "apexcharts";
 import { ApexChart } from "./ApexChart";
-import { cn } from "@/lib/utils";
 
 /* ── Formatage ─────────────────────────────────────────────────────────── */
 
 /*
  * Les formateurs vivent desormais dans `@/lib/format`, un module SANS
  * directive : ce fichier-ci est `"use client"`, et un composant serveur ne peut
- * pas appeler une fonction exportee par un module client. Ils sont reexportes
- * ici pour ne casser aucun import existant.
+ * pas appeler une fonction exportee par un module client. Seul `formatFCFA`
+ * est encore importe depuis ce fichier, et donc reexporte.
  */
-export {
-  formatCompact,
-  formatFCFA,
-  formatNumber,
-  formatPercent,
-} from "@/lib/format";
+export { formatFCFA } from "@/lib/format";
 
 import {
   formatCompact,
   formatFCFA,
   formatNumber,
-  formatPercent,
 } from "@/lib/format";
 
 /* Formateur local des libelles d'axes et d'infobulles. */
@@ -324,92 +317,6 @@ export function DonutBreakdown({
       className={className}
       ariaLabel={`Répartition — ${totalLabel}`}
     />
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   Jauge radiale — progression d'un Ndiguel vers son objectif
-   ═══════════════════════════════════════════════════════════════════════ */
-
-export interface RadialGoalProps {
-  /** Montant déjà collecté. */
-  collected: number;
-  /** Objectif de la campagne. 0 ou absent ⇒ campagne sans objectif chiffré. */
-  goal?: number | null;
-  height?: number;
-  className?: string;
-}
-
-export function RadialGoal({
-  collected,
-  goal,
-  height = 260,
-  className,
-}: RadialGoalProps) {
-  const hasGoal = typeof goal === "number" && goal > 0;
-  const pct = hasGoal ? Math.min(100, (collected / goal) * 100) : 0;
-
-  const options = useMemo<ApexOptions>(
-    () => ({
-      plotOptions: {
-        radialBar: {
-          hollow: { size: "66%" },
-          track: { strokeWidth: "100%" },
-          dataLabels: {
-            name: { fontSize: "12px", offsetY: 22 },
-            value: {
-              fontSize: "26px",
-              fontWeight: 700,
-              offsetY: -14,
-              formatter: (v: number) => `${Math.round(v)} %`,
-            },
-          },
-        },
-      },
-      labels: ["de l'objectif"],
-      stroke: { lineCap: "round" },
-    }),
-    [],
-  );
-
-  if (!hasGoal) {
-    return (
-      <div
-        className={cn(
-          "grid place-items-center rounded-lg border border-dashed border-border-default/70 px-4 text-center",
-          className,
-        )}
-        style={{ minHeight: height }}
-      >
-        <div>
-          <p className="font-mono text-2xl font-semibold text-montant">
-            {formatFCFA(collected)}
-          </p>
-          <p className="mt-1 text-sm text-text-subtle">
-            Ndiguel sans objectif chiffré
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={className}>
-      <ApexChart
-        type="radialBar"
-        height={height}
-        color="--yessal-montant"
-        series={[pct]}
-        apex={options}
-        ariaLabel={`Progression : ${formatPercent(pct / 100)} de l'objectif`}
-      />
-      <p className="-mt-2 text-center text-sm text-text-muted">
-        <span className="font-mono font-semibold text-montant">
-          {formatFCFA(collected)}
-        </span>{" "}
-        sur {formatFCFA(goal)}
-      </p>
-    </div>
   );
 }
 

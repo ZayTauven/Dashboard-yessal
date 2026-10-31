@@ -248,5 +248,3 @@ export function statusLabel(domain: StatusDomain, value?: string | null): string
 export function paymentMethodLabel(value?: string | null): string {
   return paymentMethodLabelFromRegistry(value);
 }
-
-export default StatusBadge;
