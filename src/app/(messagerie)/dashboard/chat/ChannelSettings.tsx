@@ -77,6 +77,7 @@ export function ChannelSettings({
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("");
   const [push, setPush] = useState(true);
+  const [names, setNames] = useState(false);
   const [amounts, setAmounts] = useState(false);
   const [cible, setCible] = useState(false);
   const [audience, setAudience] = useState<Audience>({});
@@ -94,6 +95,7 @@ export function ChannelSettings({
     setDescription(mode === "edit" ? chat?.description ?? "" : "");
     setIcon(mode === "edit" ? chat?.icon ?? "" : "megaphone");
     setPush(mode === "edit" ? chat?.push_enabled ?? true : true);
+    setNames(Boolean(chat?.show_names));
     setAmounts(Boolean(chat?.show_amounts));
     setCible(mode === "edit" ? !vide(chat?.audience) : false);
     setAudience(chat?.audience ?? {});
@@ -129,7 +131,10 @@ export function ChannelSettings({
     if (cible && vide(audience)) return setErreur("Choisissez au moins un critère, ou « Tout le Kourel ».");
     const payload: ChannelSettingsPayload = { name: name.trim(), description: description.trim(), icon };
     if (isChannel) payload.push_enabled = push;
-    if (chat?.channel_kind === "jefs") payload.show_amounts = amounts;
+    if (chat?.channel_kind === "jefs") {
+      payload.show_names = names;
+      payload.show_amounts = names && amounts;
+    }
     if (canTarget) payload.audience = cible || isTitleSalon ? audience : null;
     start(async () => {
       const res = mode === "create" ? await createChannel(payload) : await updateChatSettings(chat!.id, payload);
@@ -294,16 +299,37 @@ export function ChannelSettings({
             </label>
           )}
 
+          {/* Noms puis montants : le montant ne s'affiche que sur une carte
+              nommée, l'interrupteur des montants suit donc celui des noms. */}
           {chat?.channel_kind === "jefs" && (
-            <label className="flex items-start justify-between gap-3 rounded-xl border p-3">
-              <span>
-                <span className="block text-sm font-semibold">Afficher les montants</span>
-                <span className="block text-xs text-muted-foreground">
-                  Seulement pour les Jëfs dont le donateur a accepté d&apos;être nommé. Un Jëf anonyme reste toujours sans montant.
+            <>
+              <label className="flex items-start justify-between gap-3 rounded-xl border p-3">
+                <span>
+                  <span className="block text-sm font-semibold">Afficher les noms</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {"Nomme le donateur de chaque Jëf. Un Jëf anonyme, ou fait avant ce réglage sans que son donateur accepte d’être nommé, reste toujours discret."}
+                  </span>
                 </span>
-              </span>
-              <input type="checkbox" className="ax-switch" checked={amounts} onChange={(e) => setAmounts(e.target.checked)} />
-            </label>
+                <input type="checkbox" className="ax-switch" checked={names} onChange={(e) => setNames(e.target.checked)} />
+              </label>
+              <label className={`flex items-start justify-between gap-3 rounded-xl border p-3 ${names ? "" : "opacity-60"}`}>
+                <span>
+                  <span className="block text-sm font-semibold">Afficher les montants</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {names
+                      ? "Le montant accompagne le nom. Un Jëf anonyme n’en montre jamais."
+                      : "S’affiche seulement avec le nom : activez d’abord « Afficher les noms »."}
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  className="ax-switch"
+                  checked={names && amounts}
+                  disabled={!names}
+                  onChange={(e) => setAmounts(e.target.checked)}
+                />
+              </label>
+            </>
           )}
 
           {erreur && <p className="ax-field__message ax-field__message--error">{erreur}</p>}

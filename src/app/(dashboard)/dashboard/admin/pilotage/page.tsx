@@ -28,6 +28,7 @@
  */
 
 import { useConfirm } from "@/components/vireo/ConfirmDialog";
+import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import { useEffect, useState, useTransition } from "react";
 import {
   createTitle,
@@ -538,9 +539,10 @@ export default function PilotagePage() {
                         <span>
                           Donateur :{" "}
                           <span className="ax-text-strong">
-                            {wire.is_anonymous
-                              ? "Anonyme"
-                              : wire.donor_name || "—"}
+                            {/* Le vrai nom : c'est lui qu'on retrouve sur le
+                                relevé bancaire. L'étiquette rappelle de ne pas le citer. */}
+                            {wire.donor_name || "—"}
+                            {wire.is_anonymous && <AnonymeBadge />}
                           </span>
                         </span>
                         <span>
@@ -917,7 +919,7 @@ export default function PilotagePage() {
                 <ExportButton
                   data={archiveDetails.map((d) => ({
                     Réf: `JEF-${d.id}`,
-                    Donateur: d.is_anonymous ? "Anonyme" : d.donor_name || "—",
+                    Donateur: `${d.donor_name || "—"}${d.is_anonymous ? " (anonyme)" : ""}`,
                     Daara: d.donor_daara_name || "—",
                     Ndiguel: d.campaign_name || "—",
                     Collecteur: d.collector_name || "—",
@@ -987,7 +989,8 @@ export default function PilotagePage() {
                           JEF-{d.id}
                         </td>
                         <td className="ax-table__td font-medium">
-                          {d.is_anonymous ? "Anonyme" : d.donor_name || "—"}
+                          {d.donor_name || "—"}
+                          {d.is_anonymous && <AnonymeBadge />}
                         </td>
                         <td className="ax-table__td ax-text-muted hidden lg:table-cell">
                           {d.donor_daara_name || "—"}

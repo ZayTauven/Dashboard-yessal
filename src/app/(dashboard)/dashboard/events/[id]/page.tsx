@@ -1,4 +1,5 @@
 import { donorName, rankDonors } from "@/lib/donor-ranking";
+import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -55,6 +56,8 @@ type Contribution = {
   date: string;
   payment_method: string;
   is_anonymous: boolean;
+  /** Anonyme, mais nommé pour l'admin et Sangue Bi : étiquette « Anonyme ». */
+  anonymous_revealed?: boolean;
 };
 
 type CampaignRow = {
@@ -271,7 +274,7 @@ export default async function FeteDetailPage({
                     </span>
 
                     <Avatar
-                      name={d.anonymous ? undefined : d.name}
+                      name={d.anonymous && !d.revealed ? undefined : d.name}
                       size="sm"
                       className="shrink-0"
                     />
@@ -280,6 +283,7 @@ export default async function FeteDetailPage({
                       <div className="flex items-baseline justify-between gap-3">
                         <span className="ax-truncate text-sm font-medium">
                           {d.name}
+                          {d.revealed && <AnonymeBadge />}
                           {/* Le Daara n'apparait que si un homonyme figure au
                               classement — voir `rankDonors`. */}
                           {d.hint && (
@@ -469,10 +473,13 @@ export default async function FeteDetailPage({
                     <td className="ax-table__td">
                       <div className="flex items-center gap-3">
                         <Avatar
-                          name={row.is_anonymous ? undefined : row.member_name}
+                          name={row.is_anonymous && !row.anonymous_revealed ? undefined : row.member_name}
                           size="sm"
                         />
-                        <span className="font-medium">{donorName(row)}</span>
+                        <span className="font-medium">
+                          {donorName(row)}
+                          {row.anonymous_revealed && <AnonymeBadge />}
+                        </span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-text-muted hidden lg:table-cell">

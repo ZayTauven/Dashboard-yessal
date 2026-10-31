@@ -296,21 +296,13 @@ export function NewDonationClient({
                   name="isAnonymous"
                   className="ax-checkbox"
                 />
+                {/* Un seul choix depuis le 2026-10-31 : l'anonymat vaut partout
+                    (état du Ndiguel, canal « Les Jëfs du Kourel »). Sans lui,
+                    l'administration décide si le canal nomme les donateurs. */}
                 <span className="text-sm">
-                  Masquer mon identité dans l&apos;état du Ndiguel
-                </span>
-              </label>
-
-              <label className="ax-check">
-                <input
-                  type="checkbox"
-                  name="publicInChannel"
-                  className="ax-checkbox"
-                />
-                <span className="text-sm">
-                  Afficher mon nom dans le canal « Les Jëfs du Kourel »
+                  Rester anonyme
                   <span className="block text-xs text-muted-foreground">
-                    Le montant n&apos;y apparaît jamais. Sans cette case, votre Jëf y est annoncé sans votre nom.
+                    {"Votre nom et votre montant ne seront montrés nulle part, sauf à l’administration du Kourel."}
                   </span>
                 </span>
               </label>

@@ -285,10 +285,10 @@ export async function makeDonation(formData: FormData) {
   const donorId = formData.get("donorId");
   const paymentMethod = formData.get("paymentMethod");
   const wireReference = formData.get("wireReference");
+  /* « Rester anonyme » : le seul choix du donateur. `public_in_channel` n'est
+     plus envoyé — le serveur le déduit de l'anonymat ; l'envoyer le ferait
+     prendre pour la réponse à l'ancienne case. */
   const isAnonymous = formData.get("isAnonymous") === "on";
-  /* Le nom dans le canal « Les Jëfs du Kourel » : sur consentement explicite
-     seulement, jamais le montant. Absent du formulaire = discret. */
-  const publicInChannel = formData.get("publicInChannel") === "on";
 
   if (!campaignId || !amount || !paymentMethod) {
     return { error: "Informations de paiement manquantes." };
@@ -311,7 +311,6 @@ export async function makeDonation(formData: FormData) {
            espèces, demande de collecte d'un membre comprise. Le serveur
            décide seul (demandé, encaissé, puis confirmé à la remise). */
         is_anonymous: isAnonymous,
-        public_in_channel: publicInChannel,
       }),
     });
 

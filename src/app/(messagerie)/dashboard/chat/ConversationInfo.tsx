@@ -187,11 +187,13 @@ export function ConversationInfo({
               </ul>
             ) : (
               <p className="px-2 text-xs leading-relaxed text-muted-foreground">
-                Personne : chaque Jëf confirmé y apparaît de lui-même. Le nom du donateur n&apos;est affiché que s&apos;il
-                l&apos;a choisi
-                {chat.show_amounts
-                  ? ", et son montant aussi dans ce cas — un Jëf anonyme reste sans montant."
-                  : ", et le montant n'est pas affiché."}
+                {`Personne : chaque Jëf confirmé y apparaît de lui-même. ${
+                  !chat.show_names
+                    ? "Les donateurs n’y sont pas nommés."
+                    : chat.show_amounts
+                      ? "Le donateur y est nommé, avec son montant — sauf s’il a choisi de rester anonyme."
+                      : "Le donateur y est nommé, sans son montant — sauf s’il a choisi de rester anonyme."
+                }`}
               </p>
             )}
             <p className="px-2 pt-3 text-[11px] text-muted-foreground">

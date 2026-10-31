@@ -1,4 +1,5 @@
 import { donorName, rankDonors } from "@/lib/donor-ranking";
+import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Percent, Target, TrendingUp, Users } from "lucide-react";
@@ -35,6 +36,8 @@ type Contribution = {
   date: string;
   payment_method: string;
   is_anonymous: boolean;
+  /** Anonyme, mais nommé pour l'admin et Sangue Bi : étiquette « Anonyme ». */
+  anonymous_revealed?: boolean;
 };
 
 const dateFmt = new Intl.DateTimeFormat("fr-SN", {
@@ -228,7 +231,7 @@ export default async function CampaignEtatPage({
                     </span>
 
                     <Avatar
-                      name={d.anonymous ? undefined : d.name}
+                      name={d.anonymous && !d.revealed ? undefined : d.name}
                       size="sm"
                       className="shrink-0"
                     />
@@ -237,6 +240,7 @@ export default async function CampaignEtatPage({
                       <div className="flex items-baseline justify-between gap-3">
                         <span className="ax-truncate text-sm font-medium">
                           {d.name}
+                          {d.revealed && <AnonymeBadge />}
                           {/* Le Daara n'apparait que si un homonyme figure au
                               classement — voir `rankDonors`. */}
                           {d.hint && (
@@ -320,10 +324,13 @@ export default async function CampaignEtatPage({
                     <td className="ax-table__td">
                       <div className="flex items-center gap-3">
                         <Avatar
-                          name={row.is_anonymous ? undefined : row.member_name}
+                          name={row.is_anonymous && !row.anonymous_revealed ? undefined : row.member_name}
                           size="sm"
                         />
-                        <span className="font-medium">{donorName(row)}</span>
+                        <span className="font-medium">
+                          {donorName(row)}
+                          {row.anonymous_revealed && <AnonymeBadge />}
+                        </span>
                       </div>
                     </td>
                     <td className="ax-table__td ax-text-muted hidden md:table-cell">

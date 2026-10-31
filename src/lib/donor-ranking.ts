@@ -32,6 +32,9 @@ export interface RankableContribution {
   daara_name?: string | null;
   amount: number | string;
   is_anonymous?: boolean;
+  /** Le serveur lève l'anonymat pour l'administration et Sangue Bi : le vrai
+   *  nom est là, l'écran doit poser l'étiquette « Anonyme ». */
+  anonymous_revealed?: boolean;
 }
 
 export interface RankedDonor {
@@ -42,11 +45,13 @@ export interface RankedDonor {
   amount: number;
   count: number;
   anonymous: boolean;
+  /** Anonyme, mais nommé pour ce lecteur (admin, Sangue Bi) : à étiqueter. */
+  revealed: boolean;
 }
 
-/** Un don anonyme ne porte ni nom ni initiales. */
+/** Un don anonyme ne porte ni nom ni initiales — sauf pour qui le serveur lève l'anonymat. */
 export function donorName(c: RankableContribution): string {
-  return c.is_anonymous ? "Contributeur anonyme" : c.member_name || "—";
+  return c.is_anonymous && !c.anonymous_revealed ? "Contributeur anonyme" : c.member_name || "—";
 }
 
 /**
@@ -77,6 +82,7 @@ export function rankDonors(
         amount: Number(c.amount) || 0,
         count: 1,
         anonymous,
+        revealed: anonymous && Boolean(c.anonymous_revealed),
       });
     }
   });

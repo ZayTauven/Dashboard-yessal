@@ -17,6 +17,7 @@
  */
 
 import { useMemo, useState, useTransition } from "react";
+import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import { Ban, Check, FileCheck2, HandCoins, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { cancelDonation, confirmCashDeposit } from "@/app/actions/donations";
@@ -265,7 +266,8 @@ function CollectorCash({
                   </span>
                 </span>
                 <span className="ax-list__meta text-xs">
-                  {d.is_anonymous ? "Anonyme" : d.donor_name || "—"}
+                  {d.donor_name || "—"}
+                  {d.is_anonymous && <AnonymeBadge />}
                   {d.donor_daara_name ? ` · ${d.donor_daara_name}` : ""}
                   {d.campaign_name ? ` · ${d.campaign_name}` : ""}
                 </span>

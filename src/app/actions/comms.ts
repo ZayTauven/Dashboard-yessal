@@ -510,6 +510,7 @@ export type ChannelSettingsPayload = {
   description?: string;
   icon?: string;
   push_enabled?: boolean;
+  show_names?: boolean;
   show_amounts?: boolean;
   /** `null` : tout le Kourel. */
   audience?: { titles?: number[]; ldds?: number[]; daaras?: number[]; roles?: string[] } | null;

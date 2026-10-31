@@ -42,6 +42,7 @@ export type ChatRow = {
   audience?: Audience | null;
   push_enabled?: boolean;
   /** « Les Jëfs du Kourel » : montants affichés (avec le consentement du donateur). */
+  show_names?: boolean;
   show_amounts?: boolean;
   /** Clé d'icône (liste fermée côté serveur), vide : l'icône par défaut. */
   icon?: string;
