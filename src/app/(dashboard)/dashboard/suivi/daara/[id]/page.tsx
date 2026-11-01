@@ -5,6 +5,7 @@ import { jwtDecode } from "jwt-decode";
 import { HandCoins, MessageCircle, Phone, Users } from "lucide-react";
 import { getSuiviDaara } from "@/app/actions/suivi";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import { Amount } from "@/components/vireo/Amount";
 import { Avatar } from "@/components/vireo/Avatar";
 import { PageHead } from "@/components/vireo/PageHead";
@@ -178,7 +179,10 @@ export default async function SuiviDaaraPage({
               {d.donations.map((j) => (
                 <li key={j.id} className="flex items-center gap-3 border-b py-2.5 last:border-b-0" style={{ borderColor: "var(--ax-border)" }}>
                   <div className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{j.donor.name}</span>
+                    <span className="block truncate text-sm font-semibold">
+                      {j.donor.name}
+                      {j.is_anonymous && <AnonymeBadge />}
+                    </span>
                     <span className="ax-text-subtle block truncate text-xs">{j.campaign.name} · {j.method}</span>
                   </div>
                   <div className="text-right">

@@ -24,12 +24,15 @@ import { toast } from "sonner";
 import { claimDonation, releaseDonation } from "@/app/actions/collecte";
 import { collectDonation } from "@/app/actions/donations";
 import { useConfirm } from "@/components/vireo/ConfirmDialog";
+import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import { formatFCFA } from "@/lib/format";
 
 export type QueueDonation = {
   id: number;
   amount: number | string;
   donor_name?: string;
+  /** Le collecteur rencontre le donateur : nom gardé, étiqueté « Anonyme ». */
+  is_anonymous?: boolean;
   donor_phone?: string | null;
   donor_daara_name?: string | null;
   campaign_name?: string;
@@ -134,7 +137,10 @@ export function CollectQueues({
               <li key={d.id} className="ax-list__row items-start">
                 <span className="ax-list__content gap-1">
                   <span className="ax-cluster flex-wrap gap-2">
-                    <span className="ax-list__title">{d.donor_name || "—"}</span>
+                    <span className="ax-list__title">
+                      {d.donor_name || "—"}
+                      {d.is_anonymous && <AnonymeBadge />}
+                    </span>
                     <span className="text-montant font-mono tabular font-semibold">
                       {formatFCFA(Number(d.amount || 0))}
                     </span>
@@ -228,7 +234,10 @@ export function CollectQueues({
               {cash.map((d) => (
                 <li key={d.id} className="ax-list__row">
                   <span className="ax-list__content">
-                    <span className="ax-list__title text-sm">{d.donor_name || "—"}</span>
+                    <span className="ax-list__title text-sm">
+                      {d.donor_name || "—"}
+                      {d.is_anonymous && <AnonymeBadge />}
+                    </span>
                     <span className="ax-list__meta text-xs">
                       JEF-{d.id}
                       {d.collected_at ? ` · ${dateFmt.format(new Date(d.collected_at))}` : ""}

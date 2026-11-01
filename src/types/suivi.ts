@@ -17,6 +17,8 @@ interface SuiviJef {
   campaign: { id: number; name: string };
   method: string;
   daara: string | null;
+  /** Le donateur a demandé l'anonymat : la guide voit son nom, étiqueté « Anonyme ». */
+  is_anonymous?: boolean;
   created_at: string;
 }
 

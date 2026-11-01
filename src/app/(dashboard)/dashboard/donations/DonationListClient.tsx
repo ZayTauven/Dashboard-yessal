@@ -31,6 +31,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatFCFA } from "@/components/charts/YessalCharts";
 import { DataTable, type Column } from "@/components/vireo/DataTable";
 import { FilterBar } from "@/components/vireo/FilterBar";
+import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import { Pagination } from "@/components/vireo/Pagination";
 import {
   PaymentMethodBadge,
@@ -54,6 +55,9 @@ type DonationRow = {
   payment_status: string;
   donor?: number;
   donor_name?: string | null;
+  /** Anonyme : le serveur ne laisse le nom qu'à qui peut le voir (admin,
+   *  Sangue Bi, collecteur) — `donor` vaut alors l'identifiant, sinon null. */
+  is_anonymous?: boolean;
   collector?: number | null;
   collector_name?: string | null;
   donor_daara_name?: string | null;
@@ -268,7 +272,7 @@ function DonationTable({
           Référence: `REF-${d.id}`,
         };
         if (showDonor) {
-          row.Talubé = d.donor_name || "—";
+          row.Talubé = `${d.donor_name || "—"}${d.is_anonymous && d.donor ? " (anonyme)" : ""}`;
           row.LDD = d.donor_ldd_name || "—";
           row.Daara = d.donor_daara_name || "—";
         }
@@ -313,9 +317,14 @@ function DonationTable({
               className="ax-link font-medium"
             >
               {d.donor_name || "—"}
+              {d.is_anonymous && <AnonymeBadge />}
             </Link>
           ) : (
-            <span className="font-medium">{d.donor_name || "—"}</span>
+            <span className="font-medium">
+              {d.donor_name || "—"}
+              {/* Masqué par le serveur (« Contributeur anonyme ») : rien à étiqueter. */}
+              {d.is_anonymous && d.donor ? <AnonymeBadge /> : null}
+            </span>
           ),
       });
     }

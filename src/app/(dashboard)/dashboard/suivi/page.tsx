@@ -4,6 +4,7 @@ import { jwtDecode } from "jwt-decode";
 import { CalendarClock, Globe2, HandCoins, Users } from "lucide-react";
 import { getGuideChannel, getRepartition, getSuivi } from "@/app/actions/suivi";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import { Amount } from "@/components/vireo/Amount";
 import { Avatar } from "@/components/vireo/Avatar";
 import { PageHead } from "@/components/vireo/PageHead";
@@ -326,6 +327,7 @@ export default async function SuiviPage({
                       <td className="ax-table__td">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">{j.donor.name}</span>
+                          {j.is_anonymous && <AnonymeBadge />}
                           <TitleBadge title={j.donor.title} size="sm" />
                         </div>
                         <span className="ax-text-subtle text-xs">

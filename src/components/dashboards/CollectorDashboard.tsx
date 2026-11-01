@@ -39,6 +39,7 @@ import { BarCompare, formatFCFA, type Point } from "@/components/charts/YessalCh
 import { KpiDelta } from "@/components/vireo/KpiDelta";
 import { KpiValue } from "@/components/vireo/Amount";
 import { PageHead } from "@/components/vireo/PageHead";
+import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import { EmptyState } from "@/components/ui/empty-state";
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -75,6 +76,8 @@ interface Kpi {
 interface Collecte {
   id?: number;
   donor_name?: string | null;
+  /** Le collecteur garde le nom ; l'étiquette lui rappelle de ne pas le citer. */
+  is_anonymous?: boolean;
   campaign_name?: string | null;
   amount?: number | string | null;
   status?: string | null;
@@ -265,6 +268,7 @@ export default function CollectorDashboard({ stats }: { stats: CollectorStats | 
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium text-text-strong">
                             {c.donor_name || `Don #${c.id ?? "—"}`}
+                            {c.is_anonymous && <AnonymeBadge />}
                           </p>
                           <p className="truncate text-xs text-text-subtle">
                             {formatMoment(c.created_at)}
