@@ -7,9 +7,11 @@
 import { cookies } from "next/headers";
 import type {
   Periode,
+  PodiumPeriode,
   RepartitionPar,
   SuiviDaara,
   SuiviOverview,
+  SuiviPodium,
   SuiviRepartition,
 } from "@/types/suivi";
 
@@ -39,6 +41,10 @@ export async function getSuivi(periode: Periode) {
 
 export async function getRepartition(par: RepartitionPar, periode: Periode) {
   return lire<SuiviRepartition>(`/api/suivi/repartition/?par=${par}&periode=${periode}`);
+}
+
+export async function getPodium(periode: PodiumPeriode) {
+  return lire<SuiviPodium>(`/api/suivi/podium/?periode=${periode}`);
 }
 
 export async function getSuiviDaara(id: number, periode: Periode) {

@@ -34,6 +34,7 @@ export function ConversationInfo({
   onToggleMute,
   onLeave,
   onDelete,
+  onClear,
   onAddMembers,
   onRemoveMember,
   onSetModerator,
@@ -53,6 +54,8 @@ export function ConversationInfo({
   onLeave: () => void;
   /** Supprimer le salon — l'administration. */
   onDelete: () => void;
+  /** « Supprimer la discussion » d'un tête-à-tête, chez moi seulement. */
+  onClear: () => void;
   onAddMembers: (ids: number[]) => Promise<boolean>;
   onRemoveMember: (member: ChatMember) => void;
   onSetModerator: (member: ChatMember, isModerator: boolean) => void;
@@ -260,6 +263,18 @@ export function ConversationInfo({
                 </ul>
               </section>
             ))}
+          </div>
+        )}
+
+        {chat.chat_type === "direct" && (
+          <div className="border-t px-4 py-4">
+            <button type="button" className="ax-btn ax-btn--ghost-danger ax-btn--sm w-full" onClick={onClear} disabled={busy}>
+              <Trash2 size={14} aria-hidden />
+              <span className="ax-btn__label">Supprimer la discussion</span>
+            </button>
+            <p className="ax-text-subtle mt-2 text-center text-[11px]">
+              {"Chez vous seulement : votre interlocuteur garde les messages."}
+            </p>
           </div>
         )}
 

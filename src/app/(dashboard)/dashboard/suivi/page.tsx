@@ -2,17 +2,18 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
 import { CalendarClock, Globe2, HandCoins, Users } from "lucide-react";
-import { getGuideChannel, getRepartition, getSuivi } from "@/app/actions/suivi";
+import { getGuideChannel, getPodium, getRepartition, getSuivi } from "@/app/actions/suivi";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { AnonymeBadge } from "@/components/vireo/AnonymeBadge";
 import { Amount } from "@/components/vireo/Amount";
-import { Avatar } from "@/components/vireo/Avatar";
 import { PageHead } from "@/components/vireo/PageHead";
 import { StatCard } from "@/components/vireo/StatCard";
 import { TitleBadge } from "@/components/vireo/TitleBadge";
 import type { Role } from "@/lib/nav";
 import { lirePeriode, PERIODES, type Periode, type SuiviNdiguel } from "@/types/suivi";
 import { AnnonceCard } from "./AnnonceCard";
+import { BienvenueGuide } from "./BienvenueGuide";
+import { PodiumCard } from "./PodiumCard";
 import { RepartitionCard } from "./RepartitionCard";
 
 /*
@@ -104,10 +105,11 @@ export default async function SuiviPage({
     }
   }
 
-  const [suivi, repartition, canal] = await Promise.all([
+  const [suivi, repartition, canal, podium] = await Promise.all([
     getSuivi(periode),
     getRepartition("daara", periode),
     getGuideChannel(),
+    getPodium("semaine"),
   ]);
 
   if (suivi.error || !suivi.data) {
@@ -125,10 +127,13 @@ export default async function SuiviPage({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* L'accueil de Sangue Bi, avant les chiffres ; l'administration, qui
+          consulte la même page, va droit aux métriques. */}
+      {role === "guide" && <BienvenueGuide prenom={prenom} />}
       <PageHead
         role={role}
         title="Le Kourel aujourd'hui"
-        subtitle={role === "guide" ? `Assalamou alaykoum${prenom ? `, ${prenom}` : ""}.` : "La fenêtre de suivi de Sangue Bi."}
+        subtitle={role === "guide" ? "Les chiffres du jour, en un coup d'œil." : "La fenêtre de suivi de Sangue Bi."}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <nav className="ax-tabs ax-tabs--pill" aria-label="Période">
@@ -267,37 +272,9 @@ export default async function SuiviPage({
       <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <RepartitionCard periode={periode} initiale={repartition.data ?? null} />
 
-        <section className="ax-card" aria-labelledby="suivi-coord">
-          <div className="ax-card__header">
-            <div className="ax-card__titles">
-              <h2 id="suivi-coord" className="ax-card__title">Coordinateurs</h2>
-            </div>
-            <span className="ax-text-subtle text-xs">
-              {s.coordinators.total} pour {s.coordinators.daaras.toLocaleString("fr-FR")} Daaras
-            </span>
-          </div>
-          <ul className="ax-card__body flex flex-col">
-            {s.coordinators_list.length === 0 && <li className="ax-text-subtle text-sm">Aucun coordinateur nommé.</li>}
-            {s.coordinators_list.map((c) => (
-              <li key={c.id} className="flex items-center gap-3 border-b py-2.5 last:border-b-0" style={{ borderColor: "var(--ax-border)" }}>
-                <Avatar src={c.avatar} name={c.name} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{c.name}</span>
-                  {c.daara ? (
-                    <Link href={`/dashboard/suivi/daara/${c.daara.id}?periode=${periode}`} className="ax-link text-xs">
-                      Daara {c.daara.name}
-                    </Link>
-                  ) : (
-                    <span className="ax-text-subtle text-xs">Sans Daara</span>
-                  )}
-                </div>
-                <span className={`text-sm font-bold tabular-nums ${c.amount ? "" : "ax-text-subtle"}`}>
-                  {c.amount ? <Amount value={c.amount} /> : "—"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {/* Le podium des donateurs remplace « Coordinateurs » (demande du
+            porteur, 2026-11-01) : c'est lui que Sangue Bi annonce au Kourel. */}
+        <PodiumCard initiale={podium.data ?? null} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">

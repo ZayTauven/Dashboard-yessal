@@ -2,6 +2,8 @@
 
 export type Periode = "mois" | "3mois" | "tout";
 export type RepartitionPar = "ldd" | "daara" | "titre" | "pays";
+/** Le podium des donateurs : semaine depuis lundi, mois depuis le 1er, année depuis le 1er janvier. */
+export type PodiumPeriode = "semaine" | "mois" | "annee";
 
 interface SuiviPersonne {
   id: number;
@@ -63,6 +65,19 @@ interface SuiviRepartitionLigne {
   pct: number;
   members?: number;
   ldd?: string | null;
+}
+
+export interface SuiviPodium {
+  period: PodiumPeriode;
+  since: string;
+  rows: (SuiviPersonne & {
+    rank: number;
+    daara: { id: number; name: string } | null;
+    amount: number;
+    count: number;
+    /** Au moins un Jëf anonyme dans la période : nom visible par la guide, étiqueté. */
+    anonymous: boolean;
+  })[];
 }
 
 export interface SuiviRepartition {

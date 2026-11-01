@@ -419,6 +419,11 @@ export async function leaveChat(chatId: number) {
   return postChatAction(`${chatId}/leave/`, null, "Impossible de quitter le salon.");
 }
 
+/** « Supprimer la discussion » d'un tête-à-tête, chez moi seulement (comme WhatsApp). */
+export async function clearChat(chatId: number) {
+  return postChatAction(`${chatId}/clear/`, null, "Impossible de supprimer la discussion.");
+}
+
 /** Supprimer un salon, messages et fichiers compris — l'administration seulement. */
 export async function deleteChat(chatId: number) {
   try {

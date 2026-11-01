@@ -46,6 +46,7 @@ import {
   getPusherAuthSignature,
   leaveChat,
   deleteChat,
+  clearChat,
   markChatAsRead,
   pinMessage,
   removeChatMember,
@@ -355,6 +356,13 @@ export function ChatInterface({
       toast("Nouvelle demande de discussion", { description: "Ouvrez les demandes pour répondre." });
     });
     userChannel.bind("chat-updated", onChatUpdated);
+    /* Discussion supprimée sur un autre appareil, salon supprimé par
+       l'administration : la liste se recharge, et le fil ouvert se ferme
+       s'il n'y figure plus. Cet événement partait sans que rien l'écoute. */
+    userChannel.bind("chat-settings", (data: { chat_id: number }) => {
+      void reloadChats();
+      if (selectedIdRef.current === data.chat_id) setResyncTick((t) => t + 1);
+    });
     /* Lu sur un autre appareil : la pastille s'éteint ici aussi. */
     userChannel.bind("chat-read", (data: { chat_id: number; user_id: number }) => {
       if (data.user_id !== currentUserId) return;
@@ -811,6 +819,27 @@ export function ChatInterface({
         setSelectedId(null);
         setMobileView("list");
         toast.success("Vous avez quitté le salon.");
+      },
+    });
+  };
+
+  /* « Supprimer la discussion », comme WhatsApp : chez moi seulement. L'autre
+     garde l'historique ; le prochain message fait revenir le fil, vide. */
+  const handleClearChat = () => {
+    if (!selectedChat) return;
+    const chat = selectedChat;
+    ask({
+      title: `Supprimer la discussion avec ${chat.display_name} ?`,
+      description:
+        "Les messages disparaissent de votre côté seulement : votre interlocuteur les garde. Un nouveau message fera revenir la discussion, à partir de ce message.",
+      confirmLabel: "Supprimer la discussion",
+      onConfirm: async () => {
+        const res = await clearChat(chat.id);
+        if (res.error) return void toast.error(res.error);
+        setChatList((rows) => rows.filter((c) => c.id !== chat.id));
+        setSelectedId(null);
+        setMobileView("list");
+        toast.success("Discussion supprimée.");
       },
     });
   };
@@ -1299,6 +1328,7 @@ export function ChatInterface({
             onToggleMute={handleToggleMute}
             onLeave={handleLeave}
             onDelete={handleDeleteSalon}
+            onClear={handleClearChat}
             onAddMembers={handleAddMembers}
             onRemoveMember={handleRemoveMember}
             onSetModerator={handleSetModerator}
