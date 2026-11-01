@@ -100,6 +100,9 @@ export function navSections(role: Role): NavSection[] {
           title: "Tableau de bord",
           href: "/dashboard",
           icon: LayoutDashboard,
+          /* Sangue Bi n'a pas de tableau de bord : `/dashboard` la renvoie au
+             Suivi du Kourel, qui a déjà son entrée juste en dessous. */
+          roles: ["admin", "chef_daara", "collector", "member", "tutelle"],
           keywords: ["accueil", "kpi", "statistiques"],
         },
         /* La fenêtre de Sangue Bi, la guide du Kourel : toute la plateforme

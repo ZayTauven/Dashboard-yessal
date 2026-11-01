@@ -157,7 +157,13 @@ export function QuickActions({ role = "member", open, onOpenChange }: QuickActio
       {
         heading: "Aller à",
         items: [
-          { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, href: "/dashboard" },
+          {
+            id: "dashboard",
+            label: "Tableau de bord",
+            icon: LayoutDashboard,
+            href: "/dashboard",
+            roles: ["admin", "chef_daara", "collector", "member", "tutelle"],
+          },
           {
             id: "campaigns",
             label: "Ndiguels",
