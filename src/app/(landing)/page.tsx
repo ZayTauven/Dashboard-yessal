@@ -41,15 +41,48 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
 
-/* ── Slots galerie ── */
-const gallerySlots = [
-  { label: "Magal de Touba", src: "/assets/yessal-event-1.jpg" },
-  { label: "Gamou", src: "/assets/yessal-event-2.jpg" },
-  { label: "Tog Ajumma", src: "/assets/yessal-event-3.jpg" },
-  { label: "Rassemblement", src: "/assets/yessal-event-4.jpg" },
-  { label: "Ziar", src: "/assets/yessal-event-5.jpg" },
-  { label: "Communauté", src: "/assets/yessal-event-6.jpg" },
+/*
+ * ── Galerie ──
+ * Deux colonnes aux photos DISTINCTES : autrefois les deux bandes déroulaient
+ * les six mêmes images, et l'œil voyait la répétition en quelques secondes.
+ * L'ordre alterne portraits et scènes pour que deux visages voisins ne se
+ * ressemblent pas. Seules les photos d'origine portent une étiquette : on
+ * n'invente pas d'événement pour les autres.
+ */
+type GallerySlot = { src: string; label?: string };
+
+const GALLERY_COLUMNS: GallerySlot[][] = [
+  [
+    { label: "Magal de Touba", src: "/assets/yessal-event-1.jpg" },
+    { src: "/assets/galerie/galerie-01.jpg" },
+    { label: "Tog Ajumma", src: "/assets/yessal-event-3.jpg" },
+    { src: "/assets/galerie/galerie-05.jpg" },
+    { src: "/assets/galerie/galerie-15.jpg" },
+    { src: "/assets/galerie/galerie-03.jpg" },
+    { label: "Ziar", src: "/assets/yessal-event-5.jpg" },
+    { src: "/assets/galerie/galerie-10.jpg" },
+    { src: "/assets/yessal-event-9.jpg" },
+    { src: "/assets/galerie/galerie-07.jpg" },
+    { src: "/assets/galerie/galerie-11.jpg" },
+  ],
+  [
+    { src: "/assets/galerie/galerie-02.jpg" },
+    { label: "Gamou", src: "/assets/yessal-event-2.jpg" },
+    { src: "/assets/galerie/galerie-14.jpg" },
+    { src: "/assets/galerie/galerie-08.jpg" },
+    { label: "Rassemblement", src: "/assets/yessal-event-4.jpg" },
+    { src: "/assets/galerie/galerie-04.jpg" },
+    { src: "/assets/galerie/galerie-12.jpg" },
+    { src: "/assets/galerie/galerie-09.jpg" },
+    { label: "Communauté", src: "/assets/yessal-event-6.jpg" },
+    { src: "/assets/galerie/galerie-06.jpg" },
+    { src: "/assets/galerie/galerie-13.jpg" },
+  ],
 ];
+
+/* Même vitesse de défilement qu'avant (30 s pour 6 cartes), quelle que soit
+   la longueur de la colonne. */
+const SECONDS_PER_SLOT = 5;
 
 /*
  * Les trois arguments du produit. Ils remplacent les anciennes « statistiques »
@@ -198,17 +231,26 @@ export default function LandingPage() {
           }}
         >
           <div className="absolute inset-0 flex justify-center gap-4 px-4 py-4">
-            {[0, 1].map((col) => (
+            {GALLERY_COLUMNS.map((slots, col) => (
               <div
                 key={col}
-                className="gallery-scroll flex flex-col gap-4"
-                /* La seconde colonne démarre décalée, pour éviter deux bandes
-                   parfaitement synchrones. */
-                style={col === 1 ? { animationDelay: "-15s" } : undefined}
+                /* `pb-4` égale le `gap` : la colonne doublée mesure alors
+                   exactement deux fois la série, et la boucle à -50 % ne
+                   saute plus de 8 px à chaque tour. */
+                className="gallery-scroll flex flex-col gap-4 pb-4"
+                style={{
+                  animationDuration: `${slots.length * SECONDS_PER_SLOT}s`,
+                  /* La seconde colonne démarre décalée, pour éviter deux
+                     bandes parfaitement synchrones. */
+                  animationDelay:
+                    col === 1
+                      ? `-${(slots.length * SECONDS_PER_SLOT) / 2}s`
+                      : undefined,
+                }}
               >
-                {[...gallerySlots, ...gallerySlots].map((slot, i) => (
+                {[...slots, ...slots].map((slot, i) => (
                   <div
-                    key={`${col}-${slot.label}-${i}`}
+                    key={`${col}-${i}`}
                     className="relative h-56 w-44 shrink-0 overflow-hidden rounded-(--ax-radius-lg)"
                   >
                     <Image
@@ -219,11 +261,13 @@ export default function LandingPage() {
                       className="object-cover"
                     />
                     <div className="absolute inset-0 bg-black/15" />
-                    <div className="absolute inset-x-2 bottom-2">
-                      <span className="ax-badge ax-badge--sm ax-badge--solid ax-truncate">
-                        {slot.label}
-                      </span>
-                    </div>
+                    {slot.label && (
+                      <div className="absolute inset-x-2 bottom-2">
+                        <span className="ax-badge ax-badge--sm ax-badge--solid ax-truncate">
+                          {slot.label}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
