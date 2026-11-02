@@ -47,6 +47,7 @@ import {
   type MemberDocument,
   type MemberTutelle,
 } from "@/types/member";
+import { nomPays } from "@/lib/pays";
 import { cn } from "@/lib/utils";
 
 /* ── Formatage ─────────────────────────────────────────────────────────── */
@@ -251,7 +252,7 @@ export function MemberProfileCard({
   const validatedDocs = documents.filter((d) => d.status === "validated").length;
   const pendingDocs = documents.filter((d) => d.status === "pending").length;
 
-  const location = [member.city, member.residence_country].filter(Boolean).join(", ");
+  const location = [member.city, nomPays(member.residence_country)].filter(Boolean).join(", ");
 
   return (
     <section

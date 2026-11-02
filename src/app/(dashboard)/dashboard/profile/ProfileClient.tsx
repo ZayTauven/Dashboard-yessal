@@ -53,6 +53,7 @@ import {
   updateUserDocument,
 } from "@/app/actions/users";
 import PhoneNumberValidation from "@/components/PhoneNumberValidation";
+import { PaysSelect } from "@/components/PaysSelect";
 import { roleLabelLong } from "@/lib/roles";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Avatar } from "@/components/vireo/Avatar";
@@ -640,11 +641,10 @@ export function ProfileClient({
                     <label className="ax-field__label" htmlFor="residence_country">
                       Pays de résidence
                     </label>
-                    <input
+                    <PaysSelect
                       id="residence_country"
-                      name="residence_country"
-                      className="ax-input"
-                      defaultValue={profile?.residence_country ?? ""}
+                      defaultValue={profile?.residence_country}
+                      placeholder="Non renseigné"
                     />
                   </div>
                   <div className="ax-field">

@@ -128,6 +128,7 @@ const LABELS: Record<string, string> = {
   last_name: "Nom",
   email: "Adresse e-mail",
   phone: "Téléphone",
+  residence_country: "Pays de résidence",
   password: "Mot de passe",
   amount: "Montant",
   date: "Date",

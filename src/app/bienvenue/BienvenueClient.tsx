@@ -15,6 +15,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, LogOut } from "lucide-react";
 import { BrandMark } from "@/components/BrandMark";
+import { PaysSelect } from "@/components/PaysSelect";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { DaaraCombobox, type DaaraOption } from "@/components/vireo/DaaraCombobox";
 import { PasswordChangeForm } from "@/components/vireo/PasswordChangeForm";
@@ -245,11 +246,10 @@ function EtapeFiche({ profile, onDone }: { profile: Profil; onDone: () => void }
           <label className="ax-field__label" htmlFor="residence_country">
             Pays de résidence
           </label>
-          <input
+          <PaysSelect
             id="residence_country"
-            name="residence_country"
-            className="ax-input"
-            defaultValue={profile.residence_country ?? ""}
+            defaultValue={profile.residence_country}
+            placeholder="Choisir…"
             required
           />
         </div>
