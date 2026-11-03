@@ -46,8 +46,12 @@ import { formatFCFAParts, formatNumber } from "@/lib/format";
  */
 function sizeFor(text: string, { money = false } = {}): string {
   if (!money && text.length <= 10) return "text-[length:var(--ax-num-kpi)]";
-  if (text.length <= 14) return "text-[26px] leading-[32px]";
-  return "text-[21px] leading-[28px]";
+  /* Plafonnée par la largeur de la tuile (`cqi`, la carte de KPI est un
+     conteneur) : à 26 px, « 25,34 Md » en chiffres à chasse fixe mesure
+     125 px, plus que la tuile d'un téléphone. Hors conteneur, `cqi` se
+     rapporte à l'écran et le plafond ne joue pas. */
+  if (text.length <= 14) return "text-[length:min(26px,14cqi)] leading-[1.25]";
+  return "text-[length:min(21px,11cqi)] leading-[1.3]";
 }
 
 export interface AmountProps {

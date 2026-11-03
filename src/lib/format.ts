@@ -24,6 +24,9 @@ const nf = new Intl.NumberFormat("fr-SN", { maximumFractionDigits: 0 });
 const nfCompact = new Intl.NumberFormat("fr-SN", {
   notation: "compact",
   maximumFractionDigits: 1,
+  /* Le centre des anneaux l'emploie pour un TOTAL : 1,96 Md ne s'écrit pas
+     « 2 Md ». Sans effet sur les graduations d'axe, qui sont rondes. */
+  roundingMode: "trunc",
 });
 
 /** 1250000 → « 1 250 000 FCFA ». */
@@ -63,6 +66,10 @@ const nfAmountCompact = new Intl.NumberFormat("fr-SN", {
   notation: "compact",
   compactDisplay: "short",
   maximumFractionDigits: 2,
+  /* TRONQUÉ, jamais arrondi (2026-11-03) : 24 999 999 999 s'écrivait
+     « 25 Md », 1 999 999 999 « 2 Md ». Un total ne s'annonce pas plus gros
+     qu'il n'est — même règle que `formatNumberCompact` du mobile. */
+  roundingMode: "trunc",
 });
 
 /**

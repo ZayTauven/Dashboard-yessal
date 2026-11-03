@@ -765,6 +765,32 @@
     display: flex;
     flex-direction: column;
     gap: var(--ax-space-3);
+    /* Yessal (2026-11-03) : la carte devient un conteneur, pour que la
+       valeur se règle sur la largeur réelle de la tuile — deux colonnes sur
+       un téléphone, sidebar ouverte à 800 px — et non sur l'écran. */
+    container-type: inline-size;
+  }
+
+  /*
+   * Yessal (2026-11-03) — des milliards dans une tuile étroite.
+   *
+   * Les tableaux de bord enveloppent libellé et valeur dans un <div>, que la
+   * grille ci-dessus place À CÔTÉ de l'icône : la valeur n'avait que la
+   * colonne restante, ~83 px à 375 px. « 25,34 Md » (insécable) en débordait
+   * et la carte coupait « Md » : on lisait « 25,34 FCFA ».
+   *
+   * Sous 260 px de carte, ce bloc passe sous l'icône, sur toute la largeur.
+   * Au-delà, rien ne change. Et la valeur ne disparaît plus jamais derrière
+   * le bord : au pire, elle passe à la ligne.
+   */
+  @container (max-width: 260px) {
+    .ax-kpi:has(> .ax-kpi__top) > div:has(> .ax-kpi__value) {
+      grid-column: 1 / -1;
+    }
+  }
+  .ax-kpi__value {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .ax-card__kpi-val {
     font-family: var(--ax-font-display);
