@@ -4,113 +4,311 @@
  * ═══════════════════════════════════════════════════════════════════════════
  * Journal d'audit
  * ═══════════════════════════════════════════════════════════════════════════
- * Repris du patron `pages/ActivityLog` de Vireo : barre de filtres avec
- * recherche et puces de type d'événement, au-dessus du journal.
+ * On ne vient pas LIRE ce journal, on vient y CHERCHER : qui a supprimé quoi, et
+ * quand. D'où le tableau plutôt que la frise du patron `ActivityLog` de Vireo.
  *
- * Vireo présente son journal en frise chronologique (`.ax-timeline`). On a
- * préféré le tableau ici, pour une raison d'usage : on ne vient pas LIRE ce
- * journal, on vient y CHERCHER — qui a supprimé quoi, et quand. Comparer des
- * lignes demande des colonnes alignées ; les puces de filtre, elles, viennent
- * bien du patron.
+ * Le texte des lignes vient de Django (`accounts/services/audit_presentation.py`) :
+ * lui seul peut relier `/api/users/12/` au nom du membre. L'écran ne reçoit plus
+ * à traduire que les domaines et les dates, et garde la requête brute dans le
+ * détail de chaque ligne, pour qui doit la vérifier.
  *
- * Deux corrections de fond :
+ * La couleur est réservée à ce qui demande attention (suppression, blocage,
+ * annulation), et portée par la ligne : teinter aussi chaque domaine rendrait
+ * ce signal invisible.
  *
- *   · La colonne « Statut » affichait « Succès » en vert ou « Échec » en rouge
- *     selon `log.success`. Or `accounts.AuditLog` n'a AUCUN champ `success`, et
- *     le sérialiseur ne l'expose pas : la valeur était toujours `undefined`,
- *     donc la colonne affichait « Succès » sur chaque ligne, quoi qu'il arrive.
- *     Une colonne qui ne peut dire qu'une seule chose n'informe pas — elle
- *     rassure à tort. Elle laisse la place à `description`, qui existe et
- *     n'était affichée nulle part.
- *
- *   · La page rendait TOUTES les entrées d'un coup, sans recherche, sans
- *     filtre et sans pagination. C'est pourtant la seule page du produit qui
- *     grossit indéfiniment.
+ * Les heures sont celles de Dakar, explicitement. Un fuseau laissé au navigateur
+ * ferait diverger le rendu serveur et le rendu client chez un administrateur de
+ * la diaspora, et surtout deux administrateurs ne liraient pas la même heure
+ * pour le même acte.
  */
 
-import { useMemo } from "react";
-import { ScrollText, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  ChevronRight,
+  Layers,
+  MessagesSquare,
+  Megaphone,
+  Newspaper,
+  Network,
+  ScrollText,
+  Search,
+  Settings2,
+  Users,
+  Wallet,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Avatar } from "@/components/vireo/Avatar";
 import { DataTable, type Column } from "@/components/vireo/DataTable";
 import { FilterBar } from "@/components/vireo/FilterBar";
+import { Modal } from "@/components/vireo/Modal";
 import { Pagination } from "@/components/vireo/Pagination";
 import { ALL, useCollection } from "@/hooks/useCollection";
 
 export interface AuditLog {
   id: number;
   user?: number | null;
-  user_email?: string | null;
+  actor_name?: string | null;
+  actor_contact?: string | null;
   action: string;
-  entity?: string | null;
-  entity_id?: number | null;
-  description?: string | null;
+  label: string;
+  domain: string;
+  routine: boolean;
+  tone?: "danger" | "warning" | null;
+  target_label?: string | null;
+  target_href?: string | null;
+  detail?: string | null;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
 }
 
-type SortKey = "date" | "user" | "action" | "entity";
+type SortKey = "date" | "actor" | "label";
 
-/*
- * Les actions sont des chaînes libres côté Django (`action = CharField`). On ne
- * peut donc pas s'appuyer sur une énumération : on classe par mot-clé contenu,
- * ce que faisait déjà l'ancienne version — mais en tons sémantiques Aurora
- * plutôt qu'en `bg-green-100`, invisible en thème sombre.
- */
-const ACTION_TONE: { keyword: string; label: string; cls: string }[] = [
-  { keyword: "CREATE", label: "Création", cls: "ax-badge--success" },
-  { keyword: "UPDATE", label: "Modification", cls: "ax-badge--info" },
-  { keyword: "DELETE", label: "Suppression", cls: "ax-badge--danger" },
-  { keyword: "LOGIN", label: "Connexion", cls: "ax-badge--accent" },
-  { keyword: "LOGOUT", label: "Déconnexion", cls: "ax-badge--neutral" },
-  { keyword: "EXPORT", label: "Export", cls: "ax-badge--warning" },
+const DOMAINS: { key: string; label: string; icon: LucideIcon }[] = [
+  { key: "argent", label: "Argent", icon: Wallet },
+  { key: "membres", label: "Membres", icon: Users },
+  { key: "ndiguels", label: "Ndiguels", icon: Megaphone },
+  { key: "actualites", label: "Actualités", icon: Newspaper },
+  { key: "organisation", label: "Organisation", icon: Network },
+  { key: "reglages", label: "Réglages", icon: Settings2 },
+  { key: "messagerie", label: "Messagerie", icon: MessagesSquare },
+  { key: "autre", label: "Autre", icon: Layers },
 ];
 
-function toneFor(action: string): string {
-  const key = (action || "").toUpperCase();
-  return (
-    ACTION_TONE.find((t) => key.includes(t.keyword))?.cls ?? "ax-badge--neutral"
-  );
-}
+const domainOf = (key: string) =>
+  DOMAINS.find((d) => d.key === key) ?? DOMAINS[DOMAINS.length - 1];
 
-const dateFmt = new Intl.DateTimeFormat("fr-SN", {
-  day: "2-digit",
-  month: "short",
+/* Un auteur absent n'est pas « le système » : tout acte journalisé a un auteur
+   connecté, et le lien ne se vide que lorsque son compte est supprimé. */
+const DELETED_ACTOR = "Compte supprimé";
+const DELETED_ACTOR_KEY = "deleted";
+
+const actorKey = (l: AuditLog) => (l.user ? String(l.user) : DELETED_ACTOR_KEY);
+const actorName = (l: AuditLog) => l.actor_name || DELETED_ACTOR;
+
+const TIME_ZONE = "Africa/Dakar";
+const DAY_MS = 86_400_000;
+
+/* `en-CA` écrit AAAA-MM-JJ : ces clés se comparent comme de simples chaînes. */
+const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIME_ZONE,
   year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const timeFmt = new Intl.DateTimeFormat("fr-SN", {
+  timeZone: TIME_ZONE,
   hour: "2-digit",
   minute: "2-digit",
 });
+const dayFmt = new Intl.DateTimeFormat("fr-SN", {
+  timeZone: TIME_ZONE,
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+const fullFmt = new Intl.DateTimeFormat("fr-SN", {
+  timeZone: TIME_ZONE,
+  dateStyle: "full",
+  timeStyle: "medium",
+});
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "—" : dateFmt.format(d);
+const dayKey = (iso: string | number) => dayKeyFmt.format(new Date(iso));
+
+function whenParts(iso: string, today: string, yesterday: string) {
+  const key = dayKey(iso);
+  return {
+    day:
+      key === today
+        ? "Aujourd'hui"
+        : key === yesterday
+          ? "Hier"
+          : dayFmt.format(new Date(iso)),
+    time: timeFmt.format(new Date(iso)),
+  };
+}
+
+const PERIODS = [
+  { value: ALL, label: "Toute la période" },
+  { value: "1", label: "Aujourd'hui" },
+  { value: "7", label: "7 derniers jours" },
+  { value: "30", label: "30 derniers jours" },
+];
+
+function AuditDetail({
+  log,
+  onClose,
+  today,
+  yesterday,
+}: {
+  log: AuditLog | null;
+  onClose: () => void;
+  today: string;
+  yesterday: string;
+}) {
+  if (!log) return null;
+
+  const domain = domainOf(log.domain);
+  const when = whenParts(log.created_at, today, yesterday);
+  const status = log.metadata?.status_code;
+  const params = log.metadata?.query_params as
+    | Record<string, unknown>
+    | undefined;
+  const hasParams = params && Object.keys(params).length > 0;
+
+  return (
+    <Modal
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title={log.label}
+      description={`${when.day} à ${when.time}, heure de Dakar`}
+      footer={
+        <button
+          type="button"
+          className="ax-btn ax-btn--outline"
+          onClick={onClose}
+        >
+          <span className="ax-btn__label">Fermer</span>
+        </button>
+      }
+    >
+      <dl className="flex flex-col gap-3 text-sm">
+        <div>
+          <dt className="ax-text-muted text-xs">Auteur</dt>
+          <dd className="ax-text-strong">
+            {actorName(log)}
+            {log.actor_contact && (
+              <span className="ax-text-muted font-normal">
+                {" "}
+                · {log.actor_contact}
+              </span>
+            )}
+          </dd>
+        </div>
+
+        {log.target_label && (
+          <div>
+            <dt className="ax-text-muted text-xs">Concerne</dt>
+            <dd className="ax-text-strong">
+              {log.target_href ? (
+                <Link href={log.target_href} className="ax-link">
+                  {log.target_label}
+                </Link>
+              ) : (
+                log.target_label
+              )}
+            </dd>
+          </div>
+        )}
+
+        {log.detail && (
+          <div>
+            <dt className="ax-text-muted text-xs">Précisions</dt>
+            <dd>{log.detail}</dd>
+          </div>
+        )}
+
+        <div>
+          <dt className="ax-text-muted text-xs">Domaine</dt>
+          <dd>
+            {domain.label}
+            {log.routine ? " · activité courante" : ""}
+          </dd>
+        </div>
+
+        <div>
+          <dt className="ax-text-muted text-xs">Date exacte</dt>
+          <dd>{fullFmt.format(new Date(log.created_at))}</dd>
+        </div>
+      </dl>
+
+      <details className="mt-4 text-sm">
+        <summary className="ax-text-muted cursor-pointer">
+          Informations techniques
+        </summary>
+        <dl className="mt-2 flex flex-col gap-2 text-xs">
+          <div>
+            <dt className="ax-text-muted">Requête enregistrée</dt>
+            <dd className="font-mono break-all">{log.action}</dd>
+          </div>
+          {typeof status === "number" && (
+            <div>
+              <dt className="ax-text-muted">Réponse du serveur</dt>
+              <dd className="font-mono">{status}</dd>
+            </div>
+          )}
+          {hasParams && (
+            <div>
+              <dt className="ax-text-muted">Paramètres</dt>
+              <dd className="font-mono break-all">{JSON.stringify(params)}</dd>
+            </div>
+          )}
+          <div>
+            <dt className="ax-text-muted">Entrée du journal</dt>
+            <dd className="font-mono">n°{log.id}</dd>
+          </div>
+        </dl>
+      </details>
+    </Modal>
+  );
 }
 
 export function AuditClient({ logs }: { logs: AuditLog[] }) {
+  const [includeRoutine, setIncludeRoutine] = useState(false);
+  const [selected, setSelected] = useState<AuditLog | null>(null);
+
+  const [{ today, yesterday, now }] = useState(() => {
+    const instant = Date.now();
+    return {
+      now: instant,
+      today: dayKey(instant),
+      yesterday: dayKey(instant - DAY_MS),
+    };
+  });
+
+  const routineCount = useMemo(
+    () => logs.filter((l) => l.routine).length,
+    [logs],
+  );
+
+  const scope = useMemo(
+    () => (includeRoutine ? logs : logs.filter((l) => !l.routine)),
+    [logs, includeRoutine],
+  );
+
   const searchable = useMemo(
-    () => (l: AuditLog) => [l.user_email, l.action, l.entity, l.description],
+    () => (l: AuditLog) => [
+      actorName(l),
+      l.actor_contact,
+      l.label,
+      l.target_label,
+      l.detail,
+      domainOf(l.domain).label,
+    ],
     [],
   );
 
   const filters = useMemo(
     () => ({
-      /* Filtre par mot-clé contenu, pas par égalité : `action` est libre. */
-      kind: (l: AuditLog, v: string) =>
-        (l.action || "").toUpperCase().includes(v),
-      entity: (l: AuditLog, v: string) => (l.entity || "") === v,
+      domain: (l: AuditLog, v: string) => l.domain === v,
+      actor: (l: AuditLog, v: string) => actorKey(l) === v,
+      period: (l: AuditLog, v: string) =>
+        dayKey(l.created_at) >= dayKey(now - (Number(v) - 1) * DAY_MS),
     }),
-    [],
+    [now],
   );
 
   const sorters = useMemo(
     () => ({
       date: (l: AuditLog) => l.created_at,
-      user: (l: AuditLog) => l.user_email ?? "",
-      action: (l: AuditLog) => l.action,
-      entity: (l: AuditLog) => l.entity ?? "",
+      actor: (l: AuditLog) => actorName(l),
+      label: (l: AuditLog) => l.label,
     }),
     [],
   );
 
-  const c = useCollection(logs, {
+  const c = useCollection(scope, {
     searchable,
     filters,
     sorters,
@@ -118,112 +316,164 @@ export function AuditClient({ logs }: { logs: AuditLog[] }) {
     pageSize: 25,
   });
 
-  /* Compteurs par type — calculés sur l'ensemble, pour que chaque puce annonce
-     ce qu'elle contient et non ce que le filtre courant laisse passer. */
-  const kindCounts = useMemo(() => {
+  const domainCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const t of ACTION_TONE) {
-      counts[t.keyword] = logs.filter((l) =>
-        (l.action || "").toUpperCase().includes(t.keyword),
-      ).length;
-    }
+    for (const l of scope) counts[l.domain] = (counts[l.domain] ?? 0) + 1;
     return counts;
+  }, [scope]);
+
+  /* Tous les auteurs du journal, pas ceux du filtre courant : masquer
+     l'activité courante ne doit pas faire disparaître l'auteur sélectionné. */
+  const actors = useMemo(() => {
+    const byKey = new Map(logs.map((l) => [actorKey(l), l]));
+    const entries = Array.from(byKey, ([value, l]) => ({
+      value,
+      label: actorName(l),
+      contact: l.actor_contact,
+    }));
+
+    /* Deux membres peuvent porter le même nom : le contact les départage. */
+    const seen = new Map<string, number>();
+    for (const e of entries) seen.set(e.label, (seen.get(e.label) ?? 0) + 1);
+
+    return entries
+      .map(({ value, label, contact }) => ({
+        value,
+        label:
+          (seen.get(label) ?? 0) > 1 && contact
+            ? `${label} (${contact})`
+            : label,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr"));
   }, [logs]);
 
-  /* Entités réellement présentes — inutile de proposer un filtre sur une
-     entité dont le journal ne contient aucune trace. */
-  const entities = useMemo(
-    () =>
-      Array.from(new Set(logs.map((l) => l.entity).filter(Boolean))) as string[],
-    [logs],
+  /* Le domaine ne remet pas à zéro quand son dernier élément sort du périmètre :
+     sans ce repli, la puce sélectionnée disparaîtrait et la liste resterait vide. */
+  const activeDomain = c.filter("domain");
+  const visibleDomains = DOMAINS.filter(
+    (d) => domainCounts[d.key] > 0 || d.key === activeDomain,
   );
 
   const columns = useMemo<Column<AuditLog, SortKey>[]>(
     () => [
       {
         key: "date",
-        header: "Date et heure",
+        header: "Quand",
         sortKey: "date",
-        cell: (l) => (
-          <span className="font-mono tabular text-xs">
-            {formatDate(l.created_at)}
-          </span>
-        ),
-      },
-      {
-        key: "user",
-        header: "Utilisateur",
-        sortKey: "user",
-        cell: (l) =>
-          l.user_email || <span className="ax-text-subtle">Système</span>,
-      },
-      {
-        key: "action",
-        header: "Action",
-        sortKey: "action",
-        cell: (l) => (
-          <span className={`ax-badge ax-badge--sm ${toneFor(l.action)}`}>
-            {l.action}
-          </span>
-        ),
-      },
-      {
-        key: "entity",
-        header: "Entité",
-        sortKey: "entity",
-        hideBelow: "md",
-        cell: (l) =>
-          l.entity ? (
-            <span className="ax-badge ax-badge--outline ax-badge--sm">
-              {l.entity}
-              {l.entity_id ? ` #${l.entity_id}` : ""}
+        width: "7.5rem",
+        cell: (l) => {
+          const when = whenParts(l.created_at, today, yesterday);
+          return (
+            <span className="flex flex-col whitespace-nowrap">
+              <span className="ax-text-strong text-sm">{when.day}</span>
+              <span className="ax-text-muted font-mono tabular text-xs">
+                {when.time}
+              </span>
             </span>
-          ) : (
-            <span className="ax-text-subtle">—</span>
-          ),
+          );
+        },
       },
       {
-        key: "description",
-        header: "Détail",
-        hideBelow: "lg",
+        key: "label",
+        header: "Action",
+        sortKey: "label",
         cell: (l) => (
-          <span className="ax-text-muted ax-clamp-2 text-xs">
-            {l.description || "—"}
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="ax-text-strong text-sm">{l.label}</span>
+            {l.target_label && (
+              <span className="ax-text-muted text-xs break-words">
+                {l.target_href ? (
+                  <Link href={l.target_href} className="ax-link">
+                    {l.target_label}
+                  </Link>
+                ) : (
+                  l.target_label
+                )}
+              </span>
+            )}
+            {/* Sur téléphone, la colonne « Qui » disparaît : l'auteur vient ici. */}
+            <span className="ax-text-muted text-xs md:hidden">
+              par {actorName(l)}
+            </span>
           </span>
+        ),
+      },
+      {
+        key: "actor",
+        header: "Qui",
+        sortKey: "actor",
+        hideBelow: "md",
+        cell: (l) => (
+          <span className="flex items-center gap-2 min-w-0">
+            <Avatar name={l.actor_name} size="xs" />
+            <span className={l.user ? "text-sm" : "ax-text-muted text-sm"}>
+              {actorName(l)}
+            </span>
+          </span>
+        ),
+      },
+      {
+        key: "domain",
+        header: "Domaine",
+        hideBelow: "lg",
+        cell: (l) => {
+          const domain = domainOf(l.domain);
+          const Icon = domain.icon;
+          return (
+            <span className="ax-text-muted inline-flex items-center gap-1.5 text-xs whitespace-nowrap">
+              <Icon size={14} aria-hidden="true" />
+              {domain.label}
+            </span>
+          );
+        },
+      },
+      {
+        key: "open",
+        header: "Détail",
+        headerHidden: true,
+        width: "1px",
+        cell: (l) => (
+          <button
+            type="button"
+            className="ax-btn ax-btn--ghost ax-btn--sm ax-btn--icon"
+            aria-label={`Voir le détail : ${l.label}`}
+            onClick={() => setSelected(l)}
+          >
+            <ChevronRight className="ax-btn__icon" aria-hidden="true" />
+          </button>
         ),
       },
     ],
-    [],
+    [today, yesterday],
   );
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Puces de type d'événement — reprises du patron Vireo. */}
-      <div className="ax-cluster gap-2" role="group" aria-label="Type d'événement">
+      <div className="ax-cluster gap-2" role="group" aria-label="Domaine">
         <button
           type="button"
           className={`ax-badge ax-badge--filter ax-badge--pill ${
-            c.filter("kind") === ALL ? "is-selected" : ""
+            activeDomain === ALL ? "is-selected" : ""
           }`}
-          aria-pressed={c.filter("kind") === ALL}
-          onClick={() => c.setFilter("kind", ALL)}
+          aria-pressed={activeDomain === ALL}
+          onClick={() => c.setFilter("domain", ALL)}
         >
-          Tous
-          <span className="ax-badge__icon">{logs.length}</span>
+          Tout
+          <span className="ax-badge__icon">{scope.length}</span>
         </button>
 
-        {ACTION_TONE.filter((t) => kindCounts[t.keyword] > 0).map((t) => (
+        {visibleDomains.map((d) => (
           <button
-            key={t.keyword}
+            key={d.key}
             type="button"
             className={`ax-badge ax-badge--filter ax-badge--pill ${
-              c.filter("kind") === t.keyword ? "is-selected" : ""
+              activeDomain === d.key ? "is-selected" : ""
             }`}
-            aria-pressed={c.filter("kind") === t.keyword}
-            onClick={() => c.setFilter("kind", t.keyword)}
+            aria-pressed={activeDomain === d.key}
+            onClick={() => c.setFilter("domain", d.key)}
           >
-            {t.label}
-            <span className="ax-badge__icon">{kindCounts[t.keyword]}</span>
+            {d.label}
+            <span className="ax-badge__icon">{domainCounts[d.key] ?? 0}</span>
           </button>
         ))}
       </div>
@@ -231,25 +481,41 @@ export function AuditClient({ logs }: { logs: AuditLog[] }) {
       <FilterBar
         searchValue={c.search}
         onSearchChange={c.setSearch}
-        searchPlaceholder="Utilisateur, action, entité ou détail…"
+        searchPlaceholder="Nom, action, membre, Ndiguel…"
         resultCount={c.total}
         itemLabel="entrée"
-        filters={
-          entities.length > 1
-            ? [
-                {
-                  label: "Entité concernée",
-                  value: c.filter("entity"),
-                  onChange: (v) => c.setFilter("entity", v),
-                  options: [
-                    { value: ALL, label: "Toutes les entités" },
-                    ...entities.map((e) => ({ value: e, label: e })),
-                  ],
-                },
-              ]
-            : []
-        }
+        filters={[
+          {
+            label: "Auteur",
+            value: c.filter("actor"),
+            onChange: (v) => c.setFilter("actor", v),
+            options: [{ value: ALL, label: "Tous les auteurs" }, ...actors],
+          },
+          {
+            label: "Période",
+            value: c.filter("period"),
+            onChange: (v) => c.setFilter("period", v),
+            options: PERIODS,
+          },
+        ]}
       />
+
+      {routineCount > 0 && (
+        <label className="ax-check text-sm">
+          <input
+            type="checkbox"
+            className="ax-checkbox"
+            checked={includeRoutine}
+            onChange={(e) => setIncludeRoutine(e.target.checked)}
+          />
+          <span>
+            Afficher aussi l&apos;activité courante{" "}
+            <span className="ax-text-muted">
+              (messages, réactions, profils : {routineCount})
+            </span>
+          </span>
+        </label>
+      )}
 
       <div className="ax-card">
         <DataTable
@@ -258,13 +524,10 @@ export function AuditClient({ logs }: { logs: AuditLog[] }) {
           getRowKey={(l) => l.id}
           sort={c.sort}
           onSort={c.toggleSort}
+          onRowClick={setSelected}
           compact
           caption="Journal des actions administratives et financières"
-          rowTone={(l) =>
-            (l.action || "").toUpperCase().includes("DELETE")
-              ? "danger"
-              : undefined
-          }
+          rowTone={(l) => l.tone ?? undefined}
           empty={
             <div className="ax-card__body">
               <EmptyState
@@ -273,12 +536,12 @@ export function AuditClient({ logs }: { logs: AuditLog[] }) {
                 title={
                   c.isFiltered
                     ? "Aucune entrée ne correspond"
-                    : "Aucune activité enregistrée"
+                    : "Aucune action de gestion enregistrée"
                 }
                 description={
                   c.isFiltered
-                    ? "Élargissez la recherche ou changez de type d'événement."
-                    : "Les actions administratives et financières apparaîtront ici automatiquement."
+                    ? "Élargissez la recherche, la période ou le domaine."
+                    : "Les actes de gestion et les mouvements d'argent apparaîtront ici automatiquement."
                 }
                 action={
                   c.isFiltered ? (
@@ -306,6 +569,20 @@ export function AuditClient({ logs }: { logs: AuditLog[] }) {
         totalItems={c.total}
         pageSize={c.pageSize}
         itemLabel="entrées"
+      />
+
+      {/* Ce que le journal ne contient pas compte autant que ce qu'il contient :
+          une absence de trace ne doit pas être lue comme une absence d'acte. */}
+      <p className="ax-text-muted text-xs">
+        Heures de Dakar. Le journal retient les actions abouties : les
+        connexions et les tentatives refusées n&apos;y figurent pas.
+      </p>
+
+      <AuditDetail
+        log={selected}
+        onClose={() => setSelected(null)}
+        today={today}
+        yesterday={yesterday}
       />
     </div>
   );

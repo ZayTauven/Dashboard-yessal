@@ -64,6 +64,12 @@ export interface DataTableProps<T, SK extends string = string> {
   getRowKey: (row: T) => string | number;
   /** Rend la ligne navigable. */
   rowHref?: (row: T) => string;
+  /**
+   * Raccourci souris pour ouvrir un détail sur place. La ligne doit aussi porter
+   * un bouton : un `<tr>` cliquable n'est atteignable ni au clavier, ni au
+   * lecteur d'écran.
+   */
+  onRowClick?: (row: T) => void;
   /** Signale les lignes qui demandent attention (rejets, échecs…). */
   rowTone?: (row: T) => "success" | "warning" | "danger" | undefined;
   sort?: SortState<SK> | null;
@@ -83,6 +89,7 @@ export function DataTable<T, SK extends string = string>({
   columns,
   getRowKey,
   rowHref,
+  onRowClick,
   rowTone,
   sort,
   onSort,
@@ -174,13 +181,14 @@ export function DataTable<T, SK extends string = string>({
                 className={cn(
                   "ax-table__row",
                   tone && `ax-table__row--${tone}`,
-                  href && "cursor-pointer",
+                  (href || onRowClick) && "cursor-pointer",
                 )}
                 onClick={
-                  href
+                  href || onRowClick
                     ? (e) => {
                         if (isInteractive(e.target)) return;
-                        router.push(href);
+                        if (href) router.push(href);
+                        else onRowClick?.(row);
                       }
                     : undefined
                 }
