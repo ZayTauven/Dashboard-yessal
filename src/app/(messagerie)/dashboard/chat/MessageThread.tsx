@@ -24,6 +24,7 @@ import {
   CheckCheck,
   Copy,
   Download,
+  Eye,
   FileText,
   Loader2,
   Pencil,
@@ -462,7 +463,10 @@ function ChannelPost({
     return (
       <div data-msg={m.id} className={`mt-3 ${flashing ? "yc-flash" : ""}`}>
         <JefCardView message={m}>
-          <Reactions message={m} onReact={onReact} light={m.payload.variant === "palier"} />
+          <span className="flex items-center gap-2">
+            <Reactions message={m} onReact={onReact} light={m.payload.variant === "palier"} />
+            <ViewCount count={m.view_count} />
+          </span>
         </JefCardView>
       </div>
     );
@@ -505,6 +509,7 @@ function ChannelPost({
         <div className="mt-3 flex items-center justify-between gap-2">
           {!m.is_deleted ? <Reactions message={m} onReact={onReact} /> : <span />}
           <span className="flex items-center">
+          <ViewCount count={m.view_count} />
           {onPin && !m.is_deleted && !m.local && (
             <button
               type="button"
@@ -530,6 +535,18 @@ function ChannelPost({
         </div>
       </div>
     </article>
+  );
+}
+
+/** L'œil d'une publication de canal. La couleur suit celle de la carte qui le porte. */
+function ViewCount({ count }: { count?: number | null }) {
+  if (typeof count !== "number") return null;
+  const label = `${count} ${count > 1 ? "vues" : "vue"}`;
+  return (
+    <span className="inline-flex items-center gap-1 text-xs tabular-nums opacity-70" title={label} aria-label={label} role="img">
+      <Eye size={14} aria-hidden />
+      {count.toLocaleString("fr-FR")}
+    </span>
   );
 }
 

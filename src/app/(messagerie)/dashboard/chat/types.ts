@@ -96,6 +96,8 @@ export type MessageRow = {
   file_kind?: "image" | "audio" | "video" | "document" | null;
   file_thumbnail_url?: string | null;
   file_duration?: number | null;
+  /** Publication de canal : membres qui ont ouvert le canal depuis sa parution. */
+  view_count?: number | null;
   edited_at?: string | null;
   payload?: JefCard | null;
   reply_to?: number | null;
