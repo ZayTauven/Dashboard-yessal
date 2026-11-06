@@ -48,6 +48,16 @@ function dayLabel(iso: string) {
   });
 }
 
+/** 45 → « 0:45 » ; 3725 → « 1:02:05 ». */
+export function formatDuration(seconds?: number | null) {
+  if (!seconds && seconds !== 0) return "";
+  const s = Math.max(0, Math.round(seconds));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
+}
+
 export function formatFileSize(bytes?: number | null) {
   if (!bytes && bytes !== 0) return "";
   if (bytes < 1024) return `${bytes} o`;
@@ -127,10 +137,49 @@ export function tokenize(text: string): { type: "text" | "mention" | "link"; val
   let last = 0;
   for (const match of text.matchAll(re)) {
     const idx = match.index ?? 0;
+    const value = match[1] ? withoutTrailingPunctuation(match[1]) : match[0];
     if (idx > last) parts.push({ type: "text", value: text.slice(last, idx) });
-    parts.push({ type: match[1] ? "link" : "mention", value: match[0] });
-    last = idx + match[0].length;
+    parts.push({ type: match[1] ? "link" : "mention", value });
+    last = idx + value.length;
   }
   if (last < text.length) parts.push({ type: "text", value: text.slice(last) });
   return parts;
+}
+
+/** La ponctuation qui suit un lien appartient à la phrase, pas à l'adresse. */
+function withoutTrailingPunctuation(link: string) {
+  return link.replace(/[.,;:!?)\]»"']+$/, "");
+}
+
+/** « https://www.exemple.com/une/longue/page?x=1 » → « exemple.com/une/longue/pa… ». */
+export function linkLabel(link: string) {
+  const bare = link.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
+  return bare.length > 48 ? `${bare.slice(0, 47)}…` : bare;
+}
+
+/** L'identifiant d'une vidéo YouTube, quelle que soit la forme du lien. */
+export function youtubeId(link: string): string | null {
+  const found =
+    /^https?:\/\/(?:www\.|m\.|music\.)?youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|live\/|embed\/)([\w-]{11})(?![\w-])/i.exec(link) ??
+    /^https?:\/\/youtu\.be\/([\w-]{11})(?![\w-])/i.exec(link);
+  return found ? found[1] : null;
+}
+
+/**
+ * Sépare les vidéos YouTube du reste du message : elles s'affichent en carte, et
+ * leur adresse n'a plus besoin de figurer dans le texte.
+ */
+export function extractYoutube(text: string): { rest: string; videos: { id: string; url: string }[] } {
+  const videos: { id: string; url: string }[] = [];
+  const rest = text
+    .replace(/https?:\/\/[^\s]+/g, (raw) => {
+      const url = withoutTrailingPunctuation(raw);
+      const id = youtubeId(url);
+      if (!id) return raw;
+      if (!videos.some((v) => v.id === id)) videos.push({ id, url });
+      return raw.slice(url.length);
+    })
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+  return { rest, videos };
 }

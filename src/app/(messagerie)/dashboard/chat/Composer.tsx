@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, ImageIcon, Lock, Mic, Paperclip, Reply, Send, Square, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { checkFileSize } from "@/components/vireo/FileDrop";
+import { checkFileSize, isVideoFile, MAX_FILE_SIZE_MB, MAX_VIDEO_FILE_SIZE_MB } from "@/components/vireo/FileDrop";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatFileSize, initials } from "./format";
 import type { ChatMember, MessageRow } from "./types";
@@ -116,7 +116,7 @@ export function Composer({
       toast.error("Le partage de fichiers est désactivé pour votre Daara.");
       return;
     }
-    const tooBig = checkFileSize(f);
+    const tooBig = checkFileSize(f, isVideoFile(f) ? MAX_VIDEO_FILE_SIZE_MB : MAX_FILE_SIZE_MB);
     if (tooBig) {
       toast.error(tooBig);
       return;

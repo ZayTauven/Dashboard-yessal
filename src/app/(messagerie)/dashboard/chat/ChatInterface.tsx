@@ -53,6 +53,7 @@ import {
   respondToInvitation,
   searchMembers,
   searchMessages,
+  renewChatSession,
   sendChatMessage,
   setChannelAuthor,
   setChatModerator,
@@ -66,6 +67,7 @@ import { chatIcon } from "./ChannelIcons";
 import { ChannelSettings } from "./ChannelSettings";
 import { ChatSidebar, type SidebarPanel } from "./ChatSidebar";
 import { Composer } from "./Composer";
+import { apercuVideo, envoyerFichier } from "./envoi-fichier";
 import { ConversationInfo } from "./ConversationInfo";
 import { MemberPicker } from "./MemberPicker";
 import { MessageThread } from "./MessageThread";
@@ -675,7 +677,19 @@ export function ChatInterface({
     if (local.reply_to) formData.append("reply_to", String(local.reply_to));
 
     startTransition(async () => {
-      const res = await sendChatMessage(formData);
+      const file = local.local?.file;
+      let res: { data?: unknown; error?: string };
+      if (file) {
+        await renewChatSession();
+        const { thumbnail, duration } = await apercuVideo(file);
+        if (thumbnail) formData.append("thumbnail_b64", thumbnail);
+        if (duration !== null) formData.append("file_duration", String(duration));
+        res = await envoyerFichier(formData, (progress) => {
+          setMessages((prev) => prev.map((m) => (m.id === local.id ? { ...m, local: { ...m.local!, progress } } : m)));
+        });
+      } else {
+        res = await sendChatMessage(formData);
+      }
       if (res.error) {
         toast.error(res.error);
         setMessages((prev) => prev.map((m) => (m.id === local.id ? { ...m, local: { ...m.local!, status: "failed" } } : m)));

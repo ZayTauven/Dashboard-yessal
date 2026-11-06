@@ -33,6 +33,16 @@ export async function getChats() {
   }
 }
 
+/**
+ * Ne fait rien, et c'est son rôle : une action serveur passe par le middleware,
+ * qui renouvelle le jeton d'accès. `/api/chat/upload` n'y passe pas : sans cet
+ * appel préalable, une fenêtre ouverte depuis plus d'une heure verrait sa vidéo
+ * refusée à la fin d'un long envoi.
+ */
+export async function renewChatSession() {
+  return true;
+}
+
 export async function sendChatMessage(formData: FormData) {
   /* Garde-fou de frontiere, PAS un correctif : aucun appelant actuel n'envoie
      de fichier vide — tous construisent leur FormData a la main, sous garde

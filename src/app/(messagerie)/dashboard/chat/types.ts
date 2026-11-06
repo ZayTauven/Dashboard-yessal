@@ -94,6 +94,8 @@ export type MessageRow = {
   file_size?: number | null;
   file_is_image?: boolean;
   file_kind?: "image" | "audio" | "video" | "document" | null;
+  file_thumbnail_url?: string | null;
+  file_duration?: number | null;
   edited_at?: string | null;
   payload?: JefCard | null;
   reply_to?: number | null;
@@ -105,7 +107,7 @@ export type MessageRow = {
    * État local d'un message pas encore confirmé par le serveur. Absent sur
    * tout ce qui vient de l'API ou de Pusher.
    */
-  local?: { status: "sending" | "failed"; file?: File | null; previewUrl?: string | null; clientId?: string };
+  local?: { status: "sending" | "failed"; file?: File | null; previewUrl?: string | null; clientId?: string; progress?: number };
   /** Renvoyé par l'événement Pusher : l'identifiant de la bulle optimiste d'origine. */
   client_id?: string | null;
 };

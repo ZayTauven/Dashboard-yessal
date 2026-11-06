@@ -29,6 +29,7 @@ import {
   Pencil,
   Pin,
   PinOff,
+  Play,
   Reply,
   RotateCcw,
   SmilePlus,
@@ -38,7 +39,8 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { AudioPlayer, JefCardView } from "./ChannelCards";
-import { buildThread, formatFileSize, formatTime, initials, roleLabel, tokenize, type ThreadEntry } from "./format";
+import { buildThread, extractYoutube, formatDuration, formatFileSize, formatTime, initials, linkLabel, roleLabel, tokenize, type ThreadEntry } from "./format";
+import { YoutubeCard } from "./YoutubeCard";
 import type { ChatRow, MessageRow } from "./types";
 
 const QUICK_REACTIONS = ["👍", "❤️", "🙏", "🤲", "😂", "😮"];
@@ -494,10 +496,10 @@ function ChannelPost({
               <div className="mb-2 rounded-xl bg-[#F4F1FB] p-3 dark:bg-muted"><AudioPlayer src={m.file_url} /></div>
             ) : m.file_kind === "document" && m.file_url ? (
               <DocumentCard m={m} />
+            ) : m.file_kind === "video" && m.file_url ? (
+              <VideoCard m={m} />
             ) : null}
-            {m.content && m.content !== m.file_name ? (
-              <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{m.content}</p>
-            ) : null}
+            {m.content && m.content !== m.file_name ? <MessageText text={m.content} className="whitespace-pre-wrap break-words text-[15px] leading-relaxed" /> : null}
           </>
         )}
         <div className="mt-3 flex items-center justify-between gap-2">
@@ -531,6 +533,85 @@ function ChannelPost({
   );
 }
 
+/**
+ * Le texte d'un message : mentions et liens soulignés, adresses raccourcies, et
+ * vidéos YouTube en carte. L'adresse complète reste dans l'infobulle, et dans le
+ * message lui-même pour « Copier » et « Modifier ».
+ */
+function MessageText({ text, edited = false, className }: { text: string; edited?: boolean; className?: string }) {
+  const { rest, videos } = extractYoutube(text);
+  return (
+    <>
+      {rest || edited ? (
+        <p className={className}>
+          {tokenize(rest).map((part, i) =>
+            part.type === "link" ? (
+              <a
+                key={i}
+                href={part.value}
+                title={part.value}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="break-all underline underline-offset-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {linkLabel(part.value)}
+              </a>
+            ) : part.type === "mention" ? (
+              <span key={i} className="rounded bg-[#EEE9FC] px-0.5 font-semibold text-[#4E2E9E]">
+                {part.value}
+              </span>
+            ) : (
+              <span key={i}>{part.value}</span>
+            ),
+          )}
+          {edited ? <span className="ms-1 text-[11px] text-muted-foreground">(modifié)</span> : null}
+        </p>
+      ) : null}
+      {videos.map((video) => (
+        <YoutubeCard key={video.id} id={video.id} url={video.url} />
+      ))}
+    </>
+  );
+}
+
+/**
+ * Rien n'est téléchargé avant l'appui (`preload="none"`) : l'aperçu et le poids
+ * laissent le membre décider s'il veut y consacrer ses données.
+ */
+function VideoCard({ m }: { m: MessageRow }) {
+  const size = formatFileSize(m.file_size ?? m.local?.file?.size);
+  const duration = formatDuration(m.file_duration);
+  const facts = ["Vidéo", duration, size].filter(Boolean).join(" · ");
+
+  if (!m.file_url) {
+    return (
+      <div className="mt-1 flex max-w-sm items-center gap-3 rounded-xl border bg-[#F4F1FB] p-2.5 pe-4 dark:bg-muted">
+        <span className="flex h-11 w-10 shrink-0 items-center justify-center rounded-md bg-[#2F1966] text-white">
+          <Play size={16} aria-hidden />
+        </span>
+        <span className="min-w-0 text-xs text-muted-foreground">
+          <span className="block max-w-[240px] truncate text-sm font-semibold text-foreground">{m.file_name || "Vidéo"}</span>
+          {size} · {m.local?.status === "failed" ? "Échec de l'envoi" : `Envoi ${m.local?.progress ?? 0} %`}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1 max-w-sm" onClick={(e) => e.stopPropagation()}>
+      <video
+        src={m.file_url}
+        poster={m.file_thumbnail_url ?? undefined}
+        controls
+        preload="none"
+        className="max-h-80 w-full rounded-xl border bg-black"
+      />
+      <span className="mt-1 block text-xs text-muted-foreground">{facts}</span>
+    </div>
+  );
+}
+
 function DocumentCard({ m }: { m: MessageRow }) {
   const ext = (m.file_name ?? m.local?.file?.name ?? "").split(".").pop()?.toUpperCase().slice(0, 4) || "DOC";
   return (
@@ -545,7 +626,7 @@ function DocumentCard({ m }: { m: MessageRow }) {
       </span>
       <span className="min-w-0">
         <span className="block max-w-[240px] truncate text-sm font-semibold">{m.file_name || m.local?.file?.name || "Document"}</span>
-        <span className="block text-xs text-muted-foreground">{formatFileSize(m.file_size ?? m.local?.file?.size)} · Ouvrir</span>
+        <span className="block text-xs text-muted-foreground">{formatFileSize(m.file_size ?? m.local?.file?.size)} · {m.local ? `Envoi ${m.local.progress ?? 0} %` : "Ouvrir"}</span>
       </span>
       <FileText size={18} className="ms-auto shrink-0 text-[#4E2E9E]" aria-hidden />
     </a>
@@ -712,29 +793,14 @@ function ThreadItem({
               <div className="mt-1 inline-block rounded-xl bg-[#F4F1FB] px-3 py-2 dark:bg-muted" onClick={(e) => e.stopPropagation()}>
                 {m.file_url ? <AudioPlayer src={m.file_url} /> : <span className="text-xs text-muted-foreground">Note vocale en cours d&apos;envoi…</span>}
               </div>
-            ) : m.file_kind === "video" && m.file_url ? (
-              <video src={m.file_url} controls preload="metadata" className="mt-1 max-h-80 max-w-sm rounded-xl border" onClick={(e) => e.stopPropagation()} />
+            ) : m.file_kind === "video" ? (
+              <VideoCard m={m} />
             ) : m.message_type === "file" ? (
               <DocumentCard m={m} />
             ) : null}
 
             {m.content && (m.message_type === "text" || m.content !== m.file_name) ? (
-              <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">
-                {tokenize(m.content).map((part, i) =>
-                  part.type === "link" ? (
-                    <a key={i} href={part.value} target="_blank" rel="noreferrer noopener" className="break-all underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
-                      {part.value}
-                    </a>
-                  ) : part.type === "mention" ? (
-                    <span key={i} className="rounded bg-[#EEE9FC] px-0.5 font-semibold text-[#4E2E9E]">
-                      {part.value}
-                    </span>
-                  ) : (
-                    <span key={i}>{part.value}</span>
-                  ),
-                )}
-                {m.edited_at ? <span className="ms-1 text-[11px] text-muted-foreground">(modifié)</span> : null}
-              </p>
+              <MessageText text={m.content} edited={Boolean(m.edited_at)} className="whitespace-pre-wrap break-words text-[15px] leading-relaxed" />
             ) : null}
           </>
         )}

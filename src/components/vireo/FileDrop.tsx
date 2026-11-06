@@ -33,6 +33,17 @@ import { cn } from "@/lib/utils";
 /** Plafond commun à tous les dépôts du produit. Aligné sur Django. */
 export const MAX_FILE_SIZE_MB = 15;
 
+/**
+ * Plafond à part des vidéos de la messagerie. Aligné sur `MAX_VIDEO_UPLOAD_SIZE`
+ * (Django) et `client_max_body_size` (nginx).
+ */
+export const MAX_VIDEO_FILE_SIZE_MB = 100;
+
+/** Les extensions que Django lit comme des vidéos (`core/validators.py`). */
+export function isVideoFile(file: File): boolean {
+  return /\.(mp4|mov|3gp)$/i.test(file.name);
+}
+
 /** 2411724 → « 2,3 Mo ». Le séparateur décimal est la virgule, en français. */
 function formatFileSize(bytes: number): string {
   if (bytes >= 1024 * 1024) {

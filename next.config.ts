@@ -55,6 +55,9 @@ const nextConfig: NextConfig = {
    * Les trois valeurs doivent rester alignées. Si l'une bouge, les autres
    * suivent : `components/vireo/FileDrop.tsx` (MAX_FILE_SIZE_MB) et
    * `core/settings.py` (MAX_UPLOAD_SIZE).
+   *
+   * Les pièces jointes de la messagerie, vidéos comprises, ne passent pas par
+   * ici : elles empruntent `/api/chat/upload`, en flux.
    */
   experimental: {
     serverActions: {
