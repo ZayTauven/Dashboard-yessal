@@ -275,6 +275,12 @@ export default function LandingPage() {
           </div>
         </section>
       </main>
+
+      <footer className="px-5 pb-5 text-center sm:px-8 lg:px-10 lg:text-start">
+        <Link href="/confidentialite" className="ax-link text-xs">
+          Politique de confidentialité
+        </Link>
+      </footer>
     </div>
   );
 }

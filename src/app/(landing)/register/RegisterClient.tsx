@@ -287,6 +287,16 @@ export default function RegisterClient({ daaras }: { daaras: DaaraOption[] }) {
                     {isPending ? "Envoi…" : "Envoyer ma demande"}
                   </span>
                 </button>
+
+                {/* Avant l'envoi, pas après : c'est ici que le membre confie
+                    son nom et son numéro pour la première fois. */}
+                <p className="ax-text-subtle text-center text-xs">
+                  Vos données sont traitées comme le décrit notre{" "}
+                  <Link href="/confidentialite" className="ax-link">
+                    politique de confidentialité
+                  </Link>
+                  .
+                </p>
               </form>
             </div>
           </div>

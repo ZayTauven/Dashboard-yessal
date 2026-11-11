@@ -236,6 +236,12 @@ export default function LoginPage() {
           <p className="ax-text-subtle mt-3 text-center text-xs lg:hidden">
             Votre compte est validé par un administrateur.
           </p>
+
+          <p className="mt-3 text-center">
+            <Link href="/confidentialite" className="ax-link text-xs">
+              Politique de confidentialité
+            </Link>
+          </p>
         </div>
       </main>
     </div>
