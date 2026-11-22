@@ -61,10 +61,10 @@ ENV NODE_ENV=production
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./next.config.ts
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=builder --chown=node:node /app/.next ./.next
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/next.config.ts ./next.config.ts
 
 # ─── Le serveur ne tourne pas en root ───────────────────────────────────────
 # Le backend Django tourne en `appuser`, Postgres redescend sur `postgres` ;
@@ -76,11 +76,15 @@ COPY --from=builder /app/next.config.ts ./next.config.ts
 # root DANS le conteneur, donc de quoi réécrire l'application servie aux
 # visiteurs. Descendre d'un cran coûte deux lignes.
 #
-# `chown` avant `USER`, et sur tout /app : `next start` écrit dans
-# `.next/cache` (cache de rendu et de `fetch`). Un /app appartenant à root
-# ferait échouer ces écritures — en silence pour la plupart, et par des pages
-# qui ne se mettent plus jamais à jour pour les autres.
-RUN chown -R node:node /app
+# `next start` écrit dans `.next/cache` (cache de rendu et de `fetch`). Un
+# `.next` appartenant à root ferait échouer ces écritures — en silence pour la
+# plupart, et par des pages qui ne se mettent plus jamais à jour pour les autres.
+#
+# Le propriétaire est posé par `COPY --chown` ci-dessus, pas par un
+# `chown -R /app` après coup : chaque fichier modifié dans une nouvelle couche
+# y est recopié en entier, et ce `chown` doublait l'image (~1 Go de plus, soit
+# ~500 Mo à transférer). `node_modules` reste à root : il n'est que lu.
+RUN chown node:node /app
 USER node
 
 EXPOSE 3000
