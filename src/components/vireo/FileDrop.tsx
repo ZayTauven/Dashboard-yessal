@@ -35,9 +35,12 @@ export const MAX_FILE_SIZE_MB = 15;
 
 /**
  * Plafond à part des vidéos de la messagerie. Aligné sur `MAX_VIDEO_UPLOAD_SIZE`
- * (Django) et `client_max_body_size` (nginx).
+ * (Django) et `PLAFOND_VIDEO_MO` (mobile, `lib/upload.ts`). Traefik ne limite
+ * pas la taille, mais coupe un envoi trop LONG : son `readTimeout` est relevé en
+ * conséquence. Depuis le web, l'envoi traverse aussi Node (`api/chat/upload`),
+ * dont la requête ne peut pas dépasser 5 minutes.
  */
-export const MAX_VIDEO_FILE_SIZE_MB = 100;
+export const MAX_VIDEO_FILE_SIZE_MB = 500;
 
 /** Les extensions que Django lit comme des vidéos (`core/validators.py`). */
 export function isVideoFile(file: File): boolean {
